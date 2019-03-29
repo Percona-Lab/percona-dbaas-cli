@@ -32,7 +32,7 @@ var createCmd = &cobra.Command{
 	Short: "Create MySQL cluster on current Kubernetes cluster",
 
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 0 {
+		if len(args) == 0 {
 			return errors.New("you have to define pxc-cluster-name")
 		}
 		app, err := pxc.New(args[0], defaultVersion)
