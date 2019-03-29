@@ -80,6 +80,6 @@ func (p PXC) App() (string, error) {
 	return buf.String(), nil
 }
 
-func (p PXC) SetConfig(f *pflag.FlagSet) error {
+func (p *PXC) SetConfig(f *pflag.FlagSet) error {
 	return p.config.Set(f)
 }

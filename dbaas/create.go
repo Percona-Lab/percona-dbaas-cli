@@ -68,7 +68,6 @@ func Create(app Deploy) error {
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
-	// fmt.Printf("\n\nCR:\n%s\n\n", cr)
 	err = apply(cr)
 	if err != nil {
 		return errors.Wrap(err, "apply cr")
