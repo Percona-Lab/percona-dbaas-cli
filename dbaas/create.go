@@ -15,7 +15,6 @@
 package dbaas
 
 import (
-	"encoding/base64"
 	"math/rand"
 	"os/exec"
 	"text/template"
@@ -34,6 +33,10 @@ type Deploy interface {
 	// App returns application (custom resource) manifest
 	App() (string, error)
 	Secrets() (string, error)
+	ClusterName() string
+
+	CheckStatus(data []byte) (string, error)
+	CheckOperatorLogs(data []byte) ([]string, error)
 }
 
 type Objects struct {
@@ -49,31 +52,94 @@ type Secrets struct {
 	Rnd  *rand.Rand
 }
 
-func Create(app Deploy) error {
+const getStatusMaxTries = 1200
+
+var ErrorClusterNotReady = errors.New("not ready")
+
+func Create(app Deploy, ok chan<- string, errc chan<- error) {
 	err := apply(app.Bundle())
 	if err != nil {
-		return errors.Wrap(err, "apply bundle")
+		errc <- errors.Wrap(err, "apply bundle")
+		return
 	}
 
 	scrt, err := app.Secrets()
 	if err != nil {
-		return errors.Wrap(err, "get secrets")
+		errc <- errors.Wrap(err, "get secrets")
+		return
 	}
 	err = apply(scrt)
 	if err != nil {
-		return errors.Wrap(err, "apply secrets")
+		errc <- errors.Wrap(err, "apply secrets")
+		return
 	}
 
 	cr, err := app.App()
 	if err != nil {
-		return errors.Wrap(err, "get cr")
+		errc <- errors.Wrap(err, "get cr")
+		return
 	}
 	err = apply(cr)
 	if err != nil {
-		return errors.Wrap(err, "apply cr")
+		errc <- errors.Wrap(err, "apply cr")
+		return
 	}
 
-	return nil
+	tries := 0
+	tckr := time.NewTicker(500 * time.Millisecond)
+	defer tckr.Stop()
+	for range tckr.C {
+		status, err := getStatus(app.ClusterName())
+		if err != nil {
+			errc <- errors.Wrap(err, "get cluster status")
+			return
+		}
+		resp, err := app.CheckStatus(status)
+		if err == nil {
+			ok <- resp
+			return
+		}
+		if err != ErrorClusterNotReady {
+			errc <- errors.Wrap(err, "parse cluster status")
+			return
+		}
+		if tries >= getStatusMaxTries {
+			errc <- errors.Wrap(err, "unable to run cluster")
+			return
+		}
+
+		opLogsStream, err := readOperatorLogs("percona-xtradb-cluster-operator")
+		if err != nil {
+			errc <- errors.Wrap(err, "get operator logs")
+			return
+		}
+
+		opLogs, err := app.CheckOperatorLogs(opLogsStream)
+		if err != nil {
+			errc <- errors.Wrap(err, "parse operator logs")
+			return
+		}
+
+		for _, entry := range opLogs {
+			errc <- errors.New(entry)
+		}
+
+		tries++
+	}
+}
+
+func readOperatorLogs(operatorName string) ([]byte, error) {
+	podName, err := exec.Command("kubectl", "get", "-l", "name="+operatorName, "-o", "jsonpath=\"{.items[0].metadata.name}\"").Output()
+	if err != nil {
+		return nil, errors.Wrap(err, "get operator pod name")
+	}
+
+	return exec.Command("kubectl", "logs", string(podName)).Output()
+}
+
+func getStatus(clusterName string) ([]byte, error) {
+	cmd := exec.Command("kubectl", "get", "pxc/"+clusterName, "-o", "json")
+	return cmd.Output()
 }
 
 func apply(yaml string) error {
@@ -86,17 +152,12 @@ func apply(yaml string) error {
 	return nil
 }
 
-func genPassB64() string {
-	b := genPass()
-	buf := make([]byte, base64.StdEncoding.EncodedLen(len(b)))
-	base64.StdEncoding.Encode(buf, b)
-	return string(buf)
-}
+var passsymbols = []byte("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 func genPass() []byte {
-	pass := make([]byte, rand.Intn(5)+10)
+	pass := make([]byte, rand.Intn(5)+16)
 	for i := 0; i < len(pass); i++ {
-		pass[i] = '!' + byte(rand.Intn(94))
+		pass[i] = passsymbols[rand.Intn(len(passsymbols))]
 	}
 
 	return pass

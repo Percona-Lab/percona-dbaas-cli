@@ -15,11 +15,14 @@
 package cmd
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -31,21 +34,44 @@ var createCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create MySQL cluster on current Kubernetes cluster",
 
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			return errors.New("you have to define pxc-cluster-name")
+			fmt.Printf("[Error] you have to define pxc-cluster-name")
+			return
 		}
 		app, err := pxc.New(args[0], defaultVersion)
+
 		if err != nil {
-			errors.Wrap(err, "create pxc:")
+			fmt.Printf("[Error] create pxc: %v", err)
+			return
 		}
 
 		err = app.SetConfig(cmd.Flags())
 		if err != nil {
-			errors.Wrap(err, "set configuration:")
+			fmt.Printf("[Error] set configuration: %v", err)
+			return
 		}
 
-		return dbaas.Create(app)
+		fmt.Print("\n\nStarting")
+
+		created := make(chan string)
+		cerr := make(chan error)
+
+		go dbaas.Create(app, created, cerr)
+		tckr := time.NewTicker(1 * time.Second)
+		defer tckr.Stop()
+		for range tckr.C {
+			select {
+			case msg := <-created:
+				fmt.Printf("[done]\n\n%s", msg)
+				return
+			case err := <-cerr:
+				log.Error("create pxc: ", err)
+				// return
+			default:
+				fmt.Print(".")
+			}
+		}
 	},
 }
 
@@ -61,4 +87,9 @@ func init() {
 	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
 
 	pxcCmd.AddCommand(createCmd)
+
+	log.SetFormatter(&log.TextFormatter{
+		DisableTimestamp:       true,
+		DisableLevelTruncation: true,
+	})
 }

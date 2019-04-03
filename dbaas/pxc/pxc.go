@@ -17,6 +17,9 @@ package pxc
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -31,9 +34,11 @@ var (
 )
 
 type PXC struct {
-	name   string
-	config Config
-	obj    dbaas.Objects
+	name         string
+	config       Config
+	obj          dbaas.Objects
+	dbpass       []byte
+	opLogsLastTS float64
 }
 
 func New(name string, version Version) (*PXC, error) {
@@ -50,8 +55,13 @@ func (p PXC) Bundle() string {
 	return p.obj.Bundle
 }
 
+func (p PXC) ClusterName() string {
+	return p.name
+}
+
 func (p PXC) Secrets() (string, error) {
 	pass := dbaas.GenSecrets(p.obj.Secrets.Keys)
+	p.dbpass = pass["root"]
 	pb64 := make(map[string]string, len(pass)+1)
 
 	pb64["ClusterName"] = p.name
@@ -82,4 +92,98 @@ func (p PXC) App() (string, error) {
 
 func (p *PXC) SetConfig(f *pflag.FlagSet) error {
 	return p.config.Set(f)
+}
+
+type ClusterState string
+
+const (
+	ClusterStateInit  ClusterState = ""
+	ClusterStateReady              = "ready"
+)
+
+// PerconaXtraDBClusterStatus defines the observed state of PerconaXtraDBCluster
+type PerconaXtraDBClusterStatus struct {
+	PXC      PodStatus    `json:"pxc,omitempty"`
+	ProxySQL PodStatus    `json:"proxysql,omitempty"`
+	Host     string       `json:"host,omitempty"`
+	Status   ClusterState `json:"state,omitempty"`
+}
+
+type PodStatus struct {
+	Size  int32 `json:"size,omitempty"`
+	Ready int32 `json:"ready,omitempty"`
+}
+
+type k8sStatus struct {
+	Status PerconaXtraDBClusterStatus
+}
+
+const okmsg = `
+MySQL cluster started successfully, right endpoint for application:
+Host: %s
+Port: 3306
+User: root
+Pass: %s
+`
+
+func (p *PXC) CheckStatus(data []byte) (string, error) {
+	st := &k8sStatus{}
+
+	err := json.Unmarshal(data, st)
+	if err != nil {
+		return "", errors.Wrap(err, "unmarshal status")
+	}
+
+	if st.Status.Status != ClusterStateReady {
+		return "", dbaas.ErrorClusterNotReady
+	}
+
+	return fmt.Sprintf(okmsg, st.Status.Host, p.dbpass), nil
+}
+
+type operatorLogs struct {
+	Level   string  `json:"level"`
+	TS      float64 `json:"ts"`
+	Msg     string  `json:"msg"`
+	Error   string  `json:"error"`
+	Request string  `json:"Request"`
+}
+
+func (p *PXC) CheckOperatorLogs(data []byte) ([]string, error) {
+	msgs := []string{}
+
+	lines := bytes.Split(data, []byte("\n"))
+	for _, l := range lines {
+		entry := &operatorLogs{}
+
+		err := json.Unmarshal(l, entry)
+		if err != nil {
+			return nil, errors.Wrap(err, "unmarshal entry")
+		}
+
+		// skips old entries
+		if entry.TS <= p.opLogsLastTS {
+			continue
+		}
+
+		p.opLogsLastTS = entry.TS
+
+		if entry.Level != "error" {
+			continue
+		}
+
+		cluster := ""
+		s := strings.Split(entry.Request, "/")
+		if len(s) == 1 {
+			cluster = s[0]
+		}
+
+		if cluster != p.name {
+			continue
+		}
+
+		msgs = append(msgs, entry.Msg+": "+entry.Error)
+	}
+
+	return msgs, nil
 }
