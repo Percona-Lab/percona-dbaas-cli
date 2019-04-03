@@ -75,7 +75,7 @@ spec:
 #    nodeSelector:
 #      disktype: ssd
     affinity:
-      antiAffinityTopologyKey: "kubernetes.io/hostname"
+      antiAffinityTopologyKey: "failure-domain.beta.kubernetes.io/zone"
 #      advanced:
 #        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
@@ -126,7 +126,7 @@ spec:
 #    nodeSelector:
 #      disktype: ssd
     affinity:
-      antiAffinityTopologyKey: "kubernetes.io/hostname"
+      antiAffinityTopologyKey: "failure-domain.beta.kubernetes.io/zone"
 #      advanced:
 #        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
@@ -355,7 +355,7 @@ spec:
     spec:
       containers:
         - name: percona-xtradb-cluster-operator
-          image: percona/percona-xtradb-cluster-operator:0.3.0
+          image: perconalab/percona-xtradb-cluster-operator:0.4.0-test
           ports:
           - containerPort: 60000
             name: metrics
