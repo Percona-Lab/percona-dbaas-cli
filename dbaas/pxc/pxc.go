@@ -141,7 +141,7 @@ func (p *PXC) CheckStatus(data []byte) (string, error) {
 	return fmt.Sprintf(okmsg, st.Status.Host, p.dbpass), nil
 }
 
-type operatorLogs struct {
+type operatorLog struct {
 	Level   string  `json:"level"`
 	TS      float64 `json:"ts"`
 	Msg     string  `json:"msg"`
@@ -149,13 +149,16 @@ type operatorLogs struct {
 	Request string  `json:"Request"`
 }
 
-func (p *PXC) CheckOperatorLogs(data []byte) ([]string, error) {
-	msgs := []string{}
+func (p *PXC) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
+	msgs := []dbaas.OutuputMsg{}
 
 	lines := bytes.Split(data, []byte("\n"))
 	for _, l := range lines {
-		entry := &operatorLogs{}
+		if len(l) == 0 {
+			continue
+		}
 
+		entry := &operatorLog{}
 		err := json.Unmarshal(l, entry)
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshal entry")
@@ -174,16 +177,26 @@ func (p *PXC) CheckOperatorLogs(data []byte) ([]string, error) {
 
 		cluster := ""
 		s := strings.Split(entry.Request, "/")
-		if len(s) == 1 {
-			cluster = s[0]
+		if len(s) == 2 {
+			cluster = s[1]
 		}
 
 		if cluster != p.name {
 			continue
 		}
 
-		msgs = append(msgs, entry.Msg+": "+entry.Error)
+		msgs = append(msgs, alterOpError(entry))
 	}
 
 	return msgs, nil
+}
+
+func alterOpError(l *operatorLog) dbaas.OutuputMsg {
+	if strings.Contains(l.Error, "the object has been modified; please apply your changes to the latest version and try again") {
+		if i := strings.Index(l.Error, "Operation cannot be fulfilled on"); i >= 0 {
+			return dbaas.OutuputMsgDebug(l.Error[i:])
+		}
+	}
+
+	return dbaas.OutuputMsgError(l.Msg + ": " + l.Error)
 }

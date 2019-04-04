@@ -17,6 +17,7 @@ package dbaas
 import (
 	"math/rand"
 	"os/exec"
+	"strings"
 	"text/template"
 	"time"
 
@@ -36,7 +37,7 @@ type Deploy interface {
 	ClusterName() string
 
 	CheckStatus(data []byte) (string, error)
-	CheckOperatorLogs(data []byte) ([]string, error)
+	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 }
 
 type Objects struct {
@@ -56,7 +57,7 @@ const getStatusMaxTries = 1200
 
 var ErrorClusterNotReady = errors.New("not ready")
 
-func Create(app Deploy, ok chan<- string, errc chan<- error) {
+func Create(app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	err := apply(app.Bundle())
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundle")
@@ -121,7 +122,7 @@ func Create(app Deploy, ok chan<- string, errc chan<- error) {
 		}
 
 		for _, entry := range opLogs {
-			errc <- errors.New(entry)
+			msg <- entry
 		}
 
 		tries++
@@ -129,12 +130,12 @@ func Create(app Deploy, ok chan<- string, errc chan<- error) {
 }
 
 func readOperatorLogs(operatorName string) ([]byte, error) {
-	podName, err := exec.Command("kubectl", "get", "-l", "name="+operatorName, "-o", "jsonpath=\"{.items[0].metadata.name}\"").Output()
+	podName, err := exec.Command("kubectl", "get", "pod", "-l", "name="+operatorName, "-o", "jsonpath=\"{.items[0].metadata.name}\"").Output()
 	if err != nil {
 		return nil, errors.Wrap(err, "get operator pod name")
 	}
 
-	return exec.Command("kubectl", "logs", string(podName)).Output()
+	return exec.Command("kubectl", "logs", "pod/"+strings.Trim(string(podName), `"`)).Output()
 }
 
 func getStatus(clusterName string) ([]byte, error) {

@@ -16,13 +16,13 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
-	log "github.com/sirupsen/logrus"
 )
 
 const (
@@ -55,19 +55,28 @@ var createCmd = &cobra.Command{
 		fmt.Print("\n\nStarting")
 
 		created := make(chan string)
+		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Create(app, created, cerr)
+		go dbaas.Create(app, created, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for range tckr.C {
 			select {
-			case msg := <-created:
-				fmt.Printf("[done]\n\n%s", msg)
+			case okmsg := <-created:
+				fmt.Printf("[done]\n\n%s\n", okmsg)
 				return
+			case omsg := <-msg:
+				switch omsg.(type) {
+				case dbaas.OutuputMsgDebug:
+					fmt.Printf("\n[debug] %s\n", omsg)
+				case dbaas.OutuputMsgError:
+					fmt.Printf("\n[error] %s\n", omsg)
+				}
+
 			case err := <-cerr:
-				log.Error("create pxc: ", err)
-				// return
+				fmt.Fprintf(os.Stderr, "[ERROR] create pxc: %v\n", err)
+				return
 			default:
 				fmt.Print(".")
 			}
@@ -87,9 +96,4 @@ func init() {
 	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
 
 	pxcCmd.AddCommand(createCmd)
-
-	log.SetFormatter(&log.TextFormatter{
-		DisableTimestamp:       true,
-		DisableLevelTruncation: true,
-	})
 }
