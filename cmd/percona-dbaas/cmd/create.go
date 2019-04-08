@@ -46,13 +46,13 @@ var createCmd = &cobra.Command{
 			return
 		}
 
-		err = app.SetConfig(cmd.Flags())
+		setupmsg, err := app.Setup(cmd.Flags())
 		if err != nil {
 			fmt.Printf("[Error] set configuration: %v", err)
 			return
 		}
 
-		fmt.Print("\n\nStarting")
+		fmt.Printf("%s\nStarting", setupmsg)
 
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
@@ -73,9 +73,8 @@ var createCmd = &cobra.Command{
 				case dbaas.OutuputMsgError:
 					fmt.Printf("\n[error] %s\n", omsg)
 				}
-
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "[ERROR] create pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
 				return
 			default:
 				fmt.Print(".")

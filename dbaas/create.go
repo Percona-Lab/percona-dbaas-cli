@@ -34,11 +34,22 @@ type Deploy interface {
 	// App returns application (custom resource) manifest
 	App() (string, error)
 	Secrets() (string, error)
-	ClusterName() string
 
-	CheckStatus(data []byte) (string, error)
+	ClusterName() string
+	OperatorName() string
+
+	CheckStatus(data []byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 }
+
+type ClusterState string
+
+const (
+	ClusterStateUnknown ClusterState = "unknown"
+	ClusterStateInit                 = "initializing"
+	ClusterStateReady                = "ready"
+	ClusterStateError                = "error"
+)
 
 type Objects struct {
 	Bundle  string
@@ -95,21 +106,23 @@ func Create(app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- err
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		resp, err := app.CheckStatus(status)
-		if err == nil {
-			ok <- resp
-			return
-		}
-		if err != ErrorClusterNotReady {
+		state, msgs, err := app.CheckStatus(status)
+		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
 		}
-		if tries >= getStatusMaxTries {
-			errc <- errors.Wrap(err, "unable to run cluster")
+
+		switch state {
+		case ClusterStateReady:
+			ok <- strings.Join(msgs, "\n")
 			return
+		case ClusterStateError:
+			errc <- errors.New(strings.Join(msgs, "\n"))
+			return
+		case ClusterStateInit:
 		}
 
-		opLogsStream, err := readOperatorLogs("percona-xtradb-cluster-operator")
+		opLogsStream, err := readOperatorLogs(app.OperatorName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get operator logs")
 			return
@@ -123,6 +136,11 @@ func Create(app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- err
 
 		for _, entry := range opLogs {
 			msg <- entry
+		}
+
+		if tries >= getStatusMaxTries {
+			errc <- errors.Wrap(err, "unable to start cluster")
+			return
 		}
 
 		tries++
