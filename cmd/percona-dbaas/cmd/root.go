@@ -35,7 +35,7 @@ var rootCmd = &cobra.Command{
     # percona-dbaas pxc list
         list all MySQL clusters on current Kubernetes cluster
     # percona-dbaas pxc delete <pxc-cluster-name>
-        list all MySQL clusters on current Kubernetes cluster
+        delete MySQL cluster
     # percona-dbaas pxc create-backup <pxc-cluster-name>
         create on-demand backup of MySQL cluster`,
 }

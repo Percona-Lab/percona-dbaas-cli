@@ -36,6 +36,8 @@ type Resources struct {
 	CPU    string
 }
 
+// Set sets configuration parameters from given cli flags
+// TODO: pre-parse resources with k8s/resource.ParseQuantity in order to return error before creating a cluster
 func (c *Config) Set(f *pflag.FlagSet) (err error) {
 	c.PXC.Storage, err = f.GetString("storage")
 	if err != nil {

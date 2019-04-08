@@ -75,7 +75,7 @@ spec:
 #    nodeSelector:
 #      disktype: ssd
     affinity:
-      antiAffinityTopologyKey: "failure-domain.beta.kubernetes.io/zone"
+      antiAffinityTopologyKey: "kubernetes.io/hostname"
 #      advanced:
 #        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
@@ -126,7 +126,7 @@ spec:
 #    nodeSelector:
 #      disktype: ssd
     affinity:
-      antiAffinityTopologyKey: "failure-domain.beta.kubernetes.io/zone"
+      antiAffinityTopologyKey: "kubernetes.io/hostname"
 #      advanced:
 #        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
@@ -166,12 +166,12 @@ spec:
 #    imagePullSecrets:
 #      - name: private-registry-credentials
     storages:
-      s3-us-west:
-        type: s3
-        s3:
-          bucket: S3-BACKUP-BUCKET-NAME-HERE
-          credentialsSecret: change-me-s3
-          region: us-west-2
+#      s3-us-west:
+#        type: s3
+#        s3:
+#          bucket: S3-BACKUP-BUCKET-NAME-HERE
+#          credentialsSecret: change-me-s3
+#          region: us-west-2
       fs-pvc:
         type: filesystem
         volume:
@@ -355,7 +355,7 @@ spec:
     spec:
       containers:
         - name: percona-xtradb-cluster-operator
-          image: perconalab/percona-xtradb-cluster-operator:0.4.0-test
+          image: perconalab/percona-xtradb-cluster-operator:0.4.0-extstat
           ports:
           - containerPort: 60000
             name: metrics

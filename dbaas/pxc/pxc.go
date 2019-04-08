@@ -59,7 +59,7 @@ func (p PXC) ClusterName() string {
 	return p.name
 }
 
-func (p PXC) Secrets() (string, error) {
+func (p *PXC) Secrets() (string, error) {
 	pass := dbaas.GenSecrets(p.obj.Secrets.Keys)
 	p.dbpass = pass["root"]
 	pb64 := make(map[string]string, len(pass)+1)
@@ -85,33 +85,55 @@ func (p PXC) App() (string, error) {
 	var buf bytes.Buffer
 	err := p.obj.CR.Execute(&buf, p.config)
 	if err != nil {
-		return "", errors.Wrap(err, "parse template:")
+		return "", errors.Wrap(err, "parse template")
 	}
 	return buf.String(), nil
 }
 
-func (p *PXC) SetConfig(f *pflag.FlagSet) error {
-	return p.config.Set(f)
+const createMsg = `Create MySQL cluster.
+ 
+PXC instances           | %v
+ProxySQL instances      | %v
+Storage                 | %v
+`
+
+func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
+	err := p.config.Set(f)
+	if err != nil {
+		return "", errors.Wrap(err, "parse options")
+	}
+
+	return fmt.Sprintf(createMsg, p.config.PXC.Size, p.config.Proxy.Size, p.config.PXC.Storage), nil
 }
 
-type ClusterState string
+func (p *PXC) OperatorName() string {
+	return "percona-xtradb-cluster-operator"
+}
+
+// TODO do we need this duplication with the dbaas.ClusterState? May PSMDB have different/extended states?
+type AppState string
 
 const (
-	ClusterStateInit  ClusterState = ""
-	ClusterStateReady              = "ready"
+	AppStateUnknown AppState = "unknown"
+	AppStateInit             = "initializing"
+	AppStateReady            = "ready"
+	AppStateError            = "error"
 )
 
 // PerconaXtraDBClusterStatus defines the observed state of PerconaXtraDBCluster
 type PerconaXtraDBClusterStatus struct {
-	PXC      PodStatus    `json:"pxc,omitempty"`
-	ProxySQL PodStatus    `json:"proxysql,omitempty"`
-	Host     string       `json:"host,omitempty"`
-	Status   ClusterState `json:"state,omitempty"`
+	PXC      AppStatus `json:"pxc,omitempty"`
+	ProxySQL AppStatus `json:"proxysql,omitempty"`
+	Host     string    `json:"host,omitempty"`
+	Messages []string  `json:"message,omitempty"`
+	Status   AppState  `json:"state,omitempty"`
 }
 
-type PodStatus struct {
-	Size  int32 `json:"size,omitempty"`
-	Ready int32 `json:"ready,omitempty"`
+type AppStatus struct {
+	Size    int32    `json:"size,omitempty"`
+	Ready   int32    `json:"ready,omitempty"`
+	Status  AppState `json:"status,omitempty"`
+	Message string   `json:"message,omitempty"`
 }
 
 type k8sStatus struct {
@@ -126,19 +148,24 @@ User: root
 Pass: %s
 `
 
-func (p *PXC) CheckStatus(data []byte) (string, error) {
+func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
-		return "", errors.Wrap(err, "unmarshal status")
+		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
 	}
 
-	if st.Status.Status != ClusterStateReady {
-		return "", dbaas.ErrorClusterNotReady
+	switch st.Status.Status {
+	case AppStateReady:
+		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, p.dbpass)}, nil
+	case AppStateInit:
+		return dbaas.ClusterStateInit, nil, nil
+	case AppStateError:
+		return dbaas.ClusterStateError, st.Status.Messages, nil
 	}
 
-	return fmt.Sprintf(okmsg, st.Status.Host, p.dbpass), nil
+	return dbaas.ClusterStateInit, nil, nil
 }
 
 type operatorLog struct {
