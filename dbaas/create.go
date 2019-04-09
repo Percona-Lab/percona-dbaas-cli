@@ -15,6 +15,7 @@
 package dbaas
 
 import (
+	"bytes"
 	"math/rand"
 	"os/exec"
 	"strings"
@@ -68,10 +69,21 @@ const getStatusMaxTries = 1200
 
 var ErrorClusterNotReady = errors.New("not ready")
 
-func Create(app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	err := apply(app.Bundle())
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundle")
+		return
+	}
+
+	ext, err := IsCRexists(typ, app.ClusterName())
+	if err != nil {
+		errc <- errors.Wrap(err, "check if cluster exists")
+		return
+	}
+
+	if ext {
+		errc <- errors.Errorf("cluster %s/%s already exists", typ, app.ClusterName())
 		return
 	}
 
@@ -189,4 +201,18 @@ func GenSecrets(keys []string) map[string][]byte {
 	}
 
 	return pass
+}
+
+func IsCRexists(typ, name string) (bool, error) {
+	switch typ {
+	case "pxc":
+		typ = "perconaxtradbcluster.pxc.percona.com"
+	}
+
+	out, err := exec.Command("kubectl", "get", typ, name, "-o", "name").CombinedOutput()
+	if err != nil && !bytes.Contains(out, []byte("NotFound")) {
+		return false, errors.Wrapf(err, "get cr: %s", out)
+	}
+
+	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
 }

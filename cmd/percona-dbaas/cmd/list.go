@@ -12,20 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dbaas
+package cmd
 
-type OutuputMsg interface {
-	String() string
+import (
+	"fmt"
+
+	"github.com/spf13/cobra"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+)
+
+// listCmd represents the list command
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all MySQL clusters on current Kubernetes cluster",
+
+	Run: func(cmd *cobra.Command, args []string) {
+		list, err := dbaas.List("pxc")
+		if err != nil {
+			fmt.Printf("\n[error] %s\n", err)
+			return
+		}
+
+		fmt.Print(list)
+	},
 }
 
-type OutuputMsgDebug string
-
-func (e OutuputMsgDebug) String() string {
-	return string(e)
-}
-
-type OutuputMsgError string
-
-func (e OutuputMsgError) String() string {
-	return string(e)
+func init() {
+	pxcCmd.AddCommand(listCmd)
 }

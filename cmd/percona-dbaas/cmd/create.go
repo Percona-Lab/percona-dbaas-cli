@@ -19,6 +19,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -31,14 +32,16 @@ const (
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create",
+	Use:   "create <pxc-cluster-name>",
 	Short: "Create MySQL cluster on current Kubernetes cluster",
-
-	Run: func(cmd *cobra.Command, args []string) {
+	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			fmt.Printf("[Error] you have to define pxc-cluster-name")
-			return
+			return errors.New("You have to specify pxc-cluster-name")
 		}
+
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
 		app, err := pxc.New(args[0], defaultVersion)
 
 		if err != nil {
@@ -58,7 +61,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Create(app, created, msg, cerr)
+		go dbaas.Create("pxc", app, created, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for range tckr.C {
@@ -84,12 +87,12 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().String("storage", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
+	createCmd.Flags().String("storage-size", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
+	createCmd.Flags().String("storage-class", "", "Name of the StorageClass required by the volume claim")
 	createCmd.Flags().Int("pxc-instances", 3, "Number of PXC nodes in cluster")
 	createCmd.Flags().String("pxc-request-cpu", "600m", "PXC node requests for CPU, in cores. (500m = .5 cores)")
 	createCmd.Flags().String("pxc-request-mem", "1G", "PXC node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
 
-	createCmd.Flags().String("proxy-storage", "2G", "ProxySQL node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
 	createCmd.Flags().Int("proxy-instances", 1, "Number of ProxySQL nodes in cluster")
 	createCmd.Flags().String("proxy-request-cpu", "600m", "ProxySQL node requests for CPU, in cores. (500m = .5 cores)")
 	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")

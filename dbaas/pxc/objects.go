@@ -100,11 +100,12 @@ spec:
 #        path: /data
 #        type: Directory
       persistentVolumeClaim:
+        {{.PXC.StorageClassName}}
 #        storageClassName: standard
 #        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{.PXC.Storage}}
+            storage: {{.PXC.StorageSize}}
   proxysql:
     enabled: true
     size: {{.Proxy.Size}}
@@ -152,7 +153,7 @@ spec:
 #        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{.Proxy.Storage}}
+            storage: 1G
     podDisruptionBudget:
       maxUnavailable: 1
 #      minAvailable: 0
@@ -210,6 +211,24 @@ spec:
     - pxcs
   scope: Namespaced
   version: v1alpha1
+  additionalPrinterColumns:
+    - name: Host
+      type: string
+      JSONPath: .status.host
+    - name: Status
+      type: string
+      JSONPath: .status.state
+    - name: PXC
+      type: string
+      description: Ready pxc nodes
+      JSONPath: .status.pxc.ready
+    - name: proxysql
+      type: string
+      description: Ready pxc nodes
+      JSONPath: .status.proxysql.ready
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
