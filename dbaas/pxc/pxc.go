@@ -103,7 +103,7 @@ func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
 		return "", errors.Wrap(err, "parse options")
 	}
 
-	return fmt.Sprintf(createMsg, p.config.PXC.Size, p.config.Proxy.Size, p.config.PXC.Storage), nil
+	return fmt.Sprintf(createMsg, p.config.PXC.Size, p.config.Proxy.Size, p.config.PXC.StorageSize), nil
 }
 
 func (p *PXC) OperatorName() string {
@@ -146,7 +146,8 @@ Host: %s
 Port: 3306
 User: root
 Pass: %s
-`
+
+Enjoy!`
 
 func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}

@@ -17,6 +17,7 @@ package pxc
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type Config struct {
@@ -26,9 +27,10 @@ type Config struct {
 }
 
 type PodSpec struct {
-	Size     int
-	Storage  string
-	Requests Resources
+	Size             int
+	StorageSize      string
+	StorageClassName string
+	Requests         Resources
 }
 
 type Resources struct {
@@ -37,40 +39,66 @@ type Resources struct {
 }
 
 // Set sets configuration parameters from given cli flags
-// TODO: pre-parse resources with k8s/resource.ParseQuantity in order to return error before creating a cluster
 func (c *Config) Set(f *pflag.FlagSet) (err error) {
-	c.PXC.Storage, err = f.GetString("storage")
+	c.PXC.StorageSize, err = f.GetString("storage-size")
 	if err != nil {
-		return errors.New("undefined `storage`")
+		return errors.New("undefined `storage-size`")
 	}
+	_, err = resource.ParseQuantity(c.PXC.StorageSize)
+	if err != nil {
+		return errors.Wrap(err, "storage-size")
+	}
+
+	c.PXC.StorageClassName, err = f.GetString("storage-class")
+	if err != nil {
+		return errors.New("undefined `storage-class`")
+	}
+	if c.PXC.StorageClassName != "" {
+		c.PXC.StorageClassName = `storageClassName: "` + c.PXC.StorageClassName + `"`
+	}
+
 	c.PXC.Size, err = f.GetInt("pxc-instances")
 	if err != nil {
 		return errors.New("undefined `pxc-instances`")
 	}
 	c.PXC.Requests.CPU, err = f.GetString("pxc-request-cpu")
 	if err != nil {
-		return errors.New("undefined `pxc-request-cpurage`")
+		return errors.New("undefined `pxc-request-cpu`")
 	}
+	_, err = resource.ParseQuantity(c.PXC.Requests.CPU)
+	if err != nil {
+		return errors.Wrap(err, "pxc-request-cpu")
+	}
+
 	c.PXC.Requests.Memory, err = f.GetString("pxc-request-mem")
 	if err != nil {
 		return errors.New("undefined `pxc-request-mem`")
 	}
-
-	c.Proxy.Storage, err = f.GetString("proxy-storage")
+	_, err = resource.ParseQuantity(c.PXC.Requests.Memory)
 	if err != nil {
-		return errors.New("undefined `storage`")
+		return errors.Wrap(err, "pxc-request-mem")
 	}
+
 	c.Proxy.Size, err = f.GetInt("proxy-instances")
 	if err != nil {
 		return errors.New("undefined `proxy-instances`")
 	}
 	c.Proxy.Requests.CPU, err = f.GetString("proxy-request-cpu")
 	if err != nil {
-		return errors.New("undefined `proxy-request-cpurage`")
+		return errors.New("undefined `proxy-request-cpu`")
 	}
+	_, err = resource.ParseQuantity(c.Proxy.Requests.CPU)
+	if err != nil {
+		return errors.Wrap(err, "proxy-request-cpu")
+	}
+
 	c.Proxy.Requests.Memory, err = f.GetString("proxy-request-mem")
 	if err != nil {
-		return errors.New("undefined `proxy-request-mem`")
+		return errors.New("undefined `proxy-request-Memory`")
+	}
+	_, err = resource.ParseQuantity(c.Proxy.Requests.Memory)
+	if err != nil {
+		return errors.Wrap(err, "proxy-request-mem")
 	}
 
 	return nil

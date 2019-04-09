@@ -14,18 +14,17 @@
 
 package dbaas
 
-type OutuputMsg interface {
-	String() string
-}
+import (
+	"os/exec"
 
-type OutuputMsgDebug string
+	"github.com/pkg/errors"
+)
 
-func (e OutuputMsgDebug) String() string {
-	return string(e)
-}
+func List(typ string) (string, error) {
+	out, err := exec.Command("kubectl", "get", typ).CombinedOutput()
+	if err != nil {
+		return "", errors.Wrapf(err, "get cr: %s", out)
+	}
 
-type OutuputMsgError string
-
-func (e OutuputMsgError) String() string {
-	return string(e)
+	return string(out), nil
 }
