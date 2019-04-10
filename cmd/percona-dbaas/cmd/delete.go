@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -43,27 +45,14 @@ var delCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		fmt.Print("Looking for cluster")
-		checkDone := make(chan struct{})
-		var ext bool
-		var err error
-		go func() {
-			ext, err = dbaas.IsCRexists("pxc", name)
-			checkDone <- struct{}{}
-		}()
+		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
+		sp.Color("green", "bold")
+		sp.Prefix = "Looking for the cluster..."
+		sp.FinalMSG = ""
+		sp.Start()
+		defer sp.Stop()
 
-		dtckr := time.NewTicker(1 * time.Second)
-		defer dtckr.Stop()
-	CHECKLOOP:
-		for range dtckr.C {
-			select {
-			case <-checkDone:
-				fmt.Println("[done]")
-				break CHECKLOOP
-			default:
-				fmt.Print(".")
-			}
-		}
+		ext, err := dbaas.IsCRexists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -72,21 +61,19 @@ var delCmd = &cobra.Command{
 
 		if !ext {
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"", "pxc", name)
-
 			list, err := dbaas.List("pxc")
 			if err != nil {
 				return
 			}
-
-			fmt.Println("\nAvaliable clusters:")
+			fmt.Println("Avaliable clusters:")
 			fmt.Print(list)
-
 			return
 		}
 
 		if *delePVC {
+			sp.Stop()
 			var yn string
-			fmt.Printf("All current data on \"%s\" cluster will be destroyed.\nAre you sure? [y/N] ", name)
+			fmt.Printf("\nAll current data on \"%s\" cluster will be destroyed.\nAre you sure? [y/N] ", name)
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
 				yn = strings.TrimSpace(scanner.Text())
@@ -95,25 +82,25 @@ var delCmd = &cobra.Command{
 			if yn != "y" && yn != "Y" {
 				return
 			}
+			sp.Start()
 		}
 
-		fmt.Print("Deleting")
+		sp.Prefix = "Deleting..."
+		// sp.Restart()
 		ok := make(chan string)
 		cerr := make(chan error)
 
 		go dbaas.Delete("pxc", name, *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
-		for range tckr.C {
+		for {
 			select {
 			case <-ok:
-				fmt.Println("[done]")
+				sp.FinalMSG = "Deleting...[done]\n"
 				return
 			case err := <-cerr:
 				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
 				return
-			default:
-				fmt.Print(".")
 			}
 		}
 	},
