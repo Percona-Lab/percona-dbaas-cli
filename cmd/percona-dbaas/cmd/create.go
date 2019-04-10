@@ -19,6 +19,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -55,32 +56,36 @@ var createCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%s\nStarting", setupmsg)
+		fmt.Println(setupmsg)
 
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
 		go dbaas.Create("pxc", app, created, msg, cerr)
-		tckr := time.NewTicker(1 * time.Second)
-		defer tckr.Stop()
-		for range tckr.C {
+		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
+		sp.Color("green", "bold")
+		sp.Prefix = "Starting..."
+		sp.Start()
+		defer sp.Stop()
+		for {
 			select {
 			case okmsg := <-created:
-				fmt.Printf("[done]\n\n%s\n", okmsg)
+				sp.FinalMSG = fmt.Sprintf("Starting...[done]\n%s\n", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
 				case dbaas.OutuputMsgDebug:
-					fmt.Printf("\n[debug] %s\n", omsg)
+					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
+					sp.Stop()
 					fmt.Printf("\n[error] %s\n", omsg)
+					sp.Start()
 				}
 			case err := <-cerr:
 				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				sp.HideCursor = true
 				return
-			default:
-				fmt.Print(".")
 			}
 		}
 	},
