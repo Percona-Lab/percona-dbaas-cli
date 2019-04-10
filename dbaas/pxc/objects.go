@@ -67,15 +67,15 @@ spec:
 #      rack: rack-22
     resources:
       requests:
-        memory: {{.PXC.Requests.Memory}}
-        cpu: {{.PXC.Requests.CPU}}
+        memory: "{{.PXC.Requests.Memory}}"
+        cpu: "{{.PXC.Requests.CPU}}"
 #      limits:
 #        memory: 1G
 #        cpu: "1"
 #    nodeSelector:
 #      disktype: ssd
     affinity:
-      antiAffinityTopologyKey: "kubernetes.io/hostname"
+      antiAffinityTopologyKey: "{{.PXC.AffinityTopologyKey}}"
 #      advanced:
 #        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
@@ -118,8 +118,8 @@ spec:
 #      rack: rack-22
     resources:
       requests:
-        memory: {{.Proxy.Requests.Memory}}
-        cpu: {{.Proxy.Requests.CPU}}
+        memory: "{{.Proxy.Requests.Memory}}"
+        cpu: "{{.Proxy.Requests.CPU}}"
 #      limits:
 #        memory: 1G
 #        cpu: 700m
@@ -127,7 +127,7 @@ spec:
 #    nodeSelector:
 #      disktype: ssd
     affinity:
-      antiAffinityTopologyKey: "kubernetes.io/hostname"
+      antiAffinityTopologyKey: "{{.Proxy.AffinityTopologyKey}}"
 #      advanced:
 #        nodeAffinity:
 #          requiredDuringSchedulingIgnoredDuringExecution:
@@ -212,7 +212,7 @@ spec:
   scope: Namespaced
   version: v1alpha1
   additionalPrinterColumns:
-    - name: Host
+    - name: Endpoint
       type: string
       JSONPath: .status.host
     - name: Status

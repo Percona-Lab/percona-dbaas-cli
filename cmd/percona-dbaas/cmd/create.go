@@ -46,13 +46,13 @@ var createCmd = &cobra.Command{
 		app, err := pxc.New(args[0], defaultVersion)
 
 		if err != nil {
-			fmt.Printf("[Error] create pxc: %v", err)
+			fmt.Println("[Error] create pxc:", err)
 			return
 		}
 
 		setupmsg, err := app.Setup(cmd.Flags())
 		if err != nil {
-			fmt.Printf("[Error] set configuration: %v", err)
+			fmt.Println("[Error] set configuration:", err)
 			return
 		}
 
@@ -97,10 +97,12 @@ func init() {
 	createCmd.Flags().Int("pxc-instances", 3, "Number of PXC nodes in cluster")
 	createCmd.Flags().String("pxc-request-cpu", "600m", "PXC node requests for CPU, in cores. (500m = .5 cores)")
 	createCmd.Flags().String("pxc-request-mem", "1G", "PXC node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
+	createCmd.Flags().String("pxc-anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
 
 	createCmd.Flags().Int("proxy-instances", 1, "Number of ProxySQL nodes in cluster")
 	createCmd.Flags().String("proxy-request-cpu", "600m", "ProxySQL node requests for CPU, in cores. (500m = .5 cores)")
 	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
+	createCmd.Flags().String("proxy-anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
 
 	pxcCmd.AddCommand(createCmd)
 }

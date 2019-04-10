@@ -27,10 +27,20 @@ type Config struct {
 }
 
 type PodSpec struct {
-	Size             int
-	StorageSize      string
-	StorageClassName string
-	Requests         Resources
+	Size                int
+	StorageSize         string
+	StorageClassName    string
+	Requests            Resources
+	AffinityTopologyKey string
+}
+
+type AffinityTopologyKey string
+
+var affinityValidTopologyKeys = map[string]struct{}{
+	"none":                                     struct{}{},
+	"kubernetes.io/hostname":                   struct{}{},
+	"failure-domain.beta.kubernetes.io/zone":   struct{}{},
+	"failure-domain.beta.kubernetes.io/region": struct{}{},
 }
 
 type Resources struct {
@@ -78,6 +88,13 @@ func (c *Config) Set(f *pflag.FlagSet) (err error) {
 	if err != nil {
 		return errors.Wrap(err, "pxc-request-mem")
 	}
+	c.PXC.AffinityTopologyKey, err = f.GetString("pxc-anti-affinity-key")
+	if err != nil {
+		return errors.New("undefined `pxc-anti-affinity-key`")
+	}
+	if _, ok := affinityValidTopologyKeys[c.PXC.AffinityTopologyKey]; !ok {
+		return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", c.PXC.AffinityTopologyKey)
+	}
 
 	c.Proxy.Size, err = f.GetInt("proxy-instances")
 	if err != nil {
@@ -99,6 +116,13 @@ func (c *Config) Set(f *pflag.FlagSet) (err error) {
 	_, err = resource.ParseQuantity(c.Proxy.Requests.Memory)
 	if err != nil {
 		return errors.Wrap(err, "proxy-request-mem")
+	}
+	c.Proxy.AffinityTopologyKey, err = f.GetString("proxy-anti-affinity-key")
+	if err != nil {
+		return errors.New("undefined `proxy-anti-affinity-key`")
+	}
+	if _, ok := affinityValidTopologyKeys[c.Proxy.AffinityTopologyKey]; !ok {
+		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", c.Proxy.AffinityTopologyKey)
 	}
 
 	return nil

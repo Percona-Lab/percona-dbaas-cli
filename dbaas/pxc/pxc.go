@@ -163,7 +163,7 @@ func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
 	case AppStateError:
-		return dbaas.ClusterStateError, st.Status.Messages, nil
+		return dbaas.ClusterStateError, alterStatusMgs(st.Status.Messages), nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
@@ -227,4 +227,54 @@ func alterOpError(l *operatorLog) dbaas.OutuputMsg {
 	}
 
 	return dbaas.OutuputMsgError(l.Msg + ": " + l.Error)
+}
+
+func alterStatusMgs(msgs []string) []string {
+	for i, msg := range msgs {
+		msgs[i] = alterMessage(msg)
+	}
+
+	return msgs
+}
+
+func alterMessage(msg string) string {
+	app := ""
+	if i := strings.Index(msg, ":"); i >= 0 {
+		app = msg[:i]
+	}
+
+	if strings.Contains(msg, "node(s) didn't match pod affinity/anti-affinity") {
+		key := ""
+		switch app {
+		case "PXC":
+			key = "--pxc-anti-affinity-key"
+		case "ProxySQL":
+			key = "--proxy-anti-affinity-key"
+		}
+		return fmt.Sprintf("Cluster node(s) didn't satisfy %s pods [anti-]affinity rules. Try to change %s parameter or add more nodes/change topology of your cluster.", app, key)
+	}
+
+	if strings.Contains(msg, "Insufficient memory.") {
+		key := ""
+		switch app {
+		case "PXC":
+			key = "--pxc-request-mem"
+		case "ProxySQL":
+			key = "--proxy-request-mem"
+		}
+		return fmt.Sprintf("Avaliable memory not enough to satisfy %s request. Try to change %s parameter or add more memmory to your cluster.", app, key)
+	}
+
+	if strings.Contains(msg, "Insufficient cpu.") {
+		key := ""
+		switch app {
+		case "PXC":
+			key = "--pxc-request-cpu"
+		case "ProxySQL":
+			key = "--proxy-request-cpu"
+		}
+		return fmt.Sprintf("Avaliable CPU not enough to satisfy %s request. Try to change %s parameter or add more CPU to your cluster.", app, key)
+	}
+
+	return msg
 }
