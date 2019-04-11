@@ -87,6 +87,7 @@ var delCmd = &cobra.Command{
 		}
 
 		sp.Prefix = "Deleting..."
+
 		ok := make(chan string)
 		cerr := make(chan error)
 

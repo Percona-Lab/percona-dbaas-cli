@@ -79,6 +79,7 @@ var createCmd = &cobra.Command{
 				case dbaas.OutuputMsgError:
 					sp.Stop()
 					fmt.Printf("[operator log error] %s\n", omsg)
+
 					sp.Start()
 				}
 			case err := <-cerr:
