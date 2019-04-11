@@ -1,3 +1,17 @@
+// Copyright © 2019 Percona, LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package pxc
 
 import (
@@ -187,6 +201,31 @@ var affinityValidTopologyKeys = map[string]struct{}{
 }
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
+
+func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet) (err error) {
+	pxcSize, err := f.GetInt32("pxc-instances")
+	if err != nil {
+		return errors.New("undefined `pxc-instances`")
+	}
+	if pxcSize > 0 {
+		cr.Spec.PXC.Size = pxcSize
+	}
+
+	proxySize, err := f.GetInt32("proxy-instances")
+	if err != nil {
+		return errors.New("undefined `proxy-instances`")
+	}
+	if proxySize > 0 {
+		cr.Spec.ProxySQL.Size = proxySize
+	}
+
+	// Disable ProxySQL if size set to 0
+	if cr.Spec.ProxySQL.Size == 0 {
+		cr.Spec.ProxySQL.Enabled = false
+	}
+
+	return nil
+}
 
 func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet) (err error) {
 	cr.ObjectMeta.Name = clusterName

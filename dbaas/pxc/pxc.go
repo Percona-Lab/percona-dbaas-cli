@@ -112,6 +112,34 @@ func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
 	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
 }
 
+const updateMsg = `Update MySQL cluster.
+ 
+PXC instances           | %v
+ProxySQL instances      | %v
+`
+
+func (p *PXC) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
+	cr := &PerconaXtraDBCluster{}
+	err := json.Unmarshal(crRaw, cr)
+	if err != nil {
+		return "", errors.Wrap(err, "unmarshal current cr")
+	}
+
+	p.config.APIVersion = cr.APIVersion
+	p.config.Kind = cr.Kind
+	p.config.Name = cr.Name
+	p.config.Finalizers = cr.Finalizers
+	p.config.Spec = cr.Spec
+	p.config.Status = cr.Status
+
+	err = p.config.UpdateWith(f)
+	if err != nil {
+		return "", errors.Wrap(err, "applay changes to cr")
+	}
+
+	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
+}
+
 func (p *PXC) OperatorName() string {
 	return "percona-xtradb-cluster-operator"
 }

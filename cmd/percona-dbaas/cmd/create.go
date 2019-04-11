@@ -44,7 +44,6 @@ var createCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		app, err := pxc.New(args[0], defaultVersion)
-
 		if err != nil {
 			fmt.Println("[Error] create pxc:", err)
 			return

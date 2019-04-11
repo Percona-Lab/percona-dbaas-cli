@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
 )
 
 func init() {
@@ -41,6 +42,8 @@ type Deploy interface {
 
 	CheckStatus(data []byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
+
+	Update(crRaw []byte, f *pflag.FlagSet) (string, error)
 }
 
 type ClusterState string
@@ -112,7 +115,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := getStatus(app.ClusterName())
+		status, err := getCR(typ, app.ClusterName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
@@ -167,8 +170,8 @@ func readOperatorLogs(operatorName string) ([]byte, error) {
 	return exec.Command("kubectl", "logs", "pod/"+strings.Trim(string(podName), `"`)).Output()
 }
 
-func getStatus(clusterName string) ([]byte, error) {
-	cmd := exec.Command("kubectl", "get", "pxc/"+clusterName, "-o", "json")
+func getCR(typ, clusterName string) ([]byte, error) {
+	cmd := exec.Command("kubectl", "get", typ+"/"+clusterName, "-o", "json")
 	return cmd.Output()
 }
 
