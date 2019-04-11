@@ -60,7 +60,8 @@ var delCmd = &cobra.Command{
 		}
 
 		if !ext {
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"", "pxc", name)
+			sp.Stop()
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
 			list, err := dbaas.List("pxc")
 			if err != nil {
 				return

@@ -54,7 +54,6 @@ const (
 
 type Objects struct {
 	Bundle  string
-	CR      *template.Template
 	Secrets Secrets
 }
 
@@ -173,8 +172,8 @@ func getStatus(clusterName string) ([]byte, error) {
 	return cmd.Output()
 }
 
-func apply(yaml string) error {
-	cmd := exec.Command("sh", "-c", "cat <<-EOF | kubectl apply -f -"+yaml+"\nEOF")
+func apply(k8sObj string) error {
+	cmd := exec.Command("sh", "-c", "cat <<-EOF | kubectl apply -f -\n"+k8sObj+"\nEOF")
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Errorf("%s", b)
