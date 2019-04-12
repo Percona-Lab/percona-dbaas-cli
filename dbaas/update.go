@@ -19,9 +19,22 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
 )
 
-func Edit(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func Update(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+	acr, err := getCR(typ, app.ClusterName())
+	if err != nil {
+		errc <- errors.Wrap(err, "get pxc config")
+		return
+	}
+
+	_, err = app.Update(acr, f)
+	if err != nil {
+		errc <- errors.Wrap(err, "update pxc config")
+		return
+	}
+
 	cr, err := app.App()
 	if err != nil {
 		errc <- errors.Wrap(err, "get cr")
@@ -33,12 +46,12 @@ func Edit(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc 
 		return
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(15 * time.Second)
 	tries := 0
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := getStatus(app.ClusterName())
+		status, err := getCR(typ, app.ClusterName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return

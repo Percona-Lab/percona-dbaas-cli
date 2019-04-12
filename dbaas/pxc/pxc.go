@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
@@ -35,7 +36,7 @@ var (
 
 type PXC struct {
 	name         string
-	config       Config
+	config       *PerconaXtraDBCluster
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
@@ -45,7 +46,7 @@ func New(name string, version Version) (*PXC, error) {
 	pxc := &PXC{
 		name:   name,
 		obj:    objects[version],
-		config: Config{ClusterName: name},
+		config: &PerconaXtraDBCluster{},
 	}
 
 	return pxc, nil
@@ -82,12 +83,12 @@ func (p *PXC) Secrets() (string, error) {
 }
 
 func (p PXC) App() (string, error) {
-	var buf bytes.Buffer
-	err := p.obj.CR.Execute(&buf, p.config)
+	cr, err := json.Marshal(p.config)
 	if err != nil {
-		return "", errors.Wrap(err, "parse template")
+		return "", errors.Wrap(err, "marshal cr template")
 	}
-	return buf.String(), nil
+
+	return string(cr), nil
 }
 
 const createMsg = `Create MySQL cluster.
@@ -98,42 +99,49 @@ Storage                 | %v
 `
 
 func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
-	err := p.config.Set(f)
+	err := p.config.SetNew(p.ClusterName(), f)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
 
-	return fmt.Sprintf(createMsg, p.config.PXC.Size, p.config.Proxy.Size, p.config.PXC.StorageSize), nil
+	storage, err := p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
+	if err != nil {
+		return "", errors.Wrap(err, "marshal pxc volume requests")
+	}
+
+	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
+}
+
+const updateMsg = `Update MySQL cluster.
+ 
+PXC instances           | %v
+ProxySQL instances      | %v
+`
+
+func (p *PXC) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
+	cr := &PerconaXtraDBCluster{}
+	err := json.Unmarshal(crRaw, cr)
+	if err != nil {
+		return "", errors.Wrap(err, "unmarshal current cr")
+	}
+
+	p.config.APIVersion = cr.APIVersion
+	p.config.Kind = cr.Kind
+	p.config.Name = cr.Name
+	p.config.Finalizers = cr.Finalizers
+	p.config.Spec = cr.Spec
+	p.config.Status = cr.Status
+
+	err = p.config.UpdateWith(f)
+	if err != nil {
+		return "", errors.Wrap(err, "applay changes to cr")
+	}
+
+	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
 }
 
 func (p *PXC) OperatorName() string {
 	return "percona-xtradb-cluster-operator"
-}
-
-// TODO do we need this duplication with the dbaas.ClusterState? May PSMDB have different/extended states?
-type AppState string
-
-const (
-	AppStateUnknown AppState = "unknown"
-	AppStateInit             = "initializing"
-	AppStateReady            = "ready"
-	AppStateError            = "error"
-)
-
-// PerconaXtraDBClusterStatus defines the observed state of PerconaXtraDBCluster
-type PerconaXtraDBClusterStatus struct {
-	PXC      AppStatus `json:"pxc,omitempty"`
-	ProxySQL AppStatus `json:"proxysql,omitempty"`
-	Host     string    `json:"host,omitempty"`
-	Messages []string  `json:"message,omitempty"`
-	Status   AppState  `json:"state,omitempty"`
-}
-
-type AppStatus struct {
-	Size    int32    `json:"size,omitempty"`
-	Ready   int32    `json:"ready,omitempty"`
-	Status  AppState `json:"status,omitempty"`
-	Message string   `json:"message,omitempty"`
 }
 
 type k8sStatus struct {
