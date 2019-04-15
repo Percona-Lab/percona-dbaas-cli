@@ -36,7 +36,7 @@ type Deploy interface {
 	App() (string, error)
 	Secrets() (string, error)
 
-	ClusterName() string
+	Name() string
 	OperatorName() string
 
 	CheckStatus(data []byte) (ClusterState, []string, error)
@@ -84,14 +84,14 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 		return
 	}
 
-	ext, err := IsCRexists(typ, app.ClusterName())
+	ext, err := IsCRexists(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return
 	}
 
 	if ext {
-		errc <- ErrAlreadyExists{Typ: typ, Cluster: app.ClusterName()}
+		errc <- ErrAlreadyExists{Typ: typ, Cluster: app.Name()}
 		return
 	}
 
@@ -124,7 +124,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := getCR(typ, app.ClusterName())
+		status, err := getCR(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
