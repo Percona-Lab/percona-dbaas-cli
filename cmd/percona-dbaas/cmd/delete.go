@@ -47,6 +47,10 @@ var delCmd = &cobra.Command{
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
+		demo, err := cmd.Flags().GetBool("demo")
+		if demo && err == nil {
+			sp.UpdateCharSet([]string{""})
+		}
 		sp.Prefix = "Looking for the cluster..."
 		sp.FinalMSG = ""
 		sp.Start()
