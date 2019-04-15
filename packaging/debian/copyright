@@ -1,0 +1,5 @@
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: percona-dbaas-cli
+
+Files: *
+License: APACHE 2.0
