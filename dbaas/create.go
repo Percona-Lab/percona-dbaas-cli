@@ -16,6 +16,7 @@ package dbaas
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"os/exec"
 	"strings"
@@ -69,7 +70,14 @@ type Secrets struct {
 
 const getStatusMaxTries = 1200
 
-var ErrorClusterNotReady = errors.New("not ready")
+type ErrAlreadyExists struct {
+	Typ     string
+	Cluster string
+}
+
+func (e ErrAlreadyExists) Error() string {
+	return fmt.Sprintf("cluster %s/%s already exists", e.Typ, e.Cluster)
+}
 
 func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	err := apply(app.Bundle())
@@ -85,7 +93,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	}
 
 	if ext {
-		errc <- errors.Errorf("cluster %s/%s already exists", typ, app.ClusterName())
+		errc <- ErrAlreadyExists{Typ: typ, Cluster: app.ClusterName()}
 		return
 	}
 
