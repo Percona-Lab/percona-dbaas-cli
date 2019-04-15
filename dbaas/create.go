@@ -111,6 +111,9 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 		return
 	}
 
+	// give a time for operator to start
+	time.Sleep(1 * time.Minute)
+
 	tries := 0
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
