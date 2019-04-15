@@ -1,0 +1,6 @@
+
+percona-dbaas-cli (0.1-1) unstable; urgency=medium
+
+  * Initial release.
+
+ -- Evgeniy Patlan <evgeniy.patlan@percona.com>  Mon, 15 Apr 2019 09:30:13 +0000
