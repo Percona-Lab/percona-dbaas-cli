@@ -56,7 +56,7 @@ func (p PXC) Bundle() string {
 	return p.obj.Bundle
 }
 
-func (p PXC) ClusterName() string {
+func (p PXC) Name() string {
 	return p.name
 }
 
@@ -99,7 +99,7 @@ Storage                 | %v
 `
 
 func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
-	err := p.config.SetNew(p.ClusterName(), f)
+	err := p.config.SetNew(p.Name(), f)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
@@ -178,11 +178,12 @@ func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 }
 
 type operatorLog struct {
-	Level   string  `json:"level"`
-	TS      float64 `json:"ts"`
-	Msg     string  `json:"msg"`
-	Error   string  `json:"error"`
-	Request string  `json:"Request"`
+	Level      string  `json:"level"`
+	TS         float64 `json:"ts"`
+	Msg        string  `json:"msg"`
+	Error      string  `json:"error"`
+	Request    string  `json:"Request"`
+	Controller string  `json:"Controller"`
 }
 
 func (p *PXC) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
@@ -198,6 +199,10 @@ func (p *PXC) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 		err := json.Unmarshal(l, entry)
 		if err != nil {
 			return nil, errors.Wrap(err, "unmarshal entry")
+		}
+
+		if entry.Controller != "perconaxtradbcluster-controller" {
+			continue
 		}
 
 		// skips old entries

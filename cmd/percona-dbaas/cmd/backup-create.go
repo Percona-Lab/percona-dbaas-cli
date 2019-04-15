@@ -24,6 +24,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 // bcpCmd represents the list command
@@ -68,19 +69,34 @@ var bcpCmd = &cobra.Command{
 
 		sp.Prefix = "Creating backup..."
 
+		bcp := pxc.NewBackup(name)
+
+		bcp.Setup("fs-pvc")
+
 		ok := make(chan string)
+		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Delete("pxc", name, *delePVC, ok, cerr)
+		go dbaas.Backup("pxc-backup", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
 			select {
-			case <-ok:
-				sp.FinalMSG = "Creating backup...[done]\n"
+			case okmsg := <-ok:
+				sp.FinalMSG = fmt.Sprintf("Creating backup...[done]\n%s\n", okmsg)
 				return
+			case omsg := <-msg:
+				switch omsg.(type) {
+				case dbaas.OutuputMsgDebug:
+					// fmt.Printf("\n[debug] %s\n", omsg)
+				case dbaas.OutuputMsgError:
+					sp.Stop()
+					fmt.Printf("[operator log error] %s\n", omsg)
+
+					sp.Start()
+				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] create backup: %v\n", err)
 				return
 			}
 		}
@@ -88,5 +104,5 @@ var bcpCmd = &cobra.Command{
 }
 
 func init() {
-	bcpCmd.AddCommand(delCmd)
+	pxcCmd.AddCommand(bcpCmd)
 }

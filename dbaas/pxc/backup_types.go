@@ -1,8 +1,6 @@
 package pxc
 
 import (
-	"time"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -42,11 +40,11 @@ const (
 	BackupSucceeded                = "Succeeded"
 )
 
-func (b *PerconaXtraDBBackup) SetNew(cluster, storage string) {
+func (b *PerconaXtraDBBackup) SetNew(name, cluster, storage string) {
 	b.TypeMeta.APIVersion = "pxc.percona.com/v1alpha1"
-	b.TypeMeta.Kind = "PerconaXtraDBCluster"
+	b.TypeMeta.Kind = "PerconaXtraDBBackup"
 
-	b.ObjectMeta.Name = cluster + "_" + time.Now().Format("2006-01-02T15:04:05")
+	b.ObjectMeta.Name = name
 	b.Spec.PXCCluster = cluster
 	b.Spec.StorageName = storage
 }
