@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	defaultVersion = "0.3.0"
+	defaultVersion = "0.4.0"
 )
 
 // createCmd represents the create command
