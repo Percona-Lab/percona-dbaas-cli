@@ -217,7 +217,7 @@ spec:
     spec:
       containers:
         - name: percona-xtradb-cluster-operator
-          image: perconalab/percona-xtradb-cluster-operator:0.4.0-extstat
+          image: perconalab/percona-xtradb-cluster-operator:0.4.0
           ports:
           - containerPort: 60000
             name: metrics

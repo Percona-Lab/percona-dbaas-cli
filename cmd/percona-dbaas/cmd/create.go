@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	defaultVersion = "0.3.0"
+	defaultVersion = "0.4.0"
 )
 
 // createCmd represents the create command
@@ -64,6 +64,10 @@ var createCmd = &cobra.Command{
 		go dbaas.Create("pxc", app, created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
+		demo, err := cmd.Flags().GetBool("demo")
+		if demo && err == nil {
+			sp.UpdateCharSet([]string{""})
+		}
 		sp.Prefix = "Starting..."
 		sp.Start()
 		defer sp.Stop()
@@ -83,8 +87,20 @@ var createCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
-				sp.HideCursor = true
+				sp.Stop()
+				switch err.(type) {
+				case dbaas.ErrAlreadyExists:
+					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
+					list, err := dbaas.List("pxc")
+					if err != nil {
+						return
+					}
+					fmt.Println("Avaliable clusters:")
+					fmt.Print(list)
+				default:
+					fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				}
+
 				return
 			}
 		}

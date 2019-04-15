@@ -48,3 +48,8 @@ func Execute() {
 		os.Exit(1)
 	}
 }
+
+func init() {
+	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
+	rootCmd.PersistentFlags().MarkHidden("demo")
+}
