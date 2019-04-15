@@ -87,8 +87,20 @@ var createCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
-				sp.HideCursor = true
+				sp.Stop()
+				switch err.(type) {
+				case dbaas.ErrAlreadyExists:
+					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
+					list, err := dbaas.List("pxc")
+					if err != nil {
+						return
+					}
+					fmt.Println("Avaliable clusters:")
+					fmt.Print(list)
+				default:
+					fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				}
+
 				return
 			}
 		}
