@@ -15,10 +15,8 @@
 package dbaas
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
-	"os/exec"
 	"strings"
 	"text/template"
 	"time"
@@ -172,30 +170,6 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	}
 }
 
-func readOperatorLogs(operatorName string) ([]byte, error) {
-	podName, err := exec.Command("kubectl", "get", "pod", "-l", "name="+operatorName, "-o", "jsonpath=\"{.items[0].metadata.name}\"").Output()
-	if err != nil {
-		return nil, errors.Wrap(err, "get operator pod name")
-	}
-
-	return exec.Command("kubectl", "logs", "pod/"+strings.Trim(string(podName), `"`)).Output()
-}
-
-func getCR(typ, clusterName string) ([]byte, error) {
-	cmd := exec.Command("kubectl", "get", typ+"/"+clusterName, "-o", "json")
-	return cmd.Output()
-}
-
-func apply(k8sObj string) error {
-	cmd := exec.Command("sh", "-c", "cat <<-EOF | kubectl apply -f -\n"+k8sObj+"\nEOF")
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		return errors.Errorf("%s", b)
-	}
-
-	return nil
-}
-
 var passsymbols = []byte("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
 func genPass() []byte {
@@ -214,18 +188,4 @@ func GenSecrets(keys []string) map[string][]byte {
 	}
 
 	return pass
-}
-
-func IsCRexists(typ, name string) (bool, error) {
-	switch typ {
-	case "pxc":
-		typ = "perconaxtradbcluster.pxc.percona.com"
-	}
-
-	out, err := exec.Command("kubectl", "get", typ, name, "-o", "name").CombinedOutput()
-	if err != nil && !bytes.Contains(out, []byte("NotFound")) {
-		return false, errors.Wrapf(err, "get cr: %s", out)
-	}
-
-	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
 }
