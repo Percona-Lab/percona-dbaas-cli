@@ -15,10 +15,8 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -28,12 +26,10 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-var delePVC *bool
-
-// delCmd represents the list command
-var delCmd = &cobra.Command{
-	Use:   "delete <pxc-cluster-name>",
-	Short: "Delete MySQL cluster",
+// bcpCmd represents the list command
+var bcpCmd = &cobra.Command{
+	Use:   "create-backup <pxc-cluster-name>",
+	Short: "Create MySQL backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify pxc-cluster-name")
@@ -46,10 +42,6 @@ var delCmd = &cobra.Command{
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
-		demo, err := cmd.Flags().GetBool("demo")
-		if demo && err == nil {
-			sp.UpdateCharSet([]string{""})
-		}
 		sp.Prefix = "Looking for the cluster..."
 		sp.FinalMSG = ""
 		sp.Start()
@@ -74,22 +66,7 @@ var delCmd = &cobra.Command{
 			return
 		}
 
-		if *delePVC {
-			sp.Stop()
-			var yn string
-			fmt.Printf("\nAll current data on \"%s\" cluster will be destroyed.\nAre you sure? [y/N] ", name)
-			scanner := bufio.NewScanner(os.Stdin)
-			for scanner.Scan() {
-				yn = strings.TrimSpace(scanner.Text())
-				break
-			}
-			if yn != "y" && yn != "Y" {
-				return
-			}
-			sp.Start()
-		}
-
-		sp.Prefix = "Deleting..."
+		sp.Prefix = "Creating backup..."
 
 		ok := make(chan string)
 		cerr := make(chan error)
@@ -100,7 +77,7 @@ var delCmd = &cobra.Command{
 		for {
 			select {
 			case <-ok:
-				sp.FinalMSG = "Deleting...[done]\n"
+				sp.FinalMSG = "Creating backup...[done]\n"
 				return
 			case err := <-cerr:
 				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
@@ -111,7 +88,5 @@ var delCmd = &cobra.Command{
 }
 
 func init() {
-	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
-
-	pxcCmd.AddCommand(delCmd)
+	bcpCmd.AddCommand(delCmd)
 }
