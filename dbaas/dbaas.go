@@ -26,7 +26,17 @@ import (
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+
+	execCommand = k8sExecDefault
+	if _, err := exec.LookPath(execCommand); err != nil {
+		execCommand = k8sExecCustom
+		if _, err := exec.LookPath(execCommand); err != nil {
+			panic(fmt.Sprintf("Unable to find neither '%s' nor '%s' exec files", k8sExecDefault, k8sExecCustom))
+		}
+	}
 }
+
+var execCommand string
 
 type ErrCmdRun struct {
 	cmd    string
@@ -48,15 +58,15 @@ func runCmd(cmd string, args ...string) ([]byte, error) {
 }
 
 func readOperatorLogs(operatorName string) ([]byte, error) {
-	return runCmd("kubectl", "logs", "-l", "name="+operatorName)
+	return runCmd(execCommand, "logs", "-l", "name="+operatorName)
 }
 
 func getCR(typ, clusterName string) ([]byte, error) {
-	return runCmd("kubectl", "get", typ+"/"+clusterName, "-o", "json")
+	return runCmd(execCommand, "get", typ+"/"+clusterName, "-o", "json")
 }
 
 func apply(k8sObj string) error {
-	_, err := runCmd("sh", "-c", "cat <<-EOF | kubectl apply -f -\n"+k8sObj+"\nEOF")
+	_, err := runCmd("sh", "-c", "cat <<-EOF | "+execCommand+" apply -f -\n"+k8sObj+"\nEOF")
 	if err != nil {
 		return err
 	}
@@ -70,7 +80,7 @@ func IsCRexists(typ, name string) (bool, error) {
 		typ = "perconaxtradbcluster.pxc.percona.com"
 	}
 
-	out, err := runCmd("kubectl", "get", typ, name, "-o", "name")
+	out, err := runCmd(execCommand, "get", typ, name, "-o", "name")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return false, errors.Wrapf(err, "get cr: %s", out)
 	}
