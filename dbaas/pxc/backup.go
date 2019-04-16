@@ -45,7 +45,7 @@ func (b *Backup) Name() string {
 }
 
 func (b *Backup) Setup(storage string) {
-	b.name = b.cluster + "." + time.Now().Format("2006-01-02.15-04-05")
+	b.name = time.Now().Format("20060102.150405") + "-" + dbaas.GenRandString(3)
 	b.config.SetNew(b.name, b.cluster, storage)
 }
 

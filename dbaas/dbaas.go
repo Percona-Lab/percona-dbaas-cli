@@ -16,11 +16,17 @@ package dbaas
 
 import (
 	"fmt"
+	"math/rand"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 type ErrCmdRun struct {
 	cmd    string
@@ -70,4 +76,16 @@ func IsCRexists(typ, name string) (bool, error) {
 	}
 
 	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
+}
+
+const genSymbols = "abcdefghijklmnopqrstuvwxyz1234567890"
+
+// GenRandString generates a k8s-name legitimate string of given length
+func GenRandString(ln int) string {
+	b := make([]byte, ln)
+	for i := range b {
+		b[i] = genSymbols[rand.Intn(len(genSymbols))]
+	}
+
+	return string(b)
 }
