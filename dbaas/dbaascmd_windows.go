@@ -16,5 +16,5 @@ package dbaas
 
 const (
 	k8sExecDefault = "kubectl.exe"
-	k8sExecCustom  = "percona-dbaas-kubectl.exe"
+	k8sExecCustom  = "percona-kubectl.exe"
 )
