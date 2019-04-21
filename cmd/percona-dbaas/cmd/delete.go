@@ -55,7 +55,7 @@ var delCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsCRexists("pxc", name)
+		ext, err := dbaas.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)

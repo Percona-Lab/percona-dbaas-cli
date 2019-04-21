@@ -37,7 +37,11 @@ func init() {
 	}
 }
 
-var bundle030 = `
+var bundle030 = []dbaas.BundleObject{
+	dbaas.BundleObject{
+		Kind: "CustomResourceDefinition",
+		Name: "perconaxtradbclusters.pxc.percona.com",
+		Data: `
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -72,7 +76,12 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
----
+`,
+	},
+	dbaas.BundleObject{
+		Kind: "CustomResourceDefinition",
+		Name: "perconaxtradbbackups.pxc.percona.com",
+		Data: `
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -113,7 +122,12 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
----
+`,
+	},
+	dbaas.BundleObject{
+		Kind: "Role",
+		Name: "percona-xtradb-cluster-operator",
+		Data: `
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -188,7 +202,12 @@ rules:
   - update
   - patch
   - delete
----
+  `,
+	},
+	dbaas.BundleObject{
+		Kind: "RoleBinding",
+		Name: "default-account-percona-xtradb-cluster-operator",
+		Data: `
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -200,7 +219,12 @@ roleRef:
   kind: Role
   name: percona-xtradb-cluster-operator
   apiGroup: rbac.authorization.k8s.io
----
+  `,
+	},
+	dbaas.BundleObject{
+		Kind: "Deployment",
+		Name: "percona-xtradb-cluster-operator",
+		Data: `
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -232,7 +256,9 @@ spec:
             - name: OPERATOR_NAME
               value: "percona-xtradb-cluster-operator"
 
-`
+`,
+	},
+}
 
 var secrets030 = `
 apiVersion: v1
