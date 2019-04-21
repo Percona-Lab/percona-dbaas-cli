@@ -52,7 +52,7 @@ func New(name string, version Version) (*PXC, error) {
 	return pxc, nil
 }
 
-func (p PXC) Bundle() string {
+func (p PXC) Bundle() []dbaas.BundleObject {
 	return p.obj.Bundle
 }
 

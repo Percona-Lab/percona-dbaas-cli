@@ -74,7 +74,7 @@ func apply(k8sObj string) error {
 	return nil
 }
 
-func IsCRexists(typ, name string) (bool, error) {
+func IsObjExists(typ, name string) (bool, error) {
 	switch typ {
 	case "pxc":
 		typ = "perconaxtradbcluster.pxc.percona.com"

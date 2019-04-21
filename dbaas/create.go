@@ -31,7 +31,7 @@ func init() {
 
 type Deploy interface {
 	// Bundle returns crd, rbac and operator manifests
-	Bundle() string
+	Bundle() []BundleObject
 	// App returns application (custom resource) manifest
 	App() (string, error)
 	Secrets() (string, error)
@@ -54,8 +54,14 @@ const (
 	ClusterStateError                = "error"
 )
 
+type BundleObject struct {
+	Kind string
+	Name string
+	Data string
+}
+
 type Objects struct {
-	Bundle  string
+	Bundle  []BundleObject
 	Secrets Secrets
 }
 
@@ -77,15 +83,37 @@ func (e ErrAlreadyExists) Error() string {
 	return fmt.Sprintf("cluster %s/%s already exists", e.Typ, e.Cluster)
 }
 
+const osRightsMsg = `Not enough rights to pre-setup cluster.
+Try to login under the privileged user run one of the commands listed below and then call "percona-dbaas pxc create ..." again
+
+1) %s create clusterrolebinding cluster-admin-binding --clusterrole=cluster-admin --user=%s
+
+or
+
+2) cat <<-EOF | %s apply -f -
+%s
+EOF
+
+oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.percona.com
+oc adm policy add-cluster-role-to-user pxc-admin %s
+`
+
 func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	err := apply(app.Bundle())
+
+	runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+osUser())
+
+	err := applyBundles(app.Bundle())
 	if err != nil {
-		errc <- errors.Wrap(err, "apply bundle")
+		errc <- errors.Wrap(err, "apply bundles")
 		return
 	}
 
-	ext, err := IsCRexists(typ, app.Name())
+	ext, err := IsObjExists(typ, app.Name())
 	if err != nil {
+		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
+			strings.Contains(err.Error(), "Error from server (Forbidden):") {
+			errc <- errors.Errorf(osRightsMsg, execCommand, osUser(), execCommand, osAdminBundle(app.Bundle()), osUser())
+		}
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return
 	}
@@ -147,6 +175,10 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 
 		opLogsStream, err := readOperatorLogs(app.OperatorName())
 		if err != nil {
+			// waiting for the operator to start
+			if tries < getStatusMaxTries/2 {
+				continue
+			}
 			errc <- errors.Wrap(err, "get operator logs")
 			return
 		}
@@ -188,4 +220,64 @@ func GenSecrets(keys []string) map[string][]byte {
 	}
 
 	return pass
+}
+
+func osAdminBundle(bs []BundleObject) string {
+	objs := []string{}
+	for _, b := range bs {
+		switch b.Kind {
+		case "CustomResourceDefinition", "Role", "RoleBinding":
+			objs = append(objs, strings.TrimSpace(b.Data))
+		}
+	}
+
+	return strings.Join(objs, "\n---\n")
+}
+
+func applyBundles(bs []BundleObject) error {
+	for _, b := range bs {
+		err := apply(b.Data)
+		if err != nil {
+			switch b.Kind {
+			case "CustomResourceDefinition", "Role":
+				if strings.Contains(err.Error(), fmt.Sprintf(`"%s" is forbidden:`, b.Name)) {
+					continue
+				}
+			case "RoleBinding":
+				if strings.Contains(err.Error(), "Error from server (NotFound)") {
+					continue
+				}
+			}
+			return errors.Wrapf(err, "apply %s/%s", b.Kind, b.Name)
+		}
+	}
+
+	return nil
+}
+
+func osUser() string {
+	ret := "<Your Opeshift User>"
+	s, err := runCmd("oc", "whoami")
+	if err != nil {
+		u, err := gkeUser()
+		if err != nil {
+			return ret
+		}
+		return u
+	}
+
+	if len(s) > 0 {
+		return strings.TrimSpace(string(s))
+	}
+
+	return ret
+}
+
+func gkeUser() (string, error) {
+	s, err := runCmd("gcloud", "config", "get-value", "core/account")
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(s)), nil
 }
