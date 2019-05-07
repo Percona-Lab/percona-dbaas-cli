@@ -94,12 +94,14 @@ or
 %s
 EOF
 
-oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.percona.com
+oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.percona.com,perconaxtradbbackups.pxc.percona.com,perconaxtradbbackuprestores.pxc.percona.com,perconaxtradbbackuprestores.pxc.percona.com/status,issuers.certmanager.k8s.io,certificates.certmanager.k8s.io
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
 func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+osUser())
+	runCmd(execCommand, "create", "clusterrole", "pxc-admin --verb=\"*\" --resource=perconaxtradbclusters.pxc.percona.com,perconaxtradbbackups.pxc.percona.com,perconaxtradbbackuprestores.pxc.percona.com,perconaxtradbbackuprestores.pxc.percona.com/status,issuers.certmanager.k8s.io,certificates.certmanager.k8s.io")
+	runCmd("oc", "adm", "policy", "add-cluster-role-to-user", "pxc-admin", osUser())
 
 	err := applyBundles(app.Bundle())
 	if err != nil {

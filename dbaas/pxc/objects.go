@@ -125,6 +125,47 @@ spec:
 `,
 	},
 	dbaas.BundleObject{
+		Kind: "CustomResourceDefinition",
+		Name: "perconaxtradbbackuprestores.pxc.percona.com",
+		Data: `
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: perconaxtradbbackuprestores.pxc.percona.com
+spec:
+  group: pxc.percona.com
+  names:
+    kind: PerconaXtraDBBackupRestore
+    listKind: PerconaXtraDBBackupRestoreList
+    plural: perconaxtradbbackuprestores
+    singular: perconaxtradbbackuprestore
+    shortNames:
+    - pxc-backup-restore
+    - pxc-backups-restore
+    - pxcb-restore
+  scope: Namespaced
+  version: v1alpha1
+  additionalPrinterColumns:
+    - name: Cluster
+      type: string
+      description: Cluster name
+      JSONPath: .spec.pxcCluster
+    - name: Status
+      type: string
+      description: Job status
+      JSONPath: .status.state
+    - name: Completed
+      description: Completed time
+      type: date
+      JSONPath: .status.completed
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
+  subresources:
+    status: {}
+`,
+	},
+	dbaas.BundleObject{
 		Kind: "Role",
 		Name: "percona-xtradb-cluster-operator",
 		Data: `
@@ -133,75 +174,91 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: percona-xtradb-cluster-operator
 rules:
-- apiGroups:
-  - pxc.percona.com
-  resources:
-  - perconaxtradbclusters
-  - perconaxtradbbackups
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - pods/exec
-  - configmaps
-  - services
-  - persistentvolumeclaims
-  - secrets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - deployments
-  - replicasets
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  - cronjobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - policy
-  resources:
-  - poddisruptionbudgets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
+  - apiGroups:
+    - pxc.percona.com
+    resources:
+    - perconaxtradbclusters
+    - perconaxtradbbackups
+    - perconaxtradbbackuprestores
+    - perconaxtradbbackuprestores/status
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - ""
+    resources:
+    - pods
+    - pods/exec
+    - configmaps
+    - services
+    - persistentvolumeclaims
+    - secrets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - apps
+    resources:
+    - deployments
+    - replicasets
+    - statefulsets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - batch
+    resources:
+    - jobs
+    - cronjobs
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - policy
+    resources:
+    - poddisruptionbudgets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - certmanager.k8s.io
+    resources:
+    - issuers
+    - certificates
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+    - deletecollection
   `,
 	},
 	dbaas.BundleObject{
