@@ -99,7 +99,6 @@ oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
 func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-
 	runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+osUser())
 
 	err := applyBundles(app.Bundle())
@@ -123,15 +122,23 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 		return
 	}
 
-	scrt, err := app.Secrets()
+	secExt, err := IsObjExists("secret", app.Name()+"-secrets")
 	if err != nil {
-		errc <- errors.Wrap(err, "get secrets")
+		errc <- errors.Wrap(err, "check if cluster secrets exists")
 		return
 	}
-	err = apply(scrt)
-	if err != nil {
-		errc <- errors.Wrap(err, "apply secrets")
-		return
+
+	if !secExt {
+		scrt, err := app.Secrets()
+		if err != nil {
+			errc <- errors.Wrap(err, "get secrets")
+			return
+		}
+		err = apply(scrt)
+		if err != nil {
+			errc <- errors.Wrap(err, "apply secrets")
+			return
+		}
 	}
 
 	cr, err := app.App()
@@ -152,7 +159,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := getCR(typ, app.Name())
+		status, err := GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return

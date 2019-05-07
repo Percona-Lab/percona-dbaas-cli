@@ -23,7 +23,7 @@ import (
 )
 
 func Update(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	acr, err := getCR(typ, app.Name())
+	acr, err := GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get pxc config")
 		return
@@ -51,7 +51,7 @@ func Update(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := getCR(typ, app.Name())
+		status, err := GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return

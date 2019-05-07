@@ -59,7 +59,7 @@ func Backup(typ string, app Backupper, ok chan<- string, msg chan<- OutuputMsg, 
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := getCR(typ, app.Name())
+		status, err := GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
