@@ -76,6 +76,8 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+    subresources:
+      status: {}
 `,
 	},
 	dbaas.BundleObject{
@@ -122,6 +124,8 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+    subresources:
+      status: {}
 `,
 	},
 	dbaas.BundleObject{
@@ -178,7 +182,9 @@ rules:
     - pxc.percona.com
     resources:
     - perconaxtradbclusters
+    - perconaxtradbclusters/status
     - perconaxtradbbackups
+    - perconaxtradbbackups/status
     - perconaxtradbbackuprestores
     - perconaxtradbbackuprestores/status
     verbs:
