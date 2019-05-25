@@ -27,17 +27,17 @@ var objects map[Version]dbaas.Objects
 func init() {
 	objects = make(map[Version]dbaas.Objects)
 
-	objects[Version030] = dbaas.Objects{
-		Bundle: bundle030,
+	objects[Version100] = dbaas.Objects{
+		Bundle: bundle100,
 		Secrets: dbaas.Secrets{
-			Data: template.Must(template.New("Secrets").Parse(secrets030)),
+			Data: template.Must(template.New("Secrets").Parse(secrets100)),
 			Keys: []string{"root", "xtrabackup", "monitor", "clustercheck", "proxyadmin"},
 			Rnd:  rand.New(rand.NewSource(time.Now().UnixNano())),
 		},
 	}
 }
 
-var bundle030 = []dbaas.BundleObject{
+var bundle100 = []dbaas.BundleObject{
 	dbaas.BundleObject{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaxtradbclusters.pxc.percona.com",
@@ -57,7 +57,13 @@ spec:
     - pxc
     - pxcs
   scope: Namespaced
-  version: v1alpha1
+  versions:
+    - name: v1
+      storage: true
+      served: true
+    - name: v1alpha1
+      storage: false
+      served: true
   additionalPrinterColumns:
     - name: Endpoint
       type: string
@@ -76,6 +82,102 @@ spec:
     - name: Age
       type: date
       JSONPath: .metadata.creationTimestamp
+  subresources:
+    status: {}
+`,
+	},
+	dbaas.BundleObject{
+		Kind: "CustomResourceDefinition",
+		Name: "perconaxtradbclusterbackups.pxc.percona.com",
+		Data: `
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: perconaxtradbclusterbackups.pxc.percona.com
+spec:
+  group: pxc.percona.com
+  names:
+    kind: PerconaXtraDBClusterBackup
+    listKind: PerconaXtraDBClusterBackupList
+    plural: perconaxtradbclusterbackups
+    singular: perconaxtradbclusterbackup
+    shortNames:
+    - pxc-backup
+    - pxc-backups
+  scope: Namespaced
+  versions:
+    - name: v1
+      storage: true
+      served: true
+  additionalPrinterColumns:
+    - name: Cluster
+      type: string
+      description: Cluster name
+      JSONPath: .spec.pxcCluster
+    - name: Storage
+      type: string
+      description: Storage name from pxc spec
+      JSONPath: .status.storageName
+    - name: Destination
+      type: string
+      description: Backup destination
+      JSONPath: .status.destination
+    - name: Status
+      type: string
+      description: Job status
+      JSONPath: .status.state
+    - name: Completed
+      description: Completed time
+      type: date
+      JSONPath: .status.completed
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
+  subresources:
+    status: {}
+`,
+	},
+	dbaas.BundleObject{
+		Kind: "CustomResourceDefinition",
+		Name: "perconaxtradbclusterrestores.pxc.percona.com",
+		Data: `
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: perconaxtradbclusterrestores.pxc.percona.com
+spec:
+  group: pxc.percona.com
+  names:
+    kind: PerconaXtraDBClusterRestore
+    listKind: PerconaXtraDBClusterRestoreList
+    plural: perconaxtradbclusterrestores
+    singular: perconaxtradbclusterrestore
+    shortNames:
+    - pxc-restore
+    - pxc-restores
+  scope: Namespaced
+  versions:
+    - name: v1
+      storage: true
+      served: true
+  additionalPrinterColumns:
+    - name: Cluster
+      type: string
+      description: Cluster name
+      JSONPath: .spec.pxcCluster
+    - name: Status
+      type: string
+      description: Job status
+      JSONPath: .status.state
+    - name: Completed
+      description: Completed time
+      type: date
+      JSONPath: .status.completed
+    - name: Age
+      type: date
+      JSONPath: .metadata.creationTimestamp
+  subresources:
+    status: {}
 `,
 	},
 	dbaas.BundleObject{
@@ -93,11 +195,12 @@ spec:
     listKind: PerconaXtraDBBackupList
     plural: perconaxtradbbackups
     singular: perconaxtradbbackup
-    shortNames:
-    - pxc-backup
-    - pxc-backups
+    shortNames: []
   scope: Namespaced
-  version: v1alpha1
+  versions:
+    - name: v1alpha1
+      storage: true
+      served: true
   additionalPrinterColumns:
     - name: Cluster
       type: string
@@ -137,7 +240,11 @@ rules:
   - pxc.percona.com
   resources:
   - perconaxtradbclusters
-  - perconaxtradbbackups
+  - perconaxtradbclusters/status
+  - perconaxtradbclusterbackups
+  - perconaxtradbclusterbackups/status
+  - perconaxtradbclusterrestores
+  - perconaxtradbclusterrestores/status
   verbs:
   - get
   - list
@@ -202,7 +309,21 @@ rules:
   - update
   - patch
   - delete
-  `,
+- apiGroups:
+  - certmanager.k8s.io
+  resources:
+  - issuers
+  - certificates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
+`,
 	},
 	dbaas.BundleObject{
 		Kind: "RoleBinding",
@@ -219,7 +340,7 @@ roleRef:
   kind: Role
   name: percona-xtradb-cluster-operator
   apiGroup: rbac.authorization.k8s.io
-  `,
+`,
 	},
 	dbaas.BundleObject{
 		Kind: "Deployment",
@@ -241,7 +362,7 @@ spec:
     spec:
       containers:
         - name: percona-xtradb-cluster-operator
-          image: perconalab/percona-xtradb-cluster-operator:0.4.0
+          image: percona/percona-xtradb-cluster-operator:1.0.0
           ports:
           - containerPort: 60000
             name: metrics
@@ -255,12 +376,11 @@ spec:
                   fieldPath: metadata.namespace
             - name: OPERATOR_NAME
               value: "percona-xtradb-cluster-operator"
-
 `,
 	},
 }
 
-var secrets030 = `
+var secrets100 = `
 apiVersion: v1
 kind: Secret
 metadata:

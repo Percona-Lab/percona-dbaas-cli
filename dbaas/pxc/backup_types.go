@@ -55,8 +55,8 @@ const (
 )
 
 func (b *PerconaXtraDBBackup) SetNew(name, cluster, storage string) {
-	b.TypeMeta.APIVersion = "pxc.percona.com/v1alpha1"
-	b.TypeMeta.Kind = "PerconaXtraDBBackup"
+	b.TypeMeta.APIVersion = "pxc.percona.com/v1"
+	b.TypeMeta.Kind = "PerconaXtraDBClusterBackup"
 
 	b.ObjectMeta.Name = name
 	b.Spec.PXCCluster = cluster

@@ -31,7 +31,7 @@ import (
 type Version string
 
 var (
-	Version030 Version = "0.4.0"
+	Version100 Version = "1.0.0"
 )
 
 type PXC struct {
