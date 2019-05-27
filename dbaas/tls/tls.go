@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	tlsDefaultExpireTime = time.Hour * 24 * 180
+	tlsDefaultValidityTime = time.Hour * 24 * 356
 )
 
 type SelfSignedCerts struct {
@@ -36,7 +36,7 @@ func GenerateSelfSigned(hosts []string) (*SelfSignedCerts, error) {
 			Organization: []string{"Percona DBaaS Tool"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(tlsDefaultExpireTime),
+		NotAfter:              time.Now().Add(tlsDefaultValidityTime),
 		KeyUsage:              x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
@@ -68,7 +68,7 @@ func GenerateSelfSigned(hosts []string) (*SelfSignedCerts, error) {
 			Organization: []string{"Percona XtraDB Cluster"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(tlsDefaultExpireTime),
+		NotAfter:              time.Now().Add(tlsDefaultValidityTime),
 		DNSNames:              hosts,
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
