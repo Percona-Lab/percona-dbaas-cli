@@ -13,9 +13,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	tlsDefaultValidityTime = time.Hour * 24 * 365
-)
+// https://www.ietf.org/rfc/rfc5280.txt
+// To indicate that a certificate has no well-defined expiration date,
+// the notAfter SHOULD be assigned the GeneralizedTime value of 99991231235959Z.
+var validityNotAfter = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
 
 type SelfSignedCerts struct {
 	CA          []byte
@@ -36,7 +37,7 @@ func GenerateSelfSigned(hosts []string) (*SelfSignedCerts, error) {
 			Organization: []string{"Percona DBaaS Tool"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(tlsDefaultValidityTime),
+		NotAfter:              validityNotAfter,
 		KeyUsage:              x509.KeyUsageCertSign,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
@@ -68,7 +69,7 @@ func GenerateSelfSigned(hosts []string) (*SelfSignedCerts, error) {
 			Organization: []string{"Percona XtraDB Cluster"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(tlsDefaultValidityTime),
+		NotAfter:              validityNotAfter,
 		DNSNames:              hosts,
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
