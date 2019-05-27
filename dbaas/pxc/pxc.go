@@ -144,6 +144,25 @@ func (p *PXC) OperatorName() string {
 	return "percona-xtradb-cluster-operator"
 }
 
+func (p *PXC) NeedCertificates() []dbaas.TLSSecrets {
+	return []dbaas.TLSSecrets{
+		{
+			SecretName: p.Name() + "-ssl",
+			Hosts: []string{
+				p.Name() + "-proxysql",
+				"*." + p.Name() + "-proxysql",
+			},
+		},
+		{
+			SecretName: p.Name() + "-ssl-internal",
+			Hosts: []string{
+				p.Name() + "-pxc",
+				"*." + p.Name() + "-pxc",
+			},
+		},
+	}
+}
+
 type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
