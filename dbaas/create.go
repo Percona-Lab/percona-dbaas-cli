@@ -15,6 +15,7 @@
 package dbaas
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -23,6 +24,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/tls"
 )
 
 func init() {
@@ -35,6 +40,7 @@ type Deploy interface {
 	// App returns application (custom resource) manifest
 	App() (string, error)
 	Secrets() (string, error)
+	NeedCertificates() []TLSSecrets
 
 	Name() string
 	OperatorName() string
@@ -43,6 +49,11 @@ type Deploy interface {
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
 	Update(crRaw []byte, f *pflag.FlagSet) (string, error)
+}
+
+type TLSSecrets struct {
+	SecretName string
+	Hosts      []string
 }
 
 type ClusterState string
@@ -141,6 +152,30 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 		}
 	}
 
+	// TLS
+	for _, cert := range app.NeedCertificates() {
+		secExt, err := IsObjExists("secret", cert.SecretName)
+		if err != nil {
+			errc <- errors.Wrapf(err, "check if cluster secrets %s exists", cert.SecretName)
+			return
+		}
+		if secExt {
+			continue
+		}
+
+		tlsCerts, err := tls.GenerateSelfSigned(cert.Hosts)
+		if err != nil {
+			errc <- errors.Wrapf(err, "generate TLS certificates %s", cert.SecretName)
+			return
+		}
+
+		err = createTLSsecrets(cert.SecretName, tlsCerts)
+		if err != nil {
+			errc <- errors.Wrapf(err, "create TLS secrets for %s", cert.SecretName)
+			return
+		}
+	}
+
 	cr, err := app.App()
 	if err != nil {
 		errc <- errors.Wrap(err, "get cr")
@@ -207,6 +242,36 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 
 		tries++
 	}
+}
+
+func createTLSsecrets(name string, cert *tls.SelfSignedCerts) error {
+	secretObj := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name, //cert.SecretName,
+		},
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		Data: map[string][]byte{
+			"ca.crt":  cert.CA,
+			"tls.crt": cert.Certificate,
+			"tls.key": cert.PKey,
+		},
+		Type: corev1.SecretTypeTLS,
+	}
+
+	secretJSON, err := json.Marshal(secretObj)
+	if err != nil {
+		return errors.Wrapf(err, "marshal object")
+	}
+
+	err = apply(string(secretJSON))
+	if err != nil {
+		return errors.Wrapf(err, "apply at server")
+	}
+
+	return nil
 }
 
 var passsymbols = []byte("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
