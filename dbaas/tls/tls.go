@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	tlsDefaultValidityTime = time.Hour * 24 * 356
+	tlsDefaultValidityTime = time.Hour * 24 * 365
 )
 
 type SelfSignedCerts struct {
