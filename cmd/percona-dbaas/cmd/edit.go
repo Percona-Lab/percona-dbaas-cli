@@ -27,10 +27,10 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
-// updateCmd represents the edit command
-var updateCmd = &cobra.Command{
-	Use:   "update <pxc-cluster-name>",
-	Short: "Update MySQL cluster",
+// editCmd represents the edit command
+var editCmd = &cobra.Command{
+	Use:   "edit <pxc-cluster-name>",
+	Short: "Edit MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify pxc-cluster-name")
@@ -109,8 +109,8 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	updateCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
-	updateCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
+	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
+	editCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
 
-	pxcCmd.AddCommand(updateCmd)
+	pxcCmd.AddCommand(editCmd)
 }
