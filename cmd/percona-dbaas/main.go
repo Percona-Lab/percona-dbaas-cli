@@ -15,9 +15,34 @@
 package main
 
 import (
-	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/cmd"
+	"fmt"
+	"os"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/pxc"
+
+	"github.com/spf13/cobra"
 )
 
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
+	Use:   "percona-dbaas",
+	Short: "The simplest DBaaS tool in the world",
+	Long: `    Hello, it is the simplest DBaaS tool in the world,
+    please use commands below to manage your DBaaS.`,
+}
+
+func init() {
+	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
+	rootCmd.PersistentFlags().MarkHidden("demo")
+
+	rootCmd.AddCommand(pxc.PXCCmd)
+	rootCmd.AddCommand(psmdb.PSMDBCmd)
+}
+
 func main() {
-	cmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }

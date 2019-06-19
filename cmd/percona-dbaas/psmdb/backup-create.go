@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package psmdb
 
 import (
 	"fmt"
@@ -104,5 +104,5 @@ var bcpCmd = &cobra.Command{
 }
 
 func init() {
-	pxcCmd.AddCommand(bcpCmd)
+	PSMDBCmd.AddCommand(bcpCmd)
 }

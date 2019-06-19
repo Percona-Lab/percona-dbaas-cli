@@ -22,7 +22,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func Update(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func Edit(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get pxc config")

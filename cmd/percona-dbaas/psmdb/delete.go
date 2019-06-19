@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package psmdb
 
 import (
 	"bufio"
@@ -113,5 +113,5 @@ var delCmd = &cobra.Command{
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 
-	pxcCmd.AddCommand(delCmd)
+	PSMDBCmd.AddCommand(delCmd)
 }

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package psmdb
 
 import (
 	"fmt"
@@ -33,11 +33,11 @@ const (
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create <pxc-cluster-name>",
-	Short: "Create MySQL cluster on current Kubernetes cluster",
+	Use:   "create <psmdb-cluster-name>",
+	Short: "Create MongoDB cluster on current Kubernetes cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("You have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -45,7 +45,7 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		app, err := pxc.New(args[0], defaultVersion)
 		if err != nil {
-			fmt.Println("[Error] create pxc:", err)
+			fmt.Println("[Error] create psmdb:", err)
 			return
 		}
 
@@ -61,7 +61,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Create("pxc", app, created, msg, cerr)
+		go dbaas.Create("psmdb", app, created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -98,7 +98,7 @@ var createCmd = &cobra.Command{
 					fmt.Println("Avaliable clusters:")
 					fmt.Print(list)
 				default:
-					fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+					fmt.Fprintf(os.Stderr, "\n[ERROR] create psmdb: %v\n", err)
 				}
 
 				return
@@ -120,5 +120,5 @@ func init() {
 	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
 	createCmd.Flags().String("proxy-anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
 
-	pxcCmd.AddCommand(createCmd)
+	PSMDBCmd.AddCommand(createCmd)
 }

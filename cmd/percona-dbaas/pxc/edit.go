@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package pxc
 
 import (
 	"fmt"
@@ -27,10 +27,10 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
-// updateCmd represents the edit command
-var updateCmd = &cobra.Command{
-	Use:   "update <pxc-cluster-name>",
-	Short: "Update MySQL cluster",
+// editCmd represents the edit command
+var editCmd = &cobra.Command{
+	Use:   "edit <pxc-cluster-name>",
+	Short: "Edit MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify pxc-cluster-name")
@@ -81,14 +81,14 @@ var updateCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Update("pxc", cmd.Flags(), app, created, msg, cerr)
-		sp.Prefix = "Updating..."
+		go dbaas.Edit("pxc", cmd.Flags(), app, created, msg, cerr)
+		sp.Prefix = "Applying changes..."
 
 		for {
 			select {
 			case <-created:
 				okmsg, _ := dbaas.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Updating...[done]\n\n%s", okmsg)
+				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -100,7 +100,7 @@ var updateCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] edit pxc: %v\n", err)
 				sp.HideCursor = true
 				return
 			}
@@ -109,8 +109,8 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	updateCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
-	updateCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
+	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
+	editCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
 
-	pxcCmd.AddCommand(updateCmd)
+	PXCCmd.AddCommand(editCmd)
 }

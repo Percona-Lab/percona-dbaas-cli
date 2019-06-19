@@ -12,18 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package pxc
 
 import (
 	"github.com/spf13/cobra"
 )
 
-// pxcCmd represents the pxc command
-var pxcCmd = &cobra.Command{
+// PXCCmd represents the pxc command
+var PXCCmd = &cobra.Command{
 	Use:   "pxc",
 	Short: "Manage your MySQL cluster on Kubernetes",
 }
 
-func init() {
-	rootCmd.AddCommand(pxcCmd)
-}
+// func init() {
+// 	rootCmd.AddCommand(pxcCmd)
+// }
