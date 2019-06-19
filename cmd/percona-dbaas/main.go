@@ -15,9 +15,28 @@
 package main
 
 import (
+	"os"
+	"strings"
+
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/cmd"
 )
 
 func main() {
+	checkIfKubectl("pxc")
+	checkIfKubectl("psmdb")
 	cmd.Execute()
+}
+
+func checkIfKubectl(db string) {
+	if strings.Contains(os.Args[0], "kubectl-"+db) {
+		newArgs := []string{}
+		newArgs = append(newArgs, os.Args[0], db)
+		for k, v := range os.Args {
+			if k == 0 {
+				continue
+			}
+			newArgs = append(newArgs, v)
+		}
+		os.Args = newArgs
+	}
 }
