@@ -16,7 +16,7 @@ package main
 
 import (
 	"os"
-	"strings"
+	"path"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/cmd"
 )
@@ -28,7 +28,7 @@ func main() {
 }
 
 func rewriteKubectlArgs(db string) {
-	if strings.Contains(os.Args[0], "kubectl-"+db) {
+	if path.Base(os.Args[0]) == "kubectl-"+db {
 		os.Args = append(os.Args[:1], append([]string{db}, os.Args[1:]...)...)
 	}
 }
