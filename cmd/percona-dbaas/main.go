@@ -22,21 +22,13 @@ import (
 )
 
 func main() {
-	checkIfKubectl("pxc")
-	checkIfKubectl("psmdb")
+	rewriteKubectlArgs("pxc")
+	rewriteKubectlArgs("psmdb")
 	cmd.Execute()
 }
 
-func checkIfKubectl(db string) {
+func rewriteKubectlArgs(db string) {
 	if strings.Contains(os.Args[0], "kubectl-"+db) {
-		newArgs := []string{}
-		newArgs = append(newArgs, os.Args[0], db)
-		for k, v := range os.Args {
-			if k == 0 {
-				continue
-			}
-			newArgs = append(newArgs, v)
-		}
-		os.Args = newArgs
+		os.Args = append(os.Args[:1], append([]string{db}, os.Args[1:]...)...)
 	}
 }
