@@ -15,19 +15,13 @@
 package dbaas
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/tls"
 )
 
 func init() {
@@ -39,8 +33,6 @@ type Deploy interface {
 	Bundle() []BundleObject
 	// App returns application (custom resource) manifest
 	App() (string, error)
-	Secrets() (string, error)
-	NeedCertificates() []TLSSecrets
 
 	Name() string
 	OperatorName() string
@@ -49,11 +41,6 @@ type Deploy interface {
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
 	Update(crRaw []byte, f *pflag.FlagSet) (string, error)
-}
-
-type TLSSecrets struct {
-	SecretName string
-	Hosts      []string
 }
 
 type ClusterState string
@@ -72,15 +59,7 @@ type BundleObject struct {
 }
 
 type Objects struct {
-	Bundle  []BundleObject
-	Secrets Secrets
-}
-
-type Secrets struct {
-	Name string
-	Data *template.Template
-	Keys []string
-	Rnd  *rand.Rand
+	Bundle []BundleObject
 }
 
 const getStatusMaxTries = 1200
@@ -131,49 +110,6 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	if ext {
 		errc <- ErrAlreadyExists{Typ: typ, Cluster: app.Name()}
 		return
-	}
-
-	secExt, err := IsObjExists("secret", app.Name()+"-secrets")
-	if err != nil {
-		errc <- errors.Wrap(err, "check if cluster secrets exists")
-		return
-	}
-
-	if !secExt {
-		scrt, err := app.Secrets()
-		if err != nil {
-			errc <- errors.Wrap(err, "get secrets")
-			return
-		}
-		err = apply(scrt)
-		if err != nil {
-			errc <- errors.Wrap(err, "apply secrets")
-			return
-		}
-	}
-
-	// TLS
-	for _, cert := range app.NeedCertificates() {
-		secExt, err := IsObjExists("secret", cert.SecretName)
-		if err != nil {
-			errc <- errors.Wrapf(err, "check if cluster secrets %s exists", cert.SecretName)
-			return
-		}
-		if secExt {
-			continue
-		}
-
-		tlsCerts, err := tls.GenerateSelfSigned(cert.Hosts)
-		if err != nil {
-			errc <- errors.Wrapf(err, "generate TLS certificates %s", cert.SecretName)
-			return
-		}
-
-		err = createTLSsecrets(cert.SecretName, tlsCerts)
-		if err != nil {
-			errc <- errors.Wrapf(err, "create TLS secrets for %s", cert.SecretName)
-			return
-		}
 	}
 
 	cr, err := app.App()
@@ -242,56 +178,6 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 
 		tries++
 	}
-}
-
-func createTLSsecrets(name string, cert *tls.SelfSignedCerts) error {
-	secretObj := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name, //cert.SecretName,
-		},
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Secret",
-		},
-		Data: map[string][]byte{
-			"ca.crt":  cert.CA,
-			"tls.crt": cert.Certificate,
-			"tls.key": cert.PKey,
-		},
-		Type: corev1.SecretTypeTLS,
-	}
-
-	secretJSON, err := json.Marshal(secretObj)
-	if err != nil {
-		return errors.Wrapf(err, "marshal object")
-	}
-
-	err = apply(string(secretJSON))
-	if err != nil {
-		return errors.Wrapf(err, "apply at server")
-	}
-
-	return nil
-}
-
-var passsymbols = []byte("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-func genPass() []byte {
-	pass := make([]byte, rand.Intn(5)+16)
-	for i := 0; i < len(pass); i++ {
-		pass[i] = passsymbols[rand.Intn(len(passsymbols))]
-	}
-
-	return pass
-}
-
-func GenSecrets(keys []string) map[string][]byte {
-	pass := make(map[string][]byte, len(keys))
-	for _, k := range keys {
-		pass[k] = genPass()
-	}
-
-	return pass
 }
 
 func osAdminBundle(bs []BundleObject) string {

@@ -16,7 +16,6 @@ package psmdb
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -58,28 +57,6 @@ func (p PSMDB) Bundle() []dbaas.BundleObject {
 
 func (p PSMDB) Name() string {
 	return p.name
-}
-
-func (p *PSMDB) Secrets() (string, error) {
-	pass := dbaas.GenSecrets(p.obj.Secrets.Keys)
-	p.dbpass = pass["root"]
-	pb64 := make(map[string]string, len(pass)+1)
-
-	pb64["ClusterName"] = p.name
-
-	for k, v := range pass {
-		buf := make([]byte, base64.StdEncoding.EncodedLen(len(v)))
-		base64.StdEncoding.Encode(buf, v)
-		pb64[k] = string(buf)
-	}
-
-	var buf bytes.Buffer
-	err := p.obj.Secrets.Data.Execute(&buf, pb64)
-	if err != nil {
-		return "", errors.Wrap(err, "parse template:")
-	}
-
-	return buf.String(), nil
 }
 
 func (p PSMDB) App() (string, error) {
@@ -142,25 +119,6 @@ func (p *PSMDB) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
 
 func (p *PSMDB) OperatorName() string {
 	return "percona-xtradb-cluster-operator"
-}
-
-func (p *PSMDB) NeedCertificates() []dbaas.TLSSecrets {
-	return []dbaas.TLSSecrets{
-		{
-			SecretName: p.Name() + "-ssl",
-			Hosts: []string{
-				p.Name() + "-proxysql",
-				"*." + p.Name() + "-proxysql",
-			},
-		},
-		{
-			SecretName: p.Name() + "-ssl-internal",
-			Hosts: []string{
-				p.Name() + "-pxc",
-				"*." + p.Name() + "-pxc",
-			},
-		},
-	}
 }
 
 type k8sStatus struct {

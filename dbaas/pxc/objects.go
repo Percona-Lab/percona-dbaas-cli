@@ -15,10 +15,6 @@
 package pxc
 
 import (
-	"math/rand"
-	"text/template"
-	"time"
-
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
@@ -29,11 +25,6 @@ func init() {
 
 	objects[Version100] = dbaas.Objects{
 		Bundle: bundle100,
-		Secrets: dbaas.Secrets{
-			Data: template.Must(template.New("Secrets").Parse(secrets100)),
-			Keys: []string{"root", "xtrabackup", "monitor", "clustercheck", "proxyadmin"},
-			Rnd:  rand.New(rand.NewSource(time.Now().UnixNano())),
-		},
 	}
 }
 
@@ -379,17 +370,3 @@ spec:
 `,
 	},
 }
-
-var secrets100 = `
-apiVersion: v1
-kind: Secret
-metadata:
-  name: {{.ClusterName}}-secrets
-type: Opaque
-data:
-  root: {{.root}}
-  xtrabackup: {{.xtrabackup}}
-  monitor: {{.monitor}}
-  clustercheck: {{.clustercheck}}
-  proxyadmin: {{.proxyadmin}}
-`
