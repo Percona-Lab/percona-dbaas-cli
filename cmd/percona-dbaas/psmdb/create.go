@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
 const (
@@ -43,7 +43,7 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		app, err := pxc.New(args[0], defaultVersion)
+		app, err := psmdb.New(args[0], defaultVersion)
 		if err != nil {
 			fmt.Println("[Error] create psmdb:", err)
 			return
@@ -91,7 +91,7 @@ var createCmd = &cobra.Command{
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
-					list, err := dbaas.List("pxc")
+					list, err := dbaas.List("psmdb")
 					if err != nil {
 						return
 					}
@@ -108,17 +108,12 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().String("storage-size", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
+	createCmd.Flags().String("storage-size", "6G", "Node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
 	createCmd.Flags().String("storage-class", "", "Name of the StorageClass required by the volume claim")
-	createCmd.Flags().Int32("pxc-instances", 3, "Number of PXC nodes in cluster")
-	createCmd.Flags().String("pxc-request-cpu", "600m", "PXC node requests for CPU, in cores. (500m = .5 cores)")
-	createCmd.Flags().String("pxc-request-mem", "1G", "PXC node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
-	createCmd.Flags().String("pxc-anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
-
-	createCmd.Flags().Int32("proxy-instances", 1, "Number of ProxySQL nodes in cluster")
-	createCmd.Flags().String("proxy-request-cpu", "600m", "ProxySQL node requests for CPU, in cores. (500m = .5 cores)")
-	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
-	createCmd.Flags().String("proxy-anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
+	createCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
+	createCmd.Flags().String("request-cpu", "600m", "Node requests for CPU, in cores. (500m = .5 cores)")
+	createCmd.Flags().String("request-mem", "1G", "Node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
+	createCmd.Flags().String("anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
 
 	PSMDBCmd.AddCommand(createCmd)
 }
