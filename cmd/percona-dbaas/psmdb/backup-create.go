@@ -24,16 +24,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
 // bcpCmd represents the list command
 var bcpCmd = &cobra.Command{
-	Use:   "create-backup <pxc-cluster-name>",
+	Use:   "create-backup <psmdb-cluster-name>",
 	Short: "Create MySQL backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("You have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -48,7 +48,7 @@ var bcpCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbaas.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -57,8 +57,8 @@ var bcpCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			list, err := dbaas.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -69,15 +69,16 @@ var bcpCmd = &cobra.Command{
 
 		sp.Prefix = "Creating backup..."
 
-		bcp := pxc.NewBackup(name)
+		bcp := psmdb.NewBackup(name)
 
+		//TODO
 		bcp.Setup("fs-pvc")
 
 		ok := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Backup("pxc-backup", bcp, ok, msg, cerr)
+		go dbaas.Backup("psmdb-backup", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

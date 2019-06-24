@@ -533,42 +533,6 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.0.0-mongod4.0.9"
 
-	// cr.Spec.PXC = &PodSpec{}
-	// cr.Spec.PXC.Size = 3
-	// cr.Spec.PXC.Affinity = &PodAffinity{
-	// 	TopologyKey: &defaultAffinityTopologyKey,
-	// }
-	// cr.Spec.PXC.PodDisruptionBudget = &PodDisruptionBudgetSpec{
-	// 	MaxUnavailable: &one,
-	// }
-	// volPXC, _ := resource.ParseQuantity("6G")
-	// cr.Spec.PXC.VolumeSpec = &VolumeSpec{
-	// 	PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-	// 		Resources: corev1.ResourceRequirements{
-	// 			Requests: corev1.ResourceList{corev1.ResourceStorage: volPXC},
-	// 		},
-	// 	},
-	// }
-
-	// cr.Spec.ProxySQL = &PodSpec{}
-	// cr.Spec.ProxySQL.Enabled = true
-	// cr.Spec.ProxySQL.Size = 1
-	// cr.Spec.ProxySQL.Image = "percona/percona-xtradb-cluster-operator:1.0.0-proxysql"
-	// cr.Spec.ProxySQL.Affinity = &PodAffinity{
-	// 	TopologyKey: &defaultAffinityTopologyKey,
-	// }
-	// cr.Spec.ProxySQL.PodDisruptionBudget = &PodDisruptionBudgetSpec{
-	// 	MaxUnavailable: &one,
-	// }
-	// volProxy, _ := resource.ParseQuantity("1G")
-	// cr.Spec.ProxySQL.VolumeSpec = &VolumeSpec{
-	// 	PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-	// 		Resources: corev1.ResourceRequirements{
-	// 			Requests: corev1.ResourceList{corev1.ResourceStorage: volProxy},
-	// 		},
-	// 	},
-	// }
-
 	// cr.Spec.Backup = &PXCScheduledBackup{
 	// 	Image: "percona/percona-xtradb-cluster-operator:1.0.0-backup",
 	// 	Storages: map[string]*BackupStorageSpec{
@@ -585,4 +549,58 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 	// 		},
 	// 	},
 	// }
+}
+
+// PerconaServerMongoDBBackupSpec defines the desired state of PerconaServerMongoDBBackup
+type PerconaServerMongoDBBackupSpec struct {
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	PSMDBCluster string `json:"psmdbCluster,omitempty"`
+	StorageName  string `json:"storageName,omitempty"`
+}
+
+type PerconaSMDBStatusState string
+
+const (
+	StateRequested PerconaSMDBStatusState = "requested"
+	StateRejected                         = "rejected"
+	StateReady                            = "ready"
+)
+
+// PerconaServerMongoDBBackupStatus defines the observed state of PerconaServerMongoDBBackup
+type PerconaServerMongoDBBackupStatus struct {
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
+	State         PerconaSMDBStatusState `json:"state,omitempty"`
+	StartAt       *metav1.Time           `json:"start,omitempty"`
+	CompletedAt   *metav1.Time           `json:"completed,omitempty"`
+	LastScheduled *metav1.Time           `json:"lastscheduled,omitempty"`
+	Destination   string                 `json:"destination,omitempty"`
+	StorageName   string                 `json:"storageName,omitempty"`
+	S3            *BackupStorageS3Spec   `json:"s3,omitempty"`
+}
+
+// PerconaServerMongoDBBackup is the Schema for the perconaservermongodbbackups API
+type PerconaServerMongoDBBackup struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   PerconaServerMongoDBBackupSpec   `json:"spec,omitempty"`
+	Status PerconaServerMongoDBBackupStatus `json:"status,omitempty"`
+}
+
+// PerconaServerMongoDBBackupList contains a list of PerconaServerMongoDBBackup
+type PerconaServerMongoDBBackupList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PerconaServerMongoDBBackup `json:"items"`
+}
+
+func (b *PerconaServerMongoDBBackup) SetNew(name, cluster, storage string) {
+	b.TypeMeta.APIVersion = "psmdb.percona.com/v1"
+	b.TypeMeta.Kind = "PerconaServerMongoDBBackup"
+
+	b.ObjectMeta.Name = name
+	b.Spec.PSMDBCluster = cluster
+	b.Spec.StorageName = storage
 }
