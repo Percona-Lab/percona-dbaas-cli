@@ -25,10 +25,10 @@ import (
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all MySQL clusters on current Kubernetes cluster",
+	Short: "List all MongoDB clusters on current Kubernetes cluster",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		list, err := dbaas.List("pxc")
+		list, err := dbaas.List("psmdb")
 		if err != nil {
 			fmt.Printf("\n[error] %s\n", err)
 			return

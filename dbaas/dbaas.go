@@ -78,6 +78,8 @@ func IsObjExists(typ, name string) (bool, error) {
 	switch typ {
 	case "pxc":
 		typ = "perconaxtradbcluster.pxc.percona.com"
+	case "psmdb":
+		typ = "perconaservermongodb.psmdb.percona.com"
 	}
 
 	out, err := runCmd(execCommand, "get", typ, name, "-o", "name")

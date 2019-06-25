@@ -26,17 +26,18 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
 var delePVC *bool
 
 // delCmd represents the list command
 var delCmd = &cobra.Command{
-	Use:   "delete <pxc-cluster-name>",
-	Short: "Delete MySQL cluster",
+	Use:   "delete <psmdb-cluster-name>",
+	Short: "Delete MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("You have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -55,7 +56,7 @@ var delCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbaas.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -64,8 +65,8 @@ var delCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			list, err := dbaas.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -94,7 +95,7 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbaas.Delete("pxc", name, *delePVC, ok, cerr)
+		go dbaas.Delete("psmdb", psmdb.New(name, "", defaultVersion), *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
@@ -103,7 +104,7 @@ var delCmd = &cobra.Command{
 				sp.FinalMSG = "Deleting...[done]\n"
 				return
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] delete psmdb: %v\n", err)
 				return
 			}
 		}

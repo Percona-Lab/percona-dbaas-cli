@@ -420,16 +420,21 @@ type ServerVersion struct {
 	Info     k8sversion.Info
 }
 
-func (cr *PerconaServerMongoDB) UpdateWith(f *pflag.FlagSet) (err error) {
+func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet) (err error) {
 	size, err := f.GetInt32("replset-size")
 	if err != nil {
 		return errors.New("undefined `replset-size`")
 	}
-	if size > 0 {
-		cr.Spec.Replsets[0].Size = size
+
+	for _, rs := range cr.Spec.Replsets {
+		if rs.Name == rsName {
+			rs.Size = size
+
+			return nil
+		}
 	}
 
-	return nil
+	return errors.Errorf("unknown replica set '%s'", rsName)
 }
 
 func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
@@ -505,11 +510,11 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 	return rs, nil
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName string, f *pflag.FlagSet) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
-	rs, err := NewReplSet("rs0", f)
+	rs, err := NewReplSet(rsName, f)
 	if err != nil {
 		return err
 	}

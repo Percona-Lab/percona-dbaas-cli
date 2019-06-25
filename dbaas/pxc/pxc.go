@@ -41,14 +41,12 @@ type PXC struct {
 	opLogsLastTS float64
 }
 
-func New(name string, version Version) (*PXC, error) {
-	pxc := &PXC{
+func New(name string, version Version) *PXC {
+	return &PXC{
 		name:   name,
 		obj:    objects[version],
 		config: &PerconaXtraDBCluster{},
 	}
-
-	return pxc, nil
 }
 
 func (p PXC) Bundle() []dbaas.BundleObject {

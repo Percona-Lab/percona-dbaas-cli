@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 var delePVC *bool
@@ -94,7 +95,7 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbaas.Delete("pxc", name, *delePVC, ok, cerr)
+		go dbaas.Delete("pxc", pxc.New(name, defaultVersion), *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
@@ -103,7 +104,7 @@ var delCmd = &cobra.Command{
 				sp.FinalMSG = "Deleting...[done]\n"
 				return
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] delete pxc: %v\n", err)
 				return
 			}
 		}

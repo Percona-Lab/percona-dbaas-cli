@@ -29,26 +29,32 @@ import (
 
 type Version string
 
-var (
+const (
 	Version100 Version = "1.0.0"
+
+	defaultRSname = "rs0"
 )
 
 type PSMDB struct {
 	name         string
+	rsName       string
 	config       *PerconaServerMongoDB
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
 }
 
-func New(name string, version Version) (*PSMDB, error) {
-	pxc := &PSMDB{
-		name:   name,
+func New(clusterName, replsetName string, version Version) *PSMDB {
+	if replsetName == "" {
+		replsetName = defaultRSname
+	}
+
+	return &PSMDB{
+		name:   clusterName,
+		rsName: replsetName,
 		obj:    objects[version],
 		config: &PerconaServerMongoDB{},
 	}
-
-	return pxc, nil
 }
 
 func (p PSMDB) Bundle() []dbaas.BundleObject {
@@ -76,7 +82,7 @@ Storage                 | %v
 `
 
 func (p *PSMDB) Setup(f *pflag.FlagSet) (string, error) {
-	err := p.config.SetNew(p.Name(), f)
+	err := p.config.SetNew(p.Name(), p.rsName, f)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
@@ -105,13 +111,12 @@ func (p *PSMDB) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
 	p.config.APIVersion = cr.APIVersion
 	p.config.Kind = cr.Kind
 	p.config.Name = cr.Name
-	p.config.Finalizers = cr.Finalizers
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(f)
+	err = p.config.UpdateWith(p.rsName, f)
 	if err != nil {
-		return "", errors.Wrap(err, "applay changes to cr")
+		return "", errors.Wrap(err, "apply changes to cr")
 	}
 
 	return fmt.Sprintf(updateMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size), nil

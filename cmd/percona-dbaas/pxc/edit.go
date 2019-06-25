@@ -41,11 +41,7 @@ var editCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := pxc.New(name, defaultVersion)
-		if err != nil {
-			fmt.Println("[Error] create pxc object:", err)
-			return
-		}
+		app := pxc.New(name, defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

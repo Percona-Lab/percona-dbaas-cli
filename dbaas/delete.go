@@ -20,14 +20,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Delete(typ, name string, delPVC bool, ok chan<- string, errc chan<- error) {
-	err := delete(typ, name)
+func Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc chan<- error) {
+	err := delete(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "delete cluster")
 		return
 	}
 	if delPVC {
-		err := deletePVC(typ, name)
+		err := deletePVC(app)
 		if err != nil {
 			errc <- errors.Wrap(err, "delete cluster PVCs")
 			return
@@ -46,10 +46,10 @@ func delete(typ, name string) error {
 	return nil
 }
 
-func deletePVC(typ, name string) error {
+func deletePVC(app Deploy) error {
 	out, err := exec.Command("kubectl", "delete", "pvc",
-		"-l", "app.kubernetes.io/part-of=percona-xtradb-cluster",
-		"-l", "app.kubernetes.io/instance="+name,
+		"-l", "app.kubernetes.io/part-of="+app.OperatorName(),
+		"-l", "app.kubernetes.io/instance="+app.Name(),
 	).CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "get cr: %s", out)

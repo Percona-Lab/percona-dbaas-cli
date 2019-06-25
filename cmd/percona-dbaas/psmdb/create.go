@@ -33,21 +33,30 @@ const (
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create <psmdb-cluster-name>",
+	Use:   "create <psmdb-cluster-name> <replica-set-name>",
 	Short: "Create MongoDB cluster on current Kubernetes cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify psmdb-cluster-name")
 		}
 
+		if len(args) > 2 {
+			return errors.Errorf("Unknow arguments %v", args[2:])
+		}
+
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		app, err := psmdb.New(args[0], defaultVersion)
-		if err != nil {
-			fmt.Println("[Error] create psmdb:", err)
-			return
+		args = parseArgs(args)
+
+		clusterName := args[0]
+
+		rsName := ""
+		if len(args) >= 2 {
+			rsName = args[1]
 		}
+
+		app := psmdb.New(clusterName, rsName, defaultVersion)
 
 		setupmsg, err := app.Setup(cmd.Flags())
 		if err != nil {

@@ -15,6 +15,8 @@
 package psmdb
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 )
 
@@ -22,4 +24,16 @@ import (
 var PSMDBCmd = &cobra.Command{
 	Use:   "psmdb",
 	Short: "Manage your MongoDB cluster on Kubernetes",
+}
+
+func parseArgs(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+
+	if a := strings.Split(args[0], "/"); len(a) == 2 {
+		args = a
+	}
+
+	return args
 }
