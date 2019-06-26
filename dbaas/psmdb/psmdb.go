@@ -123,7 +123,7 @@ func (p *PSMDB) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
 }
 
 func (p *PSMDB) OperatorName() string {
-	return "percona-xtradb-cluster-operator"
+	return "percona-server-mongodb-operator"
 }
 
 type k8sStatus struct {
@@ -143,7 +143,12 @@ func (p *PSMDB) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
 	}
 
-	switch st.Status.Status {
+	status := st.Status.Replsets[p.rsName]
+	if status == nil {
+		return dbaas.ClusterStateInit, nil, nil
+	}
+
+	switch status.Status {
 	case AppStateReady:
 		if len(p.dbpass) == 0 {
 			p.dbpass = p.getDBPass()
@@ -152,7 +157,7 @@ func (p *PSMDB) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
 	case AppStateError:
-		return dbaas.ClusterStateError, alterStatusMgs([]string{st.Status.Message}), nil
+		return dbaas.ClusterStateError, alterStatusMgs([]string{status.Message}), nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
@@ -184,8 +189,8 @@ type operatorLog struct {
 	TS         float64 `json:"ts"`
 	Msg        string  `json:"msg"`
 	Error      string  `json:"error"`
-	Request    string  `json:"Request"`
-	Controller string  `json:"Controller"`
+	Request    string  `json:"request"`
+	Controller string  `json:"controller"`
 }
 
 func (p *PSMDB) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
@@ -203,7 +208,7 @@ func (p *PSMDB) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 			return nil, errors.Wrap(err, "unmarshal entry")
 		}
 
-		if entry.Controller != "perconaxtradbcluster-controller" {
+		if entry.Controller != "psmdb-controller" {
 			continue
 		}
 
