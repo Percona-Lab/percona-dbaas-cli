@@ -15,6 +15,7 @@
 package dbaas
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func init() {
@@ -37,7 +39,7 @@ type Deploy interface {
 	Name() string
 	OperatorName() string
 
-	CheckStatus(data []byte) (ClusterState, []string, error)
+	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
 	Update(crRaw []byte, f *pflag.FlagSet) (string, error)
@@ -130,12 +132,17 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
+		secrets, err := getSecrets(app)
+		if err != nil {
+			errc <- errors.Wrap(err, "get cluster secrets")
+			return
+		}
 		status, err := GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := app.CheckStatus(status)
+		state, msgs, err := app.CheckStatus(status, secrets)
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -238,4 +245,19 @@ func gkeUser() (string, error) {
 	}
 
 	return strings.TrimSpace(string(s)), nil
+}
+
+func getSecrets(app Deploy) (map[string][]byte, error) {
+	data, err := GetObject("secrets", app.Name()+"-secrets")
+	if err != nil {
+		return nil, errors.Wrap(err, "get object")
+	}
+
+	secretsObj := &corev1.Secret{}
+	err = json.Unmarshal(data, secretsObj)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshal")
+	}
+
+	return secretsObj.Data, nil
 }

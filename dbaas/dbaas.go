@@ -61,8 +61,8 @@ func readOperatorLogs(operatorName string) ([]byte, error) {
 	return runCmd(execCommand, "logs", "-l", "name="+operatorName)
 }
 
-func GetObject(typ, clusterName string) ([]byte, error) {
-	return runCmd(execCommand, "get", typ+"/"+clusterName, "-o", "json")
+func GetObject(typ, name string) ([]byte, error) {
+	return runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
 func apply(k8sObj string) error {

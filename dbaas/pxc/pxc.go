@@ -132,7 +132,7 @@ Pass: %s
 
 Enjoy!`
 
-func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
@@ -142,10 +142,7 @@ func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 
 	switch st.Status.Status {
 	case AppStateReady:
-		if len(p.dbpass) == 0 {
-			p.dbpass = p.getDBPass()
-		}
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, p.dbpass)}, nil
+		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
 	case AppStateError:
@@ -153,27 +150,6 @@ func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
-}
-
-func (p *PXC) getDBPass() []byte {
-	sbytes, err := dbaas.GetObject("secret", p.Name()+"-secrets")
-	if err != nil {
-		return []byte("error:" + err.Error())
-	}
-
-	s := &corev1.Secret{}
-
-	err = json.Unmarshal(sbytes, s)
-	if err != nil {
-		return []byte("error:" + err.Error())
-	}
-
-	pbytes, ok := s.Data["root"]
-	if !ok {
-		return []byte("<see cluster secrets>")
-	}
-
-	return pbytes
 }
 
 type operatorLog struct {

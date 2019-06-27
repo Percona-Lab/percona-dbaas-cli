@@ -56,7 +56,7 @@ func Edit(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<-
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := app.CheckStatus(status)
+		state, msgs, err := app.CheckStatus(status, make(map[string][]byte))
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
