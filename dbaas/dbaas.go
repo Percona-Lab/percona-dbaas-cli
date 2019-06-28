@@ -101,3 +101,17 @@ func GenRandString(ln int) string {
 
 	return string(b)
 }
+
+// IsMini is for checking if cluster works on minishift/minikube
+func IsMini() (bool, error) {
+	out, err := runCmd("kubectl", "version")
+	if err != nil {
+		return false, err
+	}
+	mini := strings.Contains(string(out), "mini")
+	if !mini {
+		return false, nil
+	}
+
+	return true, nil
+}

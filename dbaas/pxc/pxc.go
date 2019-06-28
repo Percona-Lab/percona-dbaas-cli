@@ -58,6 +58,17 @@ func (p PXC) Name() string {
 }
 
 func (p PXC) App() (string, error) {
+	mini, err := dbaas.IsMini()
+	if err != nil {
+		return "", nil
+	}
+	if mini {
+		none := "none"
+		p.config.Spec.PXC.Affinity.TopologyKey = &none
+		p.config.Spec.PXC.Resources = nil
+		p.config.Spec.ProxySQL.Affinity.TopologyKey = &none
+		p.config.Spec.ProxySQL.Resources = nil
+	}
 	cr, err := json.Marshal(p.config)
 	if err != nil {
 		return "", errors.Wrap(err, "marshal cr template")

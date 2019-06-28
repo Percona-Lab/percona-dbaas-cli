@@ -66,6 +66,17 @@ func (p PSMDB) Name() string {
 }
 
 func (p PSMDB) App() (string, error) {
+	mini, err := dbaas.IsMini()
+	if err != nil {
+		return "", nil
+	}
+	if mini {
+		none := "none"
+		for _, replset := range p.config.Spec.Replsets {
+			replset.Resources = nil
+			replset.MultiAZ.Affinity.TopologyKey = &none
+		}
+	}
 	cr, err := json.Marshal(p.config)
 	if err != nil {
 		return "", errors.Wrap(err, "marshal cr template")
