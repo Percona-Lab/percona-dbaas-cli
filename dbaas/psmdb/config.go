@@ -15,6 +15,7 @@
 package psmdb
 
 import (
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
@@ -510,7 +511,7 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 	return rs, nil
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
@@ -522,7 +523,13 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	cr.Spec.Replsets = []*ReplsetSpec{
 		rs,
 	}
-
+	if p == dbaas.Mini {
+		none := "none"
+		for i, _ := range cr.Spec.Replsets {
+			cr.Spec.Replsets[i].Resources = nil
+			cr.Spec.Replsets[i].MultiAZ.Affinity.TopologyKey = &none
+		}
+	}
 	return nil
 }
 

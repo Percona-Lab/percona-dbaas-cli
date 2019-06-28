@@ -66,17 +66,6 @@ func (p PSMDB) Name() string {
 }
 
 func (p PSMDB) App() (string, error) {
-	mini, err := dbaas.IsMini()
-	if err != nil {
-		return "", nil
-	}
-	if mini {
-		none := "none"
-		for _, replset := range p.config.Spec.Replsets {
-			replset.Resources = nil
-			replset.MultiAZ.Affinity.TopologyKey = &none
-		}
-	}
 	cr, err := json.Marshal(p.config)
 	if err != nil {
 		return "", errors.Wrap(err, "marshal cr template")
@@ -93,7 +82,12 @@ Storage                 | %v
 `
 
 func (p *PSMDB) Setup(f *pflag.FlagSet) (string, error) {
-	err := p.config.SetNew(p.Name(), p.rsName, f)
+	platformType, err := dbaas.GetPlatformType()
+	if err != nil {
+		return "", err
+	}
+
+	err = p.config.SetNew(p.Name(), p.rsName, f, platformType)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}

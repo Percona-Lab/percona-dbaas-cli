@@ -15,6 +15,7 @@
 package pxc
 
 import (
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
@@ -227,7 +228,7 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet) (err error) {
 	return nil
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet) (err error) {
+func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
@@ -328,6 +329,14 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet) (er
 		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", proxytpk)
 	}
 	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
+
+	if p == dbaas.Mini {
+		none := "none"
+		cr.Spec.PXC.Affinity.TopologyKey = &none
+		cr.Spec.PXC.Resources = nil
+		cr.Spec.ProxySQL.Affinity.TopologyKey = &none
+		cr.Spec.ProxySQL.Resources = nil
+	}
 
 	return nil
 }

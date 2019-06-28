@@ -15,6 +15,7 @@
 package dbaas
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os/exec"
@@ -35,6 +36,13 @@ func init() {
 		}
 	}
 }
+
+type PlatformType string
+
+const (
+	Undetermined PlatformType = "undetermined"
+	Mini         PlatformType = "mini"
+)
 
 var execCommand string
 
@@ -102,16 +110,26 @@ func GenRandString(ln int) string {
 	return string(b)
 }
 
-// IsMini is for checking if cluster works on minishift/minikube
-func IsMini() (bool, error) {
-	out, err := runCmd("kubectl", "version")
+type version struct {
+	ServerVersion struct {
+		GitVersion string `json:"gitVersion"`
+	} `json:"serverVersion"`
+}
+
+// GetPlatformType is for determine and return platform type
+func GetPlatformType() (PlatformType, error) {
+	output, err := runCmd("kubectl", "version", "-o=json")
 	if err != nil {
-		return false, err
+		return Undetermined, err
 	}
-	mini := strings.Contains(string(out), "mini")
-	if !mini {
-		return false, nil
+	version := version{}
+	err = json.Unmarshal(output, &version)
+	if err != nil {
+		return Undetermined, err
+	}
+	if strings.Contains(version.ServerVersion.GitVersion, "mini") {
+		return Mini, nil
 	}
 
-	return true, nil
+	return Undetermined, nil
 }
