@@ -22,6 +22,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sversion "k8s.io/apimachinery/pkg/version"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
 // PerconaServerMongoDB is the Schema for the perconaservermongodbs API
@@ -355,33 +357,14 @@ type BackupTaskSpec struct {
 	CompressionType BackupCompressionType `json:"compressionType,omitempty"`
 }
 
-type BackupStorageS3Spec struct {
-	Bucket            string `json:"bucket"`
-	CredentialsSecret string `json:"credentialsSecret"`
-	Region            string `json:"region,omitempty"`
-	EndpointURL       string `json:"endpointUrl,omitempty"`
-}
-
-type BackupStorageType string
-
-const (
-	BackupStorageFilesystem BackupStorageType = "filesystem"
-	BackupStorageS3         BackupStorageType = "s3"
-)
-
-type BackupStorageSpec struct {
-	Type BackupStorageType   `json:"type"`
-	S3   BackupStorageS3Spec `json:"s3,omitempty"`
-}
-
 type BackupSpec struct {
-	Enabled          bool                         `json:"enabled"`
-	Debug            bool                         `json:"debug"`
-	RestartOnFailure *bool                        `json:"restartOnFailure,omitempty"`
-	Coordinator      BackupCoordinatorSpec        `json:"coordinator,omitempty"`
-	Storages         map[string]BackupStorageSpec `json:"storages,omitempty"`
-	Image            string                       `json:"image,omitempty"`
-	Tasks            []BackupTaskSpec             `json:"tasks,omitempty"`
+	Enabled          bool                               `json:"enabled"`
+	Debug            bool                               `json:"debug"`
+	RestartOnFailure *bool                              `json:"restartOnFailure,omitempty"`
+	Coordinator      BackupCoordinatorSpec              `json:"coordinator,omitempty"`
+	Storages         map[string]dbaas.BackupStorageSpec `json:"storages,omitempty"`
+	Image            string                             `json:"image,omitempty"`
+	Tasks            []BackupTaskSpec                   `json:"tasks,omitempty"`
 }
 
 type Arbiter struct {
@@ -510,25 +493,33 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 	return rs, nil
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
 	rs, err := NewReplSet(rsName, f)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "new replset")
 	}
 
 	cr.Spec.Replsets = []*ReplsetSpec{
 		rs,
 	}
 
+	cr.Spec.Backup, err = cr.createBackup(f)
+	if err != nil {
+		return errors.Wrap(err, "backup spec")
+	}
+	if s3 != nil {
+		cr.Spec.Backup.Storages = map[string]dbaas.BackupStorageSpec{
+			defaultBcpStorageName: *s3,
+		}
+	}
+
 	return nil
 }
 
 func (cr *PerconaServerMongoDB) setDefaults() {
-	// one := intstr.FromInt(1)
-
 	cr.TypeMeta.APIVersion = "psmdb.percona.com/v1"
 	cr.TypeMeta.Kind = "PerconaServerMongoDB"
 
@@ -537,23 +528,50 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 	}
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.0.0-mongod4.0.9"
+}
 
-	// cr.Spec.Backup = &PXCScheduledBackup{
-	// 	Image: "percona/percona-xtradb-cluster-operator:1.0.0-backup",
-	// 	Storages: map[string]*BackupStorageSpec{
-	// 		"fs-pvc": &BackupStorageSpec{
-	// 			Type: BackupStorageFilesystem,
-	// 			Volume: &VolumeSpec{
-	// 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-	// 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-	// 					Resources: corev1.ResourceRequirements{
-	// 						Requests: corev1.ResourceList{corev1.ResourceStorage: volPXC},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
+const defaultBcpStorageName = "defaultS3Storage"
+
+func (cr *PerconaServerMongoDB) createBackup(f *pflag.FlagSet) (BackupSpec, error) {
+	t := true
+	volSize, err := resource.ParseQuantity("1Gi")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator Storage")
+	}
+	cpu, err := resource.ParseQuantity("100m")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator CPU")
+	}
+	mem, err := resource.ParseQuantity("0.1G")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator Memory")
+	}
+	memlim, err := resource.ParseQuantity("0.2G")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator Memory limit")
+	}
+	bcp := BackupSpec{
+		Enabled:          true,
+		RestartOnFailure: &t,
+		Debug:            true,
+		Image:            "perconalab/percona-server-mongodb-operator:1.1.0-backup",
+		Coordinator: BackupCoordinatorSpec{
+			EnableClientsLogging: true,
+			Resources: &corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    cpu,
+					corev1.ResourceMemory: memlim,
+				},
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:     cpu,
+					corev1.ResourceMemory:  mem,
+					corev1.ResourceStorage: volSize,
+				},
+			},
+		},
+	}
+
+	return bcp, nil
 }
 
 // PerconaServerMongoDBBackupSpec defines the desired state of PerconaServerMongoDBBackup
@@ -576,13 +594,13 @@ const (
 type PerconaServerMongoDBBackupStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	State         PerconaSMDBStatusState `json:"state,omitempty"`
-	StartAt       *metav1.Time           `json:"start,omitempty"`
-	CompletedAt   *metav1.Time           `json:"completed,omitempty"`
-	LastScheduled *metav1.Time           `json:"lastscheduled,omitempty"`
-	Destination   string                 `json:"destination,omitempty"`
-	StorageName   string                 `json:"storageName,omitempty"`
-	S3            *BackupStorageS3Spec   `json:"s3,omitempty"`
+	State         PerconaSMDBStatusState     `json:"state,omitempty"`
+	StartAt       *metav1.Time               `json:"start,omitempty"`
+	CompletedAt   *metav1.Time               `json:"completed,omitempty"`
+	LastScheduled *metav1.Time               `json:"lastscheduled,omitempty"`
+	Destination   string                     `json:"destination,omitempty"`
+	StorageName   string                     `json:"storageName,omitempty"`
+	S3            *dbaas.BackupStorageS3Spec `json:"s3,omitempty"`
 }
 
 // PerconaServerMongoDBBackup is the Schema for the perconaservermongodbbackups API

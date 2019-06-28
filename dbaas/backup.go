@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
 )
 
 type Backupper interface {
@@ -40,6 +41,25 @@ const (
 	BackupFailed                = "Failed"
 	BackupSucceeded             = "Succeeded"
 )
+
+type BackupStorageType string
+
+const (
+	BackupStorageFilesystem BackupStorageType = "filesystem"
+	BackupStorageS3         BackupStorageType = "s3"
+)
+
+type BackupStorageS3Spec struct {
+	Bucket            string `json:"bucket"`
+	CredentialsSecret string `json:"credentialsSecret"`
+	Region            string `json:"region,omitempty"`
+	EndpointURL       string `json:"endpointUrl,omitempty"`
+}
+
+type BackupStorageSpec struct {
+	Type BackupStorageType   `json:"type"`
+	S3   BackupStorageS3Spec `json:"s3,omitempty"`
+}
 
 func Backup(typ string, app Backupper, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	cr, err := app.CR()
@@ -103,4 +123,71 @@ func Backup(typ string, app Backupper, ok chan<- string, msg chan<- OutuputMsg, 
 
 		tries++
 	}
+}
+
+type ErrNoS3Options string
+
+func (e ErrNoS3Options) Error() string {
+	return "not enough options to set S3 backup storage: " + string(e)
+}
+
+func S3Storage(app Deploy, f *pflag.FlagSet) (*BackupStorageSpec, error) {
+	bucket, err := f.GetString("s3-bucket")
+	if err != nil {
+		return nil, errors.New("undefined `s3-bucket`")
+	}
+	if bucket == "" {
+		return nil, ErrNoS3Options("no buket defined")
+	}
+
+	region, err := f.GetString("s3-region")
+	if err != nil {
+		return nil, errors.New("undefined `s3-region`")
+	}
+
+	endpoint, err := f.GetString("s3-endpoint-url")
+	if err != nil {
+		return nil, errors.New("undefined `s3-endpoint-url`")
+	}
+
+	secretName, err := f.GetString("s3-credentials-secret")
+	if err != nil {
+		return nil, errors.New("undefined `s3-credentials-secret`")
+	}
+	if secretName == "" {
+		keyid, err := f.GetString("s3-key-id")
+		if err != nil {
+			return nil, errors.New("undefined `s3-key-id`")
+		}
+		key, err := f.GetString("s3-key")
+		if err != nil {
+			return nil, errors.New("undefined `s3-key`")
+		}
+
+		if key == "" || keyid == "" {
+			return nil, ErrNoS3Options("neither s3-credentials-secret nor s3-key-id and s3-key defined")
+		}
+
+		secretName = "s3-" + app.Name() + "-" + GenRandString(5)
+		secretData := map[string][]byte{
+			"AWS_ACCESS_KEY_ID":     []byte(keyid),
+			"AWS_SECRET_ACCESS_KEY": []byte(key),
+		}
+		err = CreateSecret(secretName, secretData)
+		if err != nil {
+			return nil, errors.Wrap(err, "create secret")
+		}
+	}
+
+	s3 := &BackupStorageSpec{
+		Type: BackupStorageS3,
+		S3: BackupStorageS3Spec{
+			Bucket:            bucket,
+			Region:            region,
+			EndpointURL:       endpoint,
+			CredentialsSecret: secretName,
+		},
+	}
+
+	return s3, nil
 }

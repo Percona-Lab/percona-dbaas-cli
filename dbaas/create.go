@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
@@ -185,6 +186,28 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 
 		tries++
 	}
+}
+
+// CreateSecret creates k8s secret object with the given name and data
+func CreateSecret(name string, data map[string][]byte) error {
+	s := corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Secret",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Data: data,
+		Type: corev1.SecretTypeOpaque,
+	}
+
+	sj, err := json.Marshal(s)
+	if err != nil {
+		errors.Wrap(err, "json marshal")
+	}
+
+	return errors.WithMessage(apply(string(sj)), "apply")
 }
 
 func osAdminBundle(bs []BundleObject) string {
