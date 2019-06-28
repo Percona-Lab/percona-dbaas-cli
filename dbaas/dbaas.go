@@ -118,7 +118,7 @@ type version struct {
 
 // GetPlatformType is for determine and return platform type
 func GetPlatformType() (PlatformType, error) {
-	output, err := runCmd("kubectl", "version", "-o=json")
+	output, err := runCmd(execCommand, "version", "-o=json")
 	if err != nil {
 		return Undetermined, err
 	}
