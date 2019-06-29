@@ -91,13 +91,13 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 			continue
 		}
 
-		cluster := ""
+		obj := ""
 		s := strings.Split(entry.Request, "/")
 		if len(s) == 2 {
-			cluster = s[1]
+			obj = s[1]
 		}
 
-		if !strings.HasPrefix(cluster, b.cluster+".") {
+		if obj != b.name {
 			continue
 		}
 

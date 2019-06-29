@@ -512,7 +512,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	}
 	if s3 != nil {
 		cr.Spec.Backup.Storages = map[string]dbaas.BackupStorageSpec{
-			defaultBcpStorageName: *s3,
+			dbaas.DefaultBcpStorageName: *s3,
 		}
 	}
 
@@ -529,8 +529,6 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.0.0-mongod4.0.9"
 }
-
-const defaultBcpStorageName = "defaultS3Storage"
 
 func (cr *PerconaServerMongoDB) createBackup(f *pflag.FlagSet) (BackupSpec, error) {
 	t := true
@@ -592,8 +590,6 @@ const (
 
 // PerconaServerMongoDBBackupStatus defines the observed state of PerconaServerMongoDBBackup
 type PerconaServerMongoDBBackupStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	State         PerconaSMDBStatusState     `json:"state,omitempty"`
 	StartAt       *metav1.Time               `json:"start,omitempty"`
 	CompletedAt   *metav1.Time               `json:"completed,omitempty"`
@@ -626,4 +622,51 @@ func (b *PerconaServerMongoDBBackup) SetNew(name, cluster, storage string) {
 	b.ObjectMeta.Name = name
 	b.Spec.PSMDBCluster = cluster
 	b.Spec.StorageName = storage
+}
+
+// PerconaServerMongoDBRestoreSpec defines the desired state of PerconaServerMongoDBRestore
+type PerconaServerMongoDBRestoreSpec struct {
+	BackupName  string `json:"backupName,omitempty"`
+	ClusterName string `json:"clusterName,omitempty"`
+	Destination string `json:"destination,omitempty"`
+	StorageName string `json:"storageName,omitempty"`
+}
+
+// PerconaSMDBRestoreStatusState is for restore status states
+type PerconaSMDBRestoreStatusState string
+
+const (
+	RestoreStateRequested PerconaSMDBRestoreStatusState = "requested"
+	RestoreStateReady     PerconaSMDBRestoreStatusState = "ready"
+	RestoreStateRejected  PerconaSMDBRestoreStatusState = "rejected"
+)
+
+// PerconaServerMongoDBRestoreStatus defines the observed state of PerconaServerMongoDBRestore
+type PerconaServerMongoDBRestoreStatus struct {
+	State PerconaSMDBRestoreStatusState `json:"state,omitempty"`
+}
+
+// PerconaServerMongoDBRestore is the Schema for the perconaservermongodbrestores API
+type PerconaServerMongoDBRestore struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   PerconaServerMongoDBRestoreSpec   `json:"spec,omitempty"`
+	Status PerconaServerMongoDBRestoreStatus `json:"status,omitempty"`
+}
+
+// PerconaServerMongoDBRestoreList contains a list of PerconaServerMongoDBRestore
+type PerconaServerMongoDBRestoreList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PerconaServerMongoDBRestore `json:"items"`
+}
+
+func (b *PerconaServerMongoDBRestore) SetNew(name, cluster, backup string) {
+	b.TypeMeta.APIVersion = "psmdb.percona.com/v1"
+	b.TypeMeta.Kind = "PerconaServerMongoDBRestore"
+
+	b.ObjectMeta.Name = name
+	b.Spec.ClusterName = cluster
+	b.Spec.BackupName = backup
 }
