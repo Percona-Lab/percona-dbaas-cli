@@ -94,7 +94,7 @@ spec:
       JSONPath: .spec.psmdbCluster
     - name: Storage
       type: string
-      description: Storage name from pxc spec
+      description: Storage name from psmdb spec
       JSONPath: .spec.storageName
     - name: Destination
       type: string

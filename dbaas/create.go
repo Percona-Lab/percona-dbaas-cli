@@ -43,7 +43,7 @@ type Deploy interface {
 	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
-	Update(crRaw []byte, f *pflag.FlagSet) (string, error)
+	Edit(crRaw []byte, f *pflag.FlagSet, storage *BackupStorageSpec) (string, error)
 }
 
 type ClusterState string

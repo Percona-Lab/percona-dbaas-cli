@@ -92,7 +92,7 @@ const (
 
 // PerconaServerMongoDBStatus defines the observed state of PerconaServerMongoDB
 type PerconaServerMongoDBStatus struct {
-	Status     AppState                  `json:"state,omitempty"`
+	Status     AppState                  `json:"status,omitempty"`
 	Message    string                    `json:"message,omitempty"`
 	Conditions []ClusterCondition        `json:"conditions,omitempty"`
 	Replsets   map[string]*ReplsetStatus `json:"replsets,omitempty"`
@@ -403,10 +403,22 @@ type ServerVersion struct {
 	Info     k8sversion.Info
 }
 
-func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet) (err error) {
+func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
+		if cr.Spec.Backup.Storages == nil {
+			cr.Spec.Backup.Storages = make(map[string]dbaas.BackupStorageSpec)
+		}
+
+		cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName] = *s3
+	}
+
 	size, err := f.GetInt32("replset-size")
 	if err != nil {
 		return errors.New("undefined `replset-size`")
+	}
+
+	if size == 0 {
+		return nil
 	}
 
 	for _, rs := range cr.Spec.Replsets {
@@ -456,38 +468,38 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 		return nil, errors.New("undefined `replset-size`")
 	}
 
-	pxcCPU, err := f.GetString("request-cpu")
+	psmdbCPU, err := f.GetString("request-cpu")
 	if err != nil {
 		return nil, errors.New("undefined `request-cpu`")
 	}
-	_, err = resource.ParseQuantity(pxcCPU)
+	_, err = resource.ParseQuantity(psmdbCPU)
 	if err != nil {
 		return nil, errors.Wrap(err, "request-cpu")
 	}
-	pxcMemory, err := f.GetString("request-mem")
+	psmdbMemory, err := f.GetString("request-mem")
 	if err != nil {
 		return nil, errors.New("undefined `request-mem`")
 	}
-	_, err = resource.ParseQuantity(pxcMemory)
+	_, err = resource.ParseQuantity(psmdbMemory)
 	if err != nil {
 		return nil, errors.Wrap(err, "request-mem")
 	}
 	rs.Resources = &ResourcesSpec{
 		Requests: &ResourceSpecRequirements{
-			CPU:    pxcCPU,
-			Memory: pxcMemory,
+			CPU:    psmdbCPU,
+			Memory: psmdbMemory,
 		},
 	}
 
-	pxctpk, err := f.GetString("anti-affinity-key")
+	psmdbtpk, err := f.GetString("anti-affinity-key")
 	if err != nil {
 		return nil, errors.New("undefined `anti-affinity-key`")
 	}
-	if _, ok := affinityValidTopologyKeys[pxctpk]; !ok {
-		return nil, errors.Errorf("invalid `anti-affinity-key` value: %s", pxctpk)
+	if _, ok := affinityValidTopologyKeys[psmdbtpk]; !ok {
+		return nil, errors.Errorf("invalid `anti-affinity-key` value: %s", psmdbtpk)
 	}
 	rs.Affinity = &PodAffinity{
-		TopologyKey: &pxctpk,
+		TopologyKey: &psmdbtpk,
 	}
 
 	return rs, nil

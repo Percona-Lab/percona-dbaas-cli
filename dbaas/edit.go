@@ -22,16 +22,16 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func Edit(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func Edit(typ string, app Deploy, f *pflag.FlagSet, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := GetObject(typ, app.Name())
 	if err != nil {
-		errc <- errors.Wrap(err, "get pxc config")
+		errc <- errors.Wrap(err, "get config")
 		return
 	}
 
-	_, err = app.Update(acr, f)
+	_, err = app.Edit(acr, f, storage)
 	if err != nil {
-		errc <- errors.Wrap(err, "update pxc config")
+		errc <- errors.Wrap(err, "update config")
 		return
 	}
 

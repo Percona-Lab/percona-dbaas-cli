@@ -27,10 +27,12 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
-// editCmd represents the edit command
-var editCmd = &cobra.Command{
-	Use:   "edit <psmdb-cluster-name>",
-	Short: "Edit MongoDB cluster",
+const noS3backupOpts = `[Error] S3 backup storage options doesn't set properly: %v.`
+
+// storageCmd represents the edit command
+var storageCmd = &cobra.Command{
+	Use:   "add-storage <psmdb-cluster-name>",
+	Short: "Add storage for MongoDB backups",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify psmdb-cluster-name")
@@ -80,18 +82,29 @@ var editCmd = &cobra.Command{
 			return
 		}
 
+		s3stor, err := dbaas.S3Storage(app, cmd.Flags())
+		if err != nil {
+			switch err.(type) {
+			case dbaas.ErrNoS3Options:
+				fmt.Printf(noS3backupOpts, err)
+			default:
+				fmt.Println("[Error] create S3 backup storage:", err)
+			}
+			return
+		}
+
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("psmdb", app, cmd.Flags(), nil, created, msg, cerr)
-		sp.Prefix = "Applying changes..."
+		go dbaas.Edit("psmdb", app, cmd.Flags(), s3stor, created, msg, cerr)
+		sp.Prefix = "Adding the storage..."
 
 		for {
 			select {
 			case <-created:
 				okmsg, _ := dbaas.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -103,7 +116,7 @@ var editCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit psmdb: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] add storage to psmdb: %v\n", err)
 				sp.HideCursor = true
 				return
 			}
@@ -112,7 +125,14 @@ var editCmd = &cobra.Command{
 }
 
 func init() {
-	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
+	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
+	storageCmd.Flags().String("s3-bucket", "", "Bucket of S3 compatible storage to store backup at")
+	storageCmd.Flags().String("s3-region", "", "Region of S3 compatible storage to store backup at")
+	storageCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-key-id and --s3-key instead.")
+	storageCmd.Flags().String("s3-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
+	storageCmd.Flags().String("s3-key", "", "Access Key for S3 compatible storage to store backup at")
 
-	PSMDBCmd.AddCommand(editCmd)
+	storageCmd.Flags().Int32("replset-size", 0, "Number of nodes in replset")
+
+	PSMDBCmd.AddCommand(storageCmd)
 }
