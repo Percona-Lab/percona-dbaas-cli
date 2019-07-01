@@ -27,13 +27,13 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
-// editCmd represents the edit command
-var editCmd = &cobra.Command{
-	Use:   "edit <psmdb-cluster-name>",
-	Short: "Edit MongoDB cluster",
+// restoreCmd represents the list command
+var restoreCmd = &cobra.Command{
+	Use:   "restore-backup <psmdb-cluster-name> <psmdb-backup-name>",
+	Short: "Restore MongoDB backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("You have to specify psmdb-cluster-name and psmdb-backup-name")
 		}
 
 		return nil
@@ -41,27 +41,21 @@ var editCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
 
-		clusterName := args[0]
-
-		rsName := ""
-		if len(args) >= 2 {
-			rsName = args[1]
+		name := args[0]
+		if len(args) < 2 || args[1] == "" {
+			fmt.Fprint(os.Stderr, "[ERROR] you have to specify psmdb-cluster-name and psmdb-backup-name\n")
+			return
 		}
-
-		app := psmdb.New(clusterName, rsName, defaultVersion)
+		bcpName := args[1]
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
-		demo, err := cmd.Flags().GetBool("demo")
-		if demo && err == nil {
-			sp.UpdateCharSet([]string{""})
-		}
 		sp.Prefix = "Looking for the cluster..."
 		sp.FinalMSG = ""
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("psmdb", clusterName)
+		ext, err := dbaas.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -70,7 +64,7 @@ var editCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
 			list, err := dbaas.List("psmdb")
 			if err != nil {
 				return
@@ -80,18 +74,43 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
+		sp.Prefix = "Looking for the backup..."
+		ext, err = dbaas.IsObjExists("psmdb-backup", bcpName)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
+			return
+		}
+
+		if !ext {
+			sp.Stop()
+			fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "psmdb-backup", bcpName)
+			list, err := dbaas.List("psmdb-backup")
+			if err != nil {
+				return
+			}
+			fmt.Println("Avaliable backups:")
+			fmt.Print(list)
+			return
+		}
+
+		sp.Prefix = "Restoring backup..."
+
+		bcp := psmdb.NewRestore(name)
+
+		bcp.Setup(bcpName)
+
+		ok := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("psmdb", app, cmd.Flags(), nil, created, msg, cerr)
-		sp.Prefix = "Applying changes..."
-
+		go dbaas.ApplyCheck("psmdb-restore", bcp, ok, msg, cerr)
+		tckr := time.NewTicker(1 * time.Second)
+		defer tckr.Stop()
 		for {
 			select {
-			case <-created:
-				okmsg, _ := dbaas.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+			case okmsg := <-ok:
+				sp.FinalMSG = fmt.Sprintf("Restoring backup...[done]\n%s\n", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -100,11 +119,11 @@ var editCmd = &cobra.Command{
 				case dbaas.OutuputMsgError:
 					sp.Stop()
 					fmt.Printf("[operator log error] %s\n", omsg)
+
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit psmdb: %v\n", err)
-				sp.HideCursor = true
+				fmt.Fprintf(os.Stderr, "\n[ERROR] restore backup: %v\n", err)
 				return
 			}
 		}
@@ -112,7 +131,5 @@ var editCmd = &cobra.Command{
 }
 
 func init() {
-	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
-
-	PSMDBCmd.AddCommand(editCmd)
+	PSMDBCmd.AddCommand(restoreCmd)
 }

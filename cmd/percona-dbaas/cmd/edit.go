@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package psmdb
+package cmd
 
 import (
 	"fmt"
@@ -24,31 +24,28 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 // editCmd represents the edit command
 var editCmd = &cobra.Command{
-	Use:   "edit <psmdb-cluster-name>",
-	Short: "Edit MongoDB cluster",
+	Use:   "edit <pxc-cluster-name>",
+	Short: "Edit MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("You have to specify pxc-cluster-name")
 		}
 
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		args = parseArgs(args)
+		name := args[0]
 
-		clusterName := args[0]
-
-		rsName := ""
-		if len(args) >= 2 {
-			rsName = args[1]
+		app, err := pxc.New(name, defaultVersion)
+		if err != nil {
+			fmt.Println("[Error] create pxc object:", err)
+			return
 		}
-
-		app := psmdb.New(clusterName, rsName, defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -61,7 +58,7 @@ var editCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("psmdb", clusterName)
+		ext, err := dbaas.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -70,8 +67,8 @@ var editCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
-			list, err := dbaas.List("psmdb")
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			list, err := dbaas.List("pxc")
 			if err != nil {
 				return
 			}
@@ -84,14 +81,14 @@ var editCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("psmdb", app, cmd.Flags(), nil, created, msg, cerr)
-		sp.Prefix = "Applying changes..."
+		go dbaas.Update("pxc", cmd.Flags(), app, created, msg, cerr)
+		sp.Prefix = "Updating..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbaas.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				okmsg, _ := dbaas.ListName("pxc", name)
+				sp.FinalMSG = fmt.Sprintf("Updating...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -103,7 +100,7 @@ var editCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit psmdb: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
 				sp.HideCursor = true
 				return
 			}
@@ -112,7 +109,8 @@ var editCmd = &cobra.Command{
 }
 
 func init() {
-	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
+	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
+	editCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
 
-	PSMDBCmd.AddCommand(editCmd)
+	pxcCmd.AddCommand(editCmd)
 }

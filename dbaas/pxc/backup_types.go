@@ -62,3 +62,54 @@ func (b *PerconaXtraDBBackup) SetNew(name, cluster, storage string) {
 	b.Spec.PXCCluster = cluster
 	b.Spec.StorageName = storage
 }
+
+// PerconaXtraDBClusterRestoreSpec defines the desired state of PerconaXtraDBClusterRestore
+type PerconaXtraDBClusterRestoreSpec struct {
+	PXCCluster string `json:"pxcCluster"`
+	BackupName string `json:"backupName"`
+}
+
+// PerconaXtraDBClusterRestoreStatus defines the observed state of PerconaXtraDBClusterRestore
+type PerconaXtraDBClusterRestoreStatus struct {
+	State         BcpRestoreStates `json:"state,omitempty"`
+	Comments      string           `json:"comments,omitempty"`
+	CompletedAt   *metav1.Time     `json:"completed,omitempty"`
+	LastScheduled *metav1.Time     `json:"lastscheduled,omitempty"`
+}
+
+// PerconaXtraDBClusterRestore is the Schema for the perconaxtradbclusterrestores API
+type PerconaXtraDBClusterRestore struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   PerconaXtraDBClusterRestoreSpec   `json:"spec,omitempty"`
+	Status PerconaXtraDBClusterRestoreStatus `json:"status,omitempty"`
+}
+
+// PerconaXtraDBClusterRestoreList contains a list of PerconaXtraDBClusterRestore
+type PerconaXtraDBClusterRestoreList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PerconaXtraDBClusterRestore `json:"items"`
+}
+
+type BcpRestoreStates string
+
+const (
+	RestoreNew          BcpRestoreStates = ""
+	RestoreStarting                      = "Starting"
+	RestoreStopCluster                   = "Stopping Cluster"
+	RestoreRestore                       = "Restoring"
+	RestoreStartCluster                  = "Starting Cluster"
+	RestoreFailed                        = "Failed"
+	RestoreSucceeded                     = "Succeeded"
+)
+
+func (b *PerconaXtraDBClusterRestore) SetNew(name, cluster, backup string) {
+	b.TypeMeta.APIVersion = "pxc.percona.com/v1"
+	b.TypeMeta.Kind = "PerconaXtraDBClusterRestore"
+
+	b.ObjectMeta.Name = name
+	b.Spec.PXCCluster = cluster
+	b.Spec.BackupName = backup
+}

@@ -30,7 +30,7 @@ import (
 // bcpCmd represents the list command
 var bcpCmd = &cobra.Command{
 	Use:   "create-backup <psmdb-cluster-name>",
-	Short: "Create MySQL backup",
+	Short: "Create MongoDB backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify psmdb-cluster-name")
@@ -71,14 +71,13 @@ var bcpCmd = &cobra.Command{
 
 		bcp := psmdb.NewBackup(name)
 
-		//TODO
-		bcp.Setup("fs-pvc")
+		bcp.Setup(dbaas.DefaultBcpStorageName)
 
 		ok := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Backup("psmdb-backup", bcp, ok, msg, cerr)
+		go dbaas.ApplyCheck("psmdb-backup", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

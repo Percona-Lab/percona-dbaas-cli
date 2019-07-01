@@ -29,6 +29,10 @@ import (
 
 const (
 	defaultVersion = "1.0.0"
+
+	noS3backupWarn = `[Error] S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
+You can skip this step by using --s3-skip-storage flag add the storage later with the "add-storage" command.
+`
 )
 
 // createCmd represents the create command
@@ -45,7 +49,22 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		app := pxc.New(args[0], defaultVersion)
 
-		setupmsg, err := app.Setup(cmd.Flags())
+		var s3stor *dbaas.BackupStorageSpec
+		if !*skipS3Storage {
+			var err error
+			s3stor, err = dbaas.S3Storage(app, cmd.Flags())
+			if err != nil {
+				switch err.(type) {
+				case dbaas.ErrNoS3Options:
+					fmt.Printf(noS3backupWarn, err)
+				default:
+					fmt.Println("[Error] create S3 backup storage:", err)
+				}
+				return
+			}
+		}
+
+		setupmsg, err := app.Setup(cmd.Flags(), s3stor)
 		if err != nil {
 			fmt.Println("[Error] set configuration:", err)
 			return
@@ -102,6 +121,7 @@ var createCmd = &cobra.Command{
 		}
 	},
 }
+var skipS3Storage *bool
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -115,6 +135,14 @@ func init() {
 	createCmd.Flags().String("proxy-request-cpu", "600m", "ProxySQL node requests for CPU, in cores. (500m = .5 cores)")
 	createCmd.Flags().String("proxy-request-mem", "1G", "ProxySQL node requests for memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)")
 	createCmd.Flags().String("proxy-anti-affinity-key", "kubernetes.io/hostname", "Pod anti-affinity rules. Allowed values: none, kubernetes.io/hostname, failure-domain.beta.kubernetes.io/zone, failure-domain.beta.kubernetes.io/region")
+
+	createCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
+	createCmd.Flags().String("s3-bucket", "", "Bucket of S3 compatible storage to store backup at")
+	createCmd.Flags().String("s3-region", "", "Region of S3 compatible storage to store backup at")
+	createCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-key-id and --s3-key instead.")
+	createCmd.Flags().String("s3-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
+	createCmd.Flags().String("s3-key", "", "Access Key for S3 compatible storage to store backup at")
+	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 
 	PXCCmd.AddCommand(createCmd)
 }

@@ -15,6 +15,8 @@
 package pxc
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 )
 
@@ -24,6 +26,14 @@ var PXCCmd = &cobra.Command{
 	Short: "Manage your MySQL cluster on Kubernetes",
 }
 
-// func init() {
-// 	rootCmd.AddCommand(pxcCmd)
-// }
+func parseArgs(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+
+	if a := strings.Split(args[0], "/"); len(a) == 2 {
+		args = a
+	}
+
+	return args
+}

@@ -37,10 +37,10 @@ type PerconaXtraDBClusterSpec struct {
 }
 
 type PXCScheduledBackup struct {
-	Image            string                        `json:"image,omitempty"`
-	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
-	Schedule         []PXCScheduledBackupSchedule  `json:"schedule,omitempty"`
-	Storages         map[string]*BackupStorageSpec `json:"storages,omitempty"`
+	Image            string                              `json:"image,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference       `json:"imagePullSecrets,omitempty"`
+	Schedule         []PXCScheduledBackupSchedule        `json:"schedule,omitempty"`
+	Storages         map[string]*dbaas.BackupStorageSpec `json:"storages,omitempty"`
 }
 
 type PXCScheduledBackupSchedule struct {
@@ -204,7 +204,15 @@ var affinityValidTopologyKeys = map[string]struct{}{
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
 
-func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet) (err error) {
+func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
+		if cr.Spec.Backup.Storages == nil {
+			cr.Spec.Backup.Storages = make(map[string]*dbaas.BackupStorageSpec)
+		}
+
+		cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName] = s3
+	}
+
 	pxcSize, err := f.GetInt32("pxc-instances")
 	if err != nil {
 		return errors.New("undefined `pxc-instances`")
@@ -229,7 +237,7 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet) (err error) {
 	return nil
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, p dbaas.PlatformType) (err error) {
+func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
@@ -331,7 +339,14 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, p d
 	}
 	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
 
-	switch p {
+
+	if s3 != nil {
+		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
+			dbaas.DefaultBcpStorageName: s3,
+		}
+  }
+  
+  switch p {
 	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
 		none := AffinityTopologyKeyOff
 		cr.Spec.PXC.Affinity.TopologyKey = &none
@@ -391,18 +406,5 @@ func (cr *PerconaXtraDBCluster) setDefaults() {
 
 	cr.Spec.Backup = &PXCScheduledBackup{
 		Image: "percona/percona-xtradb-cluster-operator:1.0.0-backup",
-		Storages: map[string]*BackupStorageSpec{
-			"fs-pvc": &BackupStorageSpec{
-				Type: BackupStorageFilesystem,
-				Volume: &VolumeSpec{
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-						AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-						Resources: corev1.ResourceRequirements{
-							Requests: corev1.ResourceList{corev1.ResourceStorage: volPXC},
-						},
-					},
-				},
-			},
-		},
 	}
 }

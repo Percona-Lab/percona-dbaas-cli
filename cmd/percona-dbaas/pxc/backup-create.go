@@ -77,7 +77,7 @@ var bcpCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Backup("pxc-backup", bcp, ok, msg, cerr)
+		go dbaas.ApplyCheck("pxc-backup", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

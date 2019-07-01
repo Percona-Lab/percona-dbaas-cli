@@ -73,8 +73,8 @@ ProxySQL instances      | %v
 Storage                 | %v
 `
 
-func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
-	err := p.config.SetNew(p.Name(), f, dbaas.GetPlatformType())
+func (p *PXC) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.config.SetNew(p.Name(), f, s3, dbaas.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
@@ -93,7 +93,7 @@ PXC instances           | %v
 ProxySQL instances      | %v
 `
 
-func (p *PXC) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
+func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
@@ -107,7 +107,7 @@ func (p *PXC) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(f)
+	err = p.config.UpdateWith(f, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "applay changes to cr")
 	}
@@ -132,7 +132,7 @@ Pass: %s
 
 Enjoy!`
 
-func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
@@ -142,10 +142,7 @@ func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 
 	switch st.Status.Status {
 	case AppStateReady:
-		if len(p.dbpass) == 0 {
-			p.dbpass = p.getDBPass()
-		}
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, p.dbpass)}, nil
+		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
 	case AppStateError:
@@ -153,27 +150,6 @@ func (p *PXC) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
-}
-
-func (p *PXC) getDBPass() []byte {
-	sbytes, err := dbaas.GetObject("secret", p.Name()+"-secrets")
-	if err != nil {
-		return []byte("error:" + err.Error())
-	}
-
-	s := &corev1.Secret{}
-
-	err = json.Unmarshal(sbytes, s)
-	if err != nil {
-		return []byte("error:" + err.Error())
-	}
-
-	pbytes, ok := s.Data["root"]
-	if !ok {
-		return []byte("<see cluster secrets>")
-	}
-
-	return pbytes
 }
 
 type operatorLog struct {

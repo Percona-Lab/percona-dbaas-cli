@@ -92,7 +92,7 @@ const (
 
 // PerconaServerMongoDBStatus defines the observed state of PerconaServerMongoDB
 type PerconaServerMongoDBStatus struct {
-	Status     AppState                  `json:"state,omitempty"`
+	Status     AppState                  `json:"status,omitempty"`
 	Message    string                    `json:"message,omitempty"`
 	Conditions []ClusterCondition        `json:"conditions,omitempty"`
 	Replsets   map[string]*ReplsetStatus `json:"replsets,omitempty"`
@@ -357,33 +357,14 @@ type BackupTaskSpec struct {
 	CompressionType BackupCompressionType `json:"compressionType,omitempty"`
 }
 
-type BackupStorageS3Spec struct {
-	Bucket            string `json:"bucket"`
-	CredentialsSecret string `json:"credentialsSecret"`
-	Region            string `json:"region,omitempty"`
-	EndpointURL       string `json:"endpointUrl,omitempty"`
-}
-
-type BackupStorageType string
-
-const (
-	BackupStorageFilesystem BackupStorageType = "filesystem"
-	BackupStorageS3         BackupStorageType = "s3"
-)
-
-type BackupStorageSpec struct {
-	Type BackupStorageType   `json:"type"`
-	S3   BackupStorageS3Spec `json:"s3,omitempty"`
-}
-
 type BackupSpec struct {
-	Enabled          bool                         `json:"enabled"`
-	Debug            bool                         `json:"debug"`
-	RestartOnFailure *bool                        `json:"restartOnFailure,omitempty"`
-	Coordinator      BackupCoordinatorSpec        `json:"coordinator,omitempty"`
-	Storages         map[string]BackupStorageSpec `json:"storages,omitempty"`
-	Image            string                       `json:"image,omitempty"`
-	Tasks            []BackupTaskSpec             `json:"tasks,omitempty"`
+	Enabled          bool                               `json:"enabled"`
+	Debug            bool                               `json:"debug"`
+	RestartOnFailure *bool                              `json:"restartOnFailure,omitempty"`
+	Coordinator      BackupCoordinatorSpec              `json:"coordinator,omitempty"`
+	Storages         map[string]dbaas.BackupStorageSpec `json:"storages,omitempty"`
+	Image            string                             `json:"image,omitempty"`
+	Tasks            []BackupTaskSpec                   `json:"tasks,omitempty"`
 }
 
 type Arbiter struct {
@@ -422,10 +403,22 @@ type ServerVersion struct {
 	Info     k8sversion.Info
 }
 
-func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet) (err error) {
+func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
+		if cr.Spec.Backup.Storages == nil {
+			cr.Spec.Backup.Storages = make(map[string]dbaas.BackupStorageSpec)
+		}
+
+		cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName] = *s3
+	}
+
 	size, err := f.GetInt32("replset-size")
 	if err != nil {
 		return errors.New("undefined `replset-size`")
+	}
+
+	if size == 0 {
+		return nil
 	}
 
 	for _, rs := range cr.Spec.Replsets {
@@ -475,55 +468,67 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 		return nil, errors.New("undefined `replset-size`")
 	}
 
-	pxcCPU, err := f.GetString("request-cpu")
+	psmdbCPU, err := f.GetString("request-cpu")
 	if err != nil {
 		return nil, errors.New("undefined `request-cpu`")
 	}
-	_, err = resource.ParseQuantity(pxcCPU)
+	_, err = resource.ParseQuantity(psmdbCPU)
 	if err != nil {
 		return nil, errors.Wrap(err, "request-cpu")
 	}
-	pxcMemory, err := f.GetString("request-mem")
+	psmdbMemory, err := f.GetString("request-mem")
 	if err != nil {
 		return nil, errors.New("undefined `request-mem`")
 	}
-	_, err = resource.ParseQuantity(pxcMemory)
+	_, err = resource.ParseQuantity(psmdbMemory)
 	if err != nil {
 		return nil, errors.Wrap(err, "request-mem")
 	}
 	rs.Resources = &ResourcesSpec{
 		Requests: &ResourceSpecRequirements{
-			CPU:    pxcCPU,
-			Memory: pxcMemory,
+			CPU:    psmdbCPU,
+			Memory: psmdbMemory,
 		},
 	}
 
-	pxctpk, err := f.GetString("anti-affinity-key")
+	psmdbtpk, err := f.GetString("anti-affinity-key")
 	if err != nil {
 		return nil, errors.New("undefined `anti-affinity-key`")
 	}
-	if _, ok := affinityValidTopologyKeys[pxctpk]; !ok {
-		return nil, errors.Errorf("invalid `anti-affinity-key` value: %s", pxctpk)
+	if _, ok := affinityValidTopologyKeys[psmdbtpk]; !ok {
+		return nil, errors.Errorf("invalid `anti-affinity-key` value: %s", psmdbtpk)
 	}
 	rs.Affinity = &PodAffinity{
-		TopologyKey: &pxctpk,
+		TopologyKey: &psmdbtpk,
 	}
 
 	return rs, nil
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, p dbaas.PlatformType) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
 	rs, err := NewReplSet(rsName, f)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "new replset")
 	}
 
 	cr.Spec.Replsets = []*ReplsetSpec{
 		rs,
 	}
+
+	cr.Spec.Backup, err = cr.createBackup(f)
+	if err != nil {
+		return errors.Wrap(err, "backup spec")
+	}
+  
+	if s3 != nil {
+		cr.Spec.Backup.Storages = map[string]dbaas.BackupStorageSpec{
+			dbaas.DefaultBcpStorageName: *s3,
+		}
+	}
+
 	switch p {
 	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
 		none := AffinityTopologyKeyOff
@@ -532,12 +537,12 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 			cr.Spec.Replsets[i].MultiAZ.Affinity.TopologyKey = &none
 		}
 	}
+
+  
 	return nil
 }
 
 func (cr *PerconaServerMongoDB) setDefaults() {
-	// one := intstr.FromInt(1)
-
 	cr.TypeMeta.APIVersion = "psmdb.percona.com/v1"
 	cr.TypeMeta.Kind = "PerconaServerMongoDB"
 
@@ -546,23 +551,48 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 	}
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.0.0-mongod4.0.9"
+}
 
-	// cr.Spec.Backup = &PXCScheduledBackup{
-	// 	Image: "percona/percona-xtradb-cluster-operator:1.0.0-backup",
-	// 	Storages: map[string]*BackupStorageSpec{
-	// 		"fs-pvc": &BackupStorageSpec{
-	// 			Type: BackupStorageFilesystem,
-	// 			Volume: &VolumeSpec{
-	// 				PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-	// 					AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-	// 					Resources: corev1.ResourceRequirements{
-	// 						Requests: corev1.ResourceList{corev1.ResourceStorage: volPXC},
-	// 					},
-	// 				},
-	// 			},
-	// 		},
-	// 	},
-	// }
+func (cr *PerconaServerMongoDB) createBackup(f *pflag.FlagSet) (BackupSpec, error) {
+	t := true
+	volSize, err := resource.ParseQuantity("1Gi")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator Storage")
+	}
+	cpu, err := resource.ParseQuantity("100m")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator CPU")
+	}
+	mem, err := resource.ParseQuantity("0.1G")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator Memory")
+	}
+	memlim, err := resource.ParseQuantity("0.2G")
+	if err != nil {
+		return BackupSpec{}, errors.Wrap(err, "coordinator Memory limit")
+	}
+	bcp := BackupSpec{
+		Enabled:          true,
+		RestartOnFailure: &t,
+		Debug:            true,
+		Image:            "perconalab/percona-server-mongodb-operator:1.1.0-backup",
+		Coordinator: BackupCoordinatorSpec{
+			EnableClientsLogging: true,
+			Resources: &corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					corev1.ResourceCPU:    cpu,
+					corev1.ResourceMemory: memlim,
+				},
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:     cpu,
+					corev1.ResourceMemory:  mem,
+					corev1.ResourceStorage: volSize,
+				},
+			},
+		},
+	}
+
+	return bcp, nil
 }
 
 // PerconaServerMongoDBBackupSpec defines the desired state of PerconaServerMongoDBBackup
@@ -583,15 +613,13 @@ const (
 
 // PerconaServerMongoDBBackupStatus defines the observed state of PerconaServerMongoDBBackup
 type PerconaServerMongoDBBackupStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	State         PerconaSMDBStatusState `json:"state,omitempty"`
-	StartAt       *metav1.Time           `json:"start,omitempty"`
-	CompletedAt   *metav1.Time           `json:"completed,omitempty"`
-	LastScheduled *metav1.Time           `json:"lastscheduled,omitempty"`
-	Destination   string                 `json:"destination,omitempty"`
-	StorageName   string                 `json:"storageName,omitempty"`
-	S3            *BackupStorageS3Spec   `json:"s3,omitempty"`
+	State         PerconaSMDBStatusState     `json:"state,omitempty"`
+	StartAt       *metav1.Time               `json:"start,omitempty"`
+	CompletedAt   *metav1.Time               `json:"completed,omitempty"`
+	LastScheduled *metav1.Time               `json:"lastscheduled,omitempty"`
+	Destination   string                     `json:"destination,omitempty"`
+	StorageName   string                     `json:"storageName,omitempty"`
+	S3            *dbaas.BackupStorageS3Spec `json:"s3,omitempty"`
 }
 
 // PerconaServerMongoDBBackup is the Schema for the perconaservermongodbbackups API
@@ -617,4 +645,51 @@ func (b *PerconaServerMongoDBBackup) SetNew(name, cluster, storage string) {
 	b.ObjectMeta.Name = name
 	b.Spec.PSMDBCluster = cluster
 	b.Spec.StorageName = storage
+}
+
+// PerconaServerMongoDBRestoreSpec defines the desired state of PerconaServerMongoDBRestore
+type PerconaServerMongoDBRestoreSpec struct {
+	BackupName  string `json:"backupName,omitempty"`
+	ClusterName string `json:"clusterName,omitempty"`
+	Destination string `json:"destination,omitempty"`
+	StorageName string `json:"storageName,omitempty"`
+}
+
+// PerconaSMDBRestoreStatusState is for restore status states
+type PerconaSMDBRestoreStatusState string
+
+const (
+	RestoreStateRequested PerconaSMDBRestoreStatusState = "requested"
+	RestoreStateReady     PerconaSMDBRestoreStatusState = "ready"
+	RestoreStateRejected  PerconaSMDBRestoreStatusState = "rejected"
+)
+
+// PerconaServerMongoDBRestoreStatus defines the observed state of PerconaServerMongoDBRestore
+type PerconaServerMongoDBRestoreStatus struct {
+	State PerconaSMDBRestoreStatusState `json:"state,omitempty"`
+}
+
+// PerconaServerMongoDBRestore is the Schema for the perconaservermongodbrestores API
+type PerconaServerMongoDBRestore struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   PerconaServerMongoDBRestoreSpec   `json:"spec,omitempty"`
+	Status PerconaServerMongoDBRestoreStatus `json:"status,omitempty"`
+}
+
+// PerconaServerMongoDBRestoreList contains a list of PerconaServerMongoDBRestore
+type PerconaServerMongoDBRestoreList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []PerconaServerMongoDBRestore `json:"items"`
+}
+
+func (b *PerconaServerMongoDBRestore) SetNew(name, cluster, backup string) {
+	b.TypeMeta.APIVersion = "psmdb.percona.com/v1"
+	b.TypeMeta.Kind = "PerconaServerMongoDBRestore"
+
+	b.ObjectMeta.Name = name
+	b.Spec.ClusterName = cluster
+	b.Spec.BackupName = backup
 }

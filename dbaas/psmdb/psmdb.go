@@ -74,34 +74,35 @@ func (p PSMDB) App() (string, error) {
 	return string(cr), nil
 }
 
-const createMsg = `Create MySQL cluster.
+const createMsg = `Create MongoDB cluster.
  
 Replica Set Name        | %v
 Replica Set Size        | %v
 Storage                 | %v
 `
 
-func (p *PSMDB) Setup(f *pflag.FlagSet) (string, error) {
-	err := p.config.SetNew(p.Name(), p.rsName, f, dbaas.GetPlatformType())
+func (p *PSMDB) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.config.SetNew(p.Name(), p.rsName, f, s3, dbaas.GetPlatformType())
+
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
 
 	storage, err := p.config.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return "", errors.Wrap(err, "marshal pxc volume requests")
+		return "", errors.Wrap(err, "marshal psmdb volume requests")
 	}
 
 	return fmt.Sprintf(createMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size, string(storage)), nil
 }
 
-const updateMsg = `Update MySQL cluster.
+const updateMsg = `Update MongoDB cluster.
  
 Replica Set Name        | %v
 Replica Set Size        | %v
 `
 
-func (p *PSMDB) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
+func (p *PSMDB) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
@@ -114,7 +115,7 @@ func (p *PSMDB) Update(crRaw []byte, f *pflag.FlagSet) (string, error) {
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(p.rsName, f)
+	err = p.config.UpdateWith(p.rsName, f, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "apply changes to cr")
 	}
@@ -131,11 +132,17 @@ type k8sStatus struct {
 }
 
 const okmsg = `
-MongoDB cluster started successfully.
+MongoDB cluster started successfully, right endpoint for application:
+Host: %s
+Port: 27017
+ClusterAdmin User: %s
+ClusterAdmin Password: %s
+UserAdmin User: %s
+UserAdmin Password: %s
 
 Enjoy!`
 
-func (p *PSMDB) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
@@ -145,43 +152,30 @@ func (p *PSMDB) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 
 	status := st.Status.Replsets[p.rsName]
 	if status == nil {
-		return dbaas.ClusterStateInit, nil, nil
+		switch st.Status.Status {
+		case AppStateReady:
+			host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
+			msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
+			return dbaas.ClusterStateReady, []string{msg}, nil
+		case AppStateError:
+			return dbaas.ClusterStateError, alterStatusMgs([]string{status.Message}), nil
+		default:
+			return dbaas.ClusterStateInit, nil, nil
+		}
 	}
 
 	switch status.Status {
 	case AppStateReady:
-		if len(p.dbpass) == 0 {
-			p.dbpass = p.getDBPass()
-		}
-		return dbaas.ClusterStateReady, []string{okmsg}, nil
-	case AppStateInit:
-		return dbaas.ClusterStateInit, nil, nil
+		host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
+		msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
+		return dbaas.ClusterStateReady, []string{msg}, nil
 	case AppStateError:
 		return dbaas.ClusterStateError, alterStatusMgs([]string{status.Message}), nil
+	default:
+		return dbaas.ClusterStateInit, nil, nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
-}
-
-func (p *PSMDB) getDBPass() []byte {
-	sbytes, err := dbaas.GetObject("secret", p.Name()+"-secrets")
-	if err != nil {
-		return []byte("error:" + err.Error())
-	}
-
-	s := &corev1.Secret{}
-
-	err = json.Unmarshal(sbytes, s)
-	if err != nil {
-		return []byte("error:" + err.Error())
-	}
-
-	pbytes, ok := s.Data["root"]
-	if !ok {
-		return []byte("<see cluster secrets>")
-	}
-
-	return pbytes
 }
 
 type operatorLog struct {

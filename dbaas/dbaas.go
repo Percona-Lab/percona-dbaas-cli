@@ -70,8 +70,8 @@ func readOperatorLogs(operatorName string) ([]byte, error) {
 	return runCmd(execCommand, "logs", "-l", "name="+operatorName)
 }
 
-func GetObject(typ, clusterName string) ([]byte, error) {
-	return runCmd(execCommand, "get", typ+"/"+clusterName, "-o", "json")
+func GetObject(typ, name string) ([]byte, error) {
+	return runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
 func apply(k8sObj string) error {
@@ -89,6 +89,8 @@ func IsObjExists(typ, name string) (bool, error) {
 		typ = "perconaxtradbcluster.pxc.percona.com"
 	case "psmdb":
 		typ = "perconaservermongodb.psmdb.percona.com"
+	case "psmdb-backup":
+		typ = "perconaservermongodbbackup.psmdb.percona.com"
 	}
 
 	out, err := runCmd(execCommand, "get", typ, name, "-o", "name")

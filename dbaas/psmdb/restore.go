@@ -26,30 +26,30 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-type Backup struct {
+type Restore struct {
 	name         string
 	cluster      string
-	config       *PerconaServerMongoDBBackup
+	config       *PerconaServerMongoDBRestore
 	opLogsLastTS float64
 }
 
-func NewBackup(cluster string) *Backup {
-	return &Backup{
+func NewRestore(cluster string) *Restore {
+	return &Restore{
 		cluster: cluster,
-		config:  &PerconaServerMongoDBBackup{},
+		config:  &PerconaServerMongoDBRestore{},
 	}
 }
 
-func (b *Backup) Name() string {
+func (b *Restore) Name() string {
 	return b.name
 }
 
-func (b *Backup) Setup(storage string) {
+func (b *Restore) Setup(backupName string) {
 	b.name = time.Now().Format("20060102.150405") + "-" + dbaas.GenRandString(3)
-	b.config.SetNew(b.name, b.cluster, storage)
+	b.config.SetNew(b.name, b.cluster, backupName)
 }
 
-func (b *Backup) CR() (string, error) {
+func (b *Restore) CR() (string, error) {
 	cr, err := json.Marshal(b.config)
 	if err != nil {
 		return "", errors.Wrap(err, "marshal cr template")
@@ -58,11 +58,11 @@ func (b *Backup) CR() (string, error) {
 	return string(cr), nil
 }
 
-func (*Backup) OperatorName() string {
+func (*Restore) OperatorName() string {
 	return "percona-server-mongodb-operator"
 }
 
-func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
+func (b *Restore) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	msgs := []dbaas.OutuputMsg{}
 
 	lines := bytes.Split(data, []byte("\n"))
@@ -77,7 +77,7 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 			return nil, errors.Wrap(err, "unmarshal entry")
 		}
 
-		if entry.Controller != "perconaservermongodbbackup-controller" {
+		if entry.Controller != "perconaservermongodbrestore-controller" {
 			continue
 		}
 
@@ -108,14 +108,13 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	return msgs, nil
 }
 
-const okmsgbcp = `
-MongoDB backup created successfully:
+const okmsgrestore = `
+MongoDB backup restored successfully:
 Name: %s
-Destination: %s
 `
 
-func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
-	st := &PerconaServerMongoDBBackup{}
+func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+	st := &PerconaServerMongoDBRestore{}
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
@@ -123,12 +122,12 @@ func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) 
 	}
 
 	switch st.Status.State {
-	case StateReady:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgbcp, st.Name, st.Status.Destination)}, nil
-	case StateRequested:
+	case RestoreStateReady:
+		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgrestore, st.Name)}, nil
+	case RestoreStateRequested:
 		return dbaas.ClusterStateInit, nil, nil
-	case StateRejected:
-		return dbaas.ClusterStateError, []string{"backup attempt has failed"}, nil
+	case RestoreStateRejected:
+		return dbaas.ClusterStateError, []string{"restore attempt has failed"}, nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
