@@ -15,13 +15,15 @@
 package main
 
 import (
+
 	"fmt"
 	"os"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
+	"path"
+  
+	"github.com/spf13/cobra"  
+	
+  "github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/pxc"
-
-	"github.com/spf13/cobra"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -41,8 +43,17 @@ func init() {
 }
 
 func main() {
+  rewriteKubectlArgs("pxc")
+	rewriteKubectlArgs("psmdb")
+  
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+}
+
+func rewriteKubectlArgs(db string) {
+	if path.Base(os.Args[0]) == "kubectl-"+db {
+		os.Args = append(os.Args[:1], append([]string{db}, os.Args[1:]...)...)
 	}
 }
