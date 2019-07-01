@@ -111,12 +111,6 @@ func GenRandString(ln int) string {
 	return string(b)
 }
 
-type version struct {
-	ServerVersion struct {
-		GitVersion string `json:"gitVersion"`
-	} `json:"serverVersion"`
-}
-
 // GetPlatformType is for determine and return platform type
 func GetPlatformType() (PlatformType, error) {
 	var platform PlatformType
