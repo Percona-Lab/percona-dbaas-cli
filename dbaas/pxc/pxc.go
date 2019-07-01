@@ -74,12 +74,7 @@ Storage                 | %v
 `
 
 func (p *PXC) Setup(f *pflag.FlagSet) (string, error) {
-	platformType, err := dbaas.GetPlatformType()
-	if err != nil {
-		return "", err
-	}
-
-	err = p.config.SetNew(p.Name(), f, platformType)
+	err := p.config.SetNew(p.Name(), f, dbaas.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}

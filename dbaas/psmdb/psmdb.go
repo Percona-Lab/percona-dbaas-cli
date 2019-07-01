@@ -82,12 +82,7 @@ Storage                 | %v
 `
 
 func (p *PSMDB) Setup(f *pflag.FlagSet) (string, error) {
-	platformType, err := dbaas.GetPlatformType()
-	if err != nil {
-		return "", err
-	}
-
-	err = p.config.SetNew(p.Name(), p.rsName, f, platformType)
+	err := p.config.SetNew(p.Name(), p.rsName, f, dbaas.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}

@@ -39,10 +39,10 @@ func init() {
 type PlatformType string
 
 const (
-	Kebernetes PlatformType = "kubernetes"
-	Minikube   PlatformType = "minikube"
-	Openshift  PlatformType = "openshift"
-	Minishift  PlatformType = "minishift"
+	PlatformKubernetes PlatformType = "kubernetes"
+	PlatformMinikube   PlatformType = "minikube"
+	PlatformOpenshift  PlatformType = "openshift"
+	PlatformMinishift  PlatformType = "minishift"
 )
 
 var execCommand string
@@ -112,71 +112,48 @@ func GenRandString(ln int) string {
 }
 
 // GetPlatformType is for determine and return platform type
-func GetPlatformType() (PlatformType, error) {
-	var platform PlatformType
-
-	minikube, err := checkMinikube()
-	if err != nil {
-		return platform, err
-	}
+func GetPlatformType() PlatformType {
+	minikube := checkMinikube()
 	if minikube {
-		return Minikube, nil
+		return PlatformMinikube
 	}
 
-	openshift, err := checkOpenshift()
-	if err != nil {
-		return platform, err
-	}
-	if openshift {
-		return Openshift, nil
-	}
-
-	minishift, err := checkMinishift()
-	if err != nil {
-		return platform, err
-	}
+	minishift := checkMinishift()
 	if minishift {
-		return Minishift, nil
+		return PlatformMinishift
 	}
 
-	return Kebernetes, nil
+	openshift := checkOpenshift()
+	if openshift {
+		return PlatformOpenshift
+	}
+
+	return PlatformKubernetes
 }
 
-func checkMinikube() (bool, error) {
+func checkMinikube() bool {
 	output, err := runCmd(execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	if !strings.Contains(string(output), "k8s.io/minikube-hostpath") {
-		return false, nil
-	}
-
-	return true, nil
+	return strings.Contains(string(output), "k8s.io/minikube-hostpath")
 }
 
-func checkMinishift() (bool, error) {
+func checkMinishift() bool {
 	output, err := runCmd(execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	if !strings.Contains(string(output), "minishift") {
-		return false, nil
-	}
-
-	return true, nil
+	return strings.Contains(string(output), "minishift")
 }
 
-func checkOpenshift() (bool, error) {
+func checkOpenshift() bool {
 	output, err := runCmd(execCommand, "api-versions")
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	if !strings.Contains(string(output), "openshift") {
-		return false, nil
-	}
-
-	return true, nil
+	return strings.Contains(string(output), "openshift")
 }
