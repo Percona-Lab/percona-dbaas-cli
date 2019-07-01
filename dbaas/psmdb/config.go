@@ -528,7 +528,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
 		none := AffinityTopologyKeyOff
 		for i, _ := range cr.Spec.Replsets {
-			cr.Spec.Replsets[i].Resources = nil
+			cr.Spec.Replsets[i].Resources.Limits = nil
 			cr.Spec.Replsets[i].MultiAZ.Affinity.TopologyKey = &none
 		}
 	}
