@@ -522,7 +522,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	if err != nil {
 		return errors.Wrap(err, "backup spec")
 	}
-  
+
 	if s3 != nil {
 		cr.Spec.Backup.Storages = map[string]dbaas.BackupStorageSpec{
 			dbaas.DefaultBcpStorageName: *s3,
@@ -538,7 +538,6 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 		}
 	}
 
-  
 	return nil
 }
 

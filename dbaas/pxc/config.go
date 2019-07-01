@@ -339,14 +339,13 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 	}
 	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
 
-
 	if s3 != nil {
 		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
 			dbaas.DefaultBcpStorageName: s3,
 		}
-  }
-  
-  switch p {
+	}
+
+	switch p {
 	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
 		none := AffinityTopologyKeyOff
 		cr.Spec.PXC.Affinity.TopologyKey = &none
