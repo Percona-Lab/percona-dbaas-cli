@@ -330,7 +330,7 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, p d
 	}
 	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
 
-	if p == dbaas.Mini {
+	if p == dbaas.Minishift || p == dbaas.Minikube {
 		none := "none"
 		cr.Spec.PXC.Affinity.TopologyKey = &none
 		cr.Spec.PXC.Resources = nil

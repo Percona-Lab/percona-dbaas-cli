@@ -15,7 +15,6 @@
 package dbaas
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os/exec"
@@ -40,8 +39,10 @@ func init() {
 type PlatformType string
 
 const (
-	Undetermined PlatformType = "undetermined"
-	Mini         PlatformType = "mini"
+	Kebernetes PlatformType = "kubernetes"
+	Minikube   PlatformType = "minikube"
+	Openshift  PlatformType = "openshift"
+	Minishift  PlatformType = "minishift"
 )
 
 var execCommand string
@@ -118,18 +119,70 @@ type version struct {
 
 // GetPlatformType is for determine and return platform type
 func GetPlatformType() (PlatformType, error) {
-	output, err := runCmd(execCommand, "version", "-o=json")
+	var platform PlatformType
+
+	minikube, err := checkMinikube()
 	if err != nil {
-		return Undetermined, err
+		return platform, err
 	}
-	version := version{}
-	err = json.Unmarshal(output, &version)
-	if err != nil {
-		return Undetermined, err
-	}
-	if strings.Contains(version.ServerVersion.GitVersion, "mini") {
-		return Mini, nil
+	if minikube {
+		return Minikube, nil
 	}
 
-	return Undetermined, nil
+	openshift, err := checkOpenshift()
+	if err != nil {
+		return platform, err
+	}
+	if openshift {
+		return Openshift, nil
+	}
+
+	minishift, err := checkMinishift()
+	if err != nil {
+		return platform, err
+	}
+	if minishift {
+		return Minishift, nil
+	}
+
+	return Kebernetes, nil
+}
+
+func checkMinikube() (bool, error) {
+	output, err := runCmd(execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
+	if err != nil {
+		return false, err
+	}
+
+	if !strings.Contains(string(output), "k8s.io/minikube-hostpath") {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func checkMinishift() (bool, error) {
+	output, err := runCmd(execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
+	if err != nil {
+		return false, err
+	}
+
+	if !strings.Contains(string(output), "minishift") {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func checkOpenshift() (bool, error) {
+	output, err := runCmd(execCommand, "api-versions")
+	if err != nil {
+		return false, err
+	}
+
+	if !strings.Contains(string(output), "openshift") {
+		return false, nil
+	}
+
+	return true, nil
 }

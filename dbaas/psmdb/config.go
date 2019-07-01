@@ -523,7 +523,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	cr.Spec.Replsets = []*ReplsetSpec{
 		rs,
 	}
-	if p == dbaas.Mini {
+	if p == dbaas.Minishift || p == dbaas.Minikube {
 		none := "none"
 		for i, _ := range cr.Spec.Replsets {
 			cr.Spec.Replsets[i].Resources = nil
