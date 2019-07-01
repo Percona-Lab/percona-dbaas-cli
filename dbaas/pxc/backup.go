@@ -76,7 +76,7 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 			return nil, errors.Wrap(err, "unmarshal entry")
 		}
 
-		if entry.Controller != "perconaxtradbbackup-controller" {
+		if entry.Controller != "perconaxtradbclusterbackup-controller" {
 			continue
 		}
 

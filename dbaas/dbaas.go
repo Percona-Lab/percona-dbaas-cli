@@ -80,6 +80,8 @@ func IsObjExists(typ, name string) (bool, error) {
 		typ = "perconaxtradbcluster.pxc.percona.com"
 	case "psmdb":
 		typ = "perconaservermongodb.psmdb.percona.com"
+	case "pxc-backup":
+		typ = "perconaxtradbclusterbackup.pxc.percona.com"
 	case "psmdb-backup":
 		typ = "perconaservermongodbbackup.psmdb.percona.com"
 	}
