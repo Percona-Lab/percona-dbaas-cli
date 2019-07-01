@@ -15,14 +15,13 @@
 package main
 
 import (
-
 	"fmt"
 	"os"
 	"path"
-  
-	"github.com/spf13/cobra"  
-	
-  "github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
+
+	"github.com/spf13/cobra"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/pxc"
 )
 
@@ -43,9 +42,9 @@ func init() {
 }
 
 func main() {
-  rewriteKubectlArgs("pxc")
+	rewriteKubectlArgs("pxc")
 	rewriteKubectlArgs("psmdb")
-  
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

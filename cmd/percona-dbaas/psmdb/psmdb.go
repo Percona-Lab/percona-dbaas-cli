@@ -20,7 +20,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// PXCCmd represents the pxc command
+// PSMDBCmd represents the pxc command
 var PSMDBCmd = &cobra.Command{
 	Use:   "psmdb",
 	Short: "Manage your MongoDB cluster on Kubernetes",
