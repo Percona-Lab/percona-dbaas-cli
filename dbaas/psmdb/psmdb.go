@@ -32,7 +32,8 @@ type Version string
 const (
 	Version100 Version = "1.0.0"
 
-	defaultRSname = "rs0"
+	defaultRSname          = "rs0"
+	defaultOperatorVersion = "perconalab/percona-server-mongodb-operator:andrew"
 )
 
 type PSMDB struct {
@@ -57,7 +58,16 @@ func New(clusterName, replsetName string, version Version) *PSMDB {
 	}
 }
 
-func (p PSMDB) Bundle() []dbaas.BundleObject {
+func (p PSMDB) Bundle(operatorVersion string) []dbaas.BundleObject {
+	if operatorVersion == "" {
+		operatorVersion = defaultOperatorVersion
+	}
+
+	for i, o := range p.obj.Bundle {
+		if o.Kind == "Deployment" && o.Name == p.OperatorName() {
+			p.obj.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+		}
+	}
 	return p.obj.Bundle
 }
 
@@ -120,6 +130,61 @@ func (p *PSMDB) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorag
 	}
 
 	return fmt.Sprintf(updateMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size), nil
+}
+
+func (p *PSMDB) Upgrade(crRaw []byte, newImages map[string]string) error {
+	cr := &PerconaServerMongoDB{}
+	err := json.Unmarshal(crRaw, cr)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal current cr")
+	}
+
+	p.config.APIVersion = cr.APIVersion
+	p.config.Kind = cr.Kind
+	p.config.Name = cr.Name
+	p.config.Spec = cr.Spec
+	p.config.Status = cr.Status
+
+	p.config.Upgrade(newImages)
+
+	return nil
+}
+
+const operatorImage = "percona/percona-server-mongodb-operator:"
+
+func (p *PSMDB) Images(ver string, f *pflag.FlagSet) (operator string, apps map[string]string, err error) {
+	apps = make(map[string]string)
+	if ver != "" {
+		operator = operatorImage + ver
+		apps["psmdb"] = operatorImage + ver + "-mongod4.0.9"
+		apps["backup"] = operatorImage + ver + "-backup"
+	}
+
+	op, err := f.GetString("operator-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `operator-image`")
+	}
+	if op != "" {
+		operator = op
+	}
+
+	psmdb, err := f.GetString("psmdb-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `psmdb-image`")
+	}
+	if psmdb != "" {
+		apps["psmdb"] = psmdb
+	}
+
+	backup, err := f.GetString("backup-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `backup-image`")
+	}
+	if backup != "" {
+		apps["backup"] = backup
+	}
+
+	return operator, apps, nil
 }
 
 func (p *PSMDB) OperatorName() string {

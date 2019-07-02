@@ -29,8 +29,10 @@ import (
 
 type Version string
 
-var (
+const (
 	Version100 Version = "1.0.0"
+
+	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.0.0"
 )
 
 type PXC struct {
@@ -49,7 +51,16 @@ func New(name string, version Version) *PXC {
 	}
 }
 
-func (p PXC) Bundle() []dbaas.BundleObject {
+func (p PXC) Bundle(operatorVersion string) []dbaas.BundleObject {
+	if operatorVersion == "" {
+		operatorVersion = defaultOperatorVersion
+	}
+
+	for i, o := range p.obj.Bundle {
+		if o.Kind == "Deployment" && o.Name == p.OperatorName() {
+			p.obj.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+		}
+	}
 	return p.obj.Bundle
 }
 
@@ -113,6 +124,72 @@ func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageS
 	}
 
 	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
+}
+
+func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
+	cr := &PerconaXtraDBCluster{}
+	err := json.Unmarshal(crRaw, cr)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal current cr")
+	}
+
+	p.config.APIVersion = cr.APIVersion
+	p.config.Kind = cr.Kind
+	p.config.Name = cr.Name
+	p.config.Finalizers = cr.Finalizers
+	p.config.Spec = cr.Spec
+	p.config.Status = cr.Status
+
+	p.config.Upgrade(newImages)
+
+	return nil
+}
+
+const operatorImage = "percona/percona-xtradb-cluster-operator:"
+
+func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[string]string, err error) {
+	apps = make(map[string]string)
+
+	if ver != "" {
+		operator = operatorImage + ver
+		apps["pxc"] = operatorImage + ver + "-pxc"
+		apps["proxysql"] = operatorImage + ver + "-proxysql"
+		apps["backup"] = operatorImage + ver + "-backup"
+	}
+
+	op, err := f.GetString("operator-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `operator-image`")
+	}
+	if op != "" {
+		operator = op
+	}
+
+	pxc, err := f.GetString("pxc-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `pxc-image`")
+	}
+	if pxc != "" {
+		apps["pxc"] = pxc
+	}
+
+	proxysql, err := f.GetString("proxysql-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `proxysql-image`")
+	}
+	if proxysql != "" {
+		apps["proxysql"] = proxysql
+	}
+
+	backup, err := f.GetString("backup-image")
+	if err != nil {
+		return operator, apps, errors.New("undefined `backup-image`")
+	}
+	if backup != "" {
+		apps["backup"] = backup
+	}
+
+	return operator, apps, nil
 }
 
 func (p *PXC) OperatorName() string {

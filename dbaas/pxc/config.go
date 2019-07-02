@@ -237,6 +237,19 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupSto
 	return nil
 }
 
+// Upgrade upgrades culster with given images
+func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
+	if img, ok := imgs["pxc"]; ok {
+		cr.Spec.PXC.Image = img
+	}
+	if img, ok := imgs["proxysql"]; ok {
+		cr.Spec.ProxySQL.Image = img
+	}
+	if img, ok := imgs["backup"]; ok {
+		cr.Spec.Backup.Image = img
+	}
+}
+
 func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()

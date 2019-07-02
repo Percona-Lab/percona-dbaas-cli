@@ -284,7 +284,7 @@ spec:
     spec:
       containers:
         - name: percona-server-mongodb-operator
-          image: perconalab/percona-server-mongodb-operator:andrew
+          image: {{image}}
           ports:
           - containerPort: 60000
             name: metrics
