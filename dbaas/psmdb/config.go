@@ -560,7 +560,7 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 		Users: cr.Name + "-secrets",
 	}
 
-	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.0.0-mongod4.0.9"
+	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.1.0-mongod4.0"
 }
 
 func (cr *PerconaServerMongoDB) createBackup(f *pflag.FlagSet) (BackupSpec, error) {

@@ -30,9 +30,9 @@ import (
 type Version string
 
 const (
-	Version100 Version = "1.0.0"
+	CurrentVersion Version = "1.1.0"
 
-	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.0.0"
+	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.1.0"
 )
 
 type PXC struct {

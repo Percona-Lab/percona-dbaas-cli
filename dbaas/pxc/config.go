@@ -382,7 +382,7 @@ func (cr *PerconaXtraDBCluster) setDefaults() {
 
 	cr.Spec.PXC = &PodSpec{}
 	cr.Spec.PXC.Size = 3
-	cr.Spec.PXC.Image = "percona/percona-xtradb-cluster-operator:1.0.0-pxc"
+	cr.Spec.PXC.Image = "percona/percona-xtradb-cluster-operator:1.1.0-pxc"
 	cr.Spec.PXC.Affinity = &PodAffinity{
 		TopologyKey: &defaultAffinityTopologyKey,
 	}
@@ -401,7 +401,7 @@ func (cr *PerconaXtraDBCluster) setDefaults() {
 	cr.Spec.ProxySQL = &PodSpec{}
 	cr.Spec.ProxySQL.Enabled = true
 	cr.Spec.ProxySQL.Size = 1
-	cr.Spec.ProxySQL.Image = "percona/percona-xtradb-cluster-operator:1.0.0-proxysql"
+	cr.Spec.ProxySQL.Image = "percona/percona-xtradb-cluster-operator:1.1.0-proxysql"
 	cr.Spec.ProxySQL.Affinity = &PodAffinity{
 		TopologyKey: &defaultAffinityTopologyKey,
 	}
@@ -418,6 +418,6 @@ func (cr *PerconaXtraDBCluster) setDefaults() {
 	}
 
 	cr.Spec.Backup = &PXCScheduledBackup{
-		Image: "percona/percona-xtradb-cluster-operator:1.0.0-backup",
+		Image: "percona/percona-xtradb-cluster-operator:1.1.0-backup",
 	}
 }

@@ -30,10 +30,10 @@ import (
 type Version string
 
 const (
-	Version100 Version = "1.0.0"
+	CurrentVersion Version = "1.1.0"
 
 	defaultRSname          = "rs0"
-	defaultOperatorVersion = "perconalab/percona-server-mongodb-operator:andrew"
+	defaultOperatorVersion = "perconalab/percona-server-mongodb-operator:1.1.0"
 )
 
 type PSMDB struct {
@@ -157,7 +157,7 @@ func (p *PSMDB) Images(ver string, f *pflag.FlagSet) (operator string, apps map[
 	apps = make(map[string]string)
 	if ver != "" {
 		operator = operatorImage + ver
-		apps["psmdb"] = operatorImage + ver + "-mongod4.0.9"
+		apps["psmdb"] = operatorImage + ver + "-mongod4.0"
 		apps["backup"] = operatorImage + ver + "-backup"
 	}
 

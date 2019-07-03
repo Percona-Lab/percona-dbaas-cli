@@ -23,7 +23,7 @@ var objects map[Version]dbaas.Objects
 func init() {
 	objects = make(map[Version]dbaas.Objects)
 
-	objects[Version100] = dbaas.Objects{
+	objects[CurrentVersion] = dbaas.Objects{
 		Bundle: bundle100,
 	}
 }
