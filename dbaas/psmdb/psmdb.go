@@ -33,7 +33,7 @@ const (
 	CurrentVersion Version = "1.1.0"
 
 	defaultRSname          = "rs0"
-	defaultOperatorVersion = "perconalab/percona-server-mongodb-operator:1.1.0"
+	defaultOperatorVersion = "percona/percona-server-mongodb-operator:1.1.0"
 )
 
 type PSMDB struct {
