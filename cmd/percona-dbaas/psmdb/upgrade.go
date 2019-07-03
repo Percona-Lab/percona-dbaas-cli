@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pxc
+package psmdb
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -24,16 +26,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
-// editCmd represents the edit command
-var editCmd = &cobra.Command{
-	Use:   "edit <pxc-cluster-name>",
-	Short: "Edit MySQL cluster",
+// upgradeCmd represents the edit command
+var upgradeCmd = &cobra.Command{
+	Use:   "upgrade <psmdb-cluster-name> <to-version>",
+	Short: "Upgrade MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("You have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -41,7 +43,7 @@ var editCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app := pxc.New(name, defaultVersion)
+		app := psmdb.New(name, "doesnotMatter", defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -54,7 +56,7 @@ var editCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbaas.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -63,8 +65,8 @@ var editCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			list, err := dbaas.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -77,14 +79,46 @@ var editCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("pxc", app, cmd.Flags(), nil, created, msg, cerr)
-		sp.Prefix = "Applying changes..."
+		oparg := ""
+		if len(args) > 1 {
+			oparg = args[1]
+		}
+		operator, appsImg, err := app.Images(oparg, cmd.Flags())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
+			return
+		}
+
+		if operator != "" {
+			num, err := dbaas.Instances("psmdb")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] unable to get psmdb instances: %v\n", err)
+				return
+			}
+			if len(num) > 1 {
+				sp.Stop()
+				var yn string
+				fmt.Printf("\nFound more than one psmdb cluster: %v.\nOperator upgrade may affect other clusters.\nContinue? [y/N] ", num)
+				scanner := bufio.NewScanner(os.Stdin)
+				for scanner.Scan() {
+					yn = strings.TrimSpace(scanner.Text())
+					break
+				}
+				if yn != "y" && yn != "Y" {
+					return
+				}
+				sp.Start()
+			}
+		}
+
+		go dbaas.Upgrade("psmdb", app, operator, appsImg, created, msg, cerr)
+		sp.Prefix = "Upgrading cluster..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbaas.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				okmsg, _ := dbaas.ListName("psmdb", name)
+				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -96,7 +130,7 @@ var editCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade psmdb: %v\n", err)
 				sp.HideCursor = true
 				return
 			}
@@ -105,8 +139,9 @@ var editCmd = &cobra.Command{
 }
 
 func init() {
-	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
-	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
+	upgradeCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
+	upgradeCmd.Flags().String("psmdb-image", "", "Custom image to upgrade psmdb to")
+	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 
-	PXCCmd.AddCommand(editCmd)
+	PSMDBCmd.AddCommand(upgradeCmd)
 }

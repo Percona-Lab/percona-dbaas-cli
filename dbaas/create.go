@@ -33,7 +33,7 @@ func init() {
 
 type Deploy interface {
 	// Bundle returns crd, rbac and operator manifests
-	Bundle() []BundleObject
+	Bundle(operatorVersion string) []BundleObject
 	// App returns application (custom resource) manifest
 	App() (string, error)
 
@@ -44,6 +44,7 @@ type Deploy interface {
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
 	Edit(crRaw []byte, f *pflag.FlagSet, storage *BackupStorageSpec) (string, error)
+	Upgrade(crRaw []byte, newImages map[string]string) error
 }
 
 type ClusterState string
@@ -94,7 +95,7 @@ oc adm policy add-cluster-role-to-user pxc-admin %s
 func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+osUser())
 
-	err := applyBundles(app.Bundle())
+	err := applyBundles(app.Bundle(""))
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundles")
 		return
@@ -104,7 +105,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			errc <- errors.Errorf(osRightsMsg, execCommand, osUser(), execCommand, osAdminBundle(app.Bundle()), osUser())
+			errc <- errors.Errorf(osRightsMsg, execCommand, osUser(), execCommand, osAdminBundle(app.Bundle("")), osUser())
 		}
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return

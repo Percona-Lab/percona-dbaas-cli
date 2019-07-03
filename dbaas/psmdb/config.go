@@ -92,7 +92,7 @@ const (
 
 // PerconaServerMongoDBStatus defines the observed state of PerconaServerMongoDB
 type PerconaServerMongoDBStatus struct {
-	Status     AppState                  `json:"status,omitempty"`
+	Status     AppState                  `json:"state,omitempty"`
 	Message    string                    `json:"message,omitempty"`
 	Conditions []ClusterCondition        `json:"conditions,omitempty"`
 	Replsets   map[string]*ReplsetStatus `json:"replsets,omitempty"`
@@ -505,7 +505,18 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 	return rs, nil
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
+
+// Upgrade upgrades culster with given images
+func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
+	if img, ok := imgs["psmdb"]; ok {
+		cr.Spec.Image = img
+	}
+	if img, ok := imgs["backup"]; ok {
+		cr.Spec.Backup.Image = img
+	}
+}
+
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 

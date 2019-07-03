@@ -89,6 +89,8 @@ func IsObjExists(typ, name string) (bool, error) {
 		typ = "perconaxtradbcluster.pxc.percona.com"
 	case "psmdb":
 		typ = "perconaservermongodb.psmdb.percona.com"
+	case "pxc-backup":
+		typ = "perconaxtradbclusterbackup.pxc.percona.com"
 	case "psmdb-backup":
 		typ = "perconaservermongodbbackup.psmdb.percona.com"
 	}
@@ -99,6 +101,15 @@ func IsObjExists(typ, name string) (bool, error) {
 	}
 
 	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
+}
+
+func Instances(typ string) ([]string, error) {
+	out, err := runCmd(execCommand, "get", typ, "-o", "name")
+	if err != nil && !strings.Contains(err.Error(), "NotFound") {
+		return nil, errors.Wrapf(err, "get objects: %s", out)
+	}
+
+	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
 }
 
 const genSymbols = "abcdefghijklmnopqrstuvwxyz1234567890"

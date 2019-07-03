@@ -47,12 +47,16 @@ cd %{_builddir}
 rm -rf $RPM_BUILD_ROOT
 install -m 0755 -d $RPM_BUILD_ROOT/%{_bindir}
 install -D -m 0755 %{_builddir}/src/percona-dbaas $RPM_BUILD_ROOT/%{_bindir}/
+install -D -m 0755 %{_builddir}/src/percona-dbaas $RPM_BUILD_ROOT/%{_bindir}/kubectl-pxc
+install -D -m 0755 %{_builddir}/src/percona-dbaas $RPM_BUILD_ROOT/%{_bindir}/kubectl-psmdb
 install -D -m 0755 %{_builddir}/src/percona-kubectl $RPM_BUILD_ROOT/%{_bindir}/
 
 %files
 %defattr(-, root, root, -)
 %license LICENSE
 %{_bindir}/percona-dbaas
+%{_bindir}/kubectl-pxc
+%{_bindir}/kubectl-psmdb
 %{_bindir}/percona-kubectl
 
 %changelog

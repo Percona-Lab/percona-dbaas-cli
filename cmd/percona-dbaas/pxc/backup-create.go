@@ -71,7 +71,7 @@ var bcpCmd = &cobra.Command{
 
 		bcp := pxc.NewBackup(name)
 
-		bcp.Setup("fs-pvc")
+		bcp.Setup(dbaas.DefaultBcpStorageName)
 
 		ok := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
