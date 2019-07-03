@@ -349,9 +349,9 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
 		none := AffinityTopologyKeyOff
 		cr.Spec.PXC.Affinity.TopologyKey = &none
-		cr.Spec.PXC.Resources.Limits = nil
+		cr.Spec.PXC.Resources = nil
 		cr.Spec.ProxySQL.Affinity.TopologyKey = &none
-		cr.Spec.ProxySQL.Resources.Limits = nil
+		cr.Spec.ProxySQL.Resources = nil
 	}
 
 	return nil

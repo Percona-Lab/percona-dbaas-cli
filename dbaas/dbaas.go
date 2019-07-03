@@ -115,18 +115,15 @@ func GenRandString(ln int) string {
 
 // GetPlatformType is for determine and return platform type
 func GetPlatformType() PlatformType {
-	minikube := checkMinikube()
-	if minikube {
+	if checkMinikube() {
 		return PlatformMinikube
 	}
 
-	minishift := checkMinishift()
-	if minishift {
+	if checkMinishift() {
 		return PlatformMinishift
 	}
 
-	openshift := checkOpenshift()
-	if openshift {
+	if checkOpenshift() {
 		return PlatformOpenshift
 	}
 
