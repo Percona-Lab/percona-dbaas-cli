@@ -92,7 +92,8 @@ Storage                 | %v
 `
 
 func (p *PSMDB) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), p.rsName, f, s3)
+	err := p.config.SetNew(p.Name(), p.rsName, f, s3, dbaas.GetPlatformType())
+
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}

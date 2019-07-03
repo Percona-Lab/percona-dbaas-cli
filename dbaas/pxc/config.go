@@ -237,6 +237,7 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupSto
 	return nil
 }
 
+
 // Upgrade upgrades culster with given images
 func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["pxc"]; ok {
@@ -356,6 +357,15 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
 			dbaas.DefaultBcpStorageName: s3,
 		}
+	}
+
+	switch p {
+	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
+		none := AffinityTopologyKeyOff
+		cr.Spec.PXC.Affinity.TopologyKey = &none
+		cr.Spec.PXC.Resources = nil
+		cr.Spec.ProxySQL.Affinity.TopologyKey = &none
+		cr.Spec.ProxySQL.Resources = nil
 	}
 
 	return nil

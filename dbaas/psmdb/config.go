@@ -505,6 +505,7 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 	return rs, nil
 }
 
+
 // Upgrade upgrades culster with given images
 func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["psmdb"]; ok {
@@ -532,9 +533,19 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	if err != nil {
 		return errors.Wrap(err, "backup spec")
 	}
+
 	if s3 != nil {
 		cr.Spec.Backup.Storages = map[string]dbaas.BackupStorageSpec{
 			dbaas.DefaultBcpStorageName: *s3,
+		}
+	}
+
+	switch p {
+	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
+		none := AffinityTopologyKeyOff
+		for i, _ := range cr.Spec.Replsets {
+			cr.Spec.Replsets[i].Resources = nil
+			cr.Spec.Replsets[i].MultiAZ.Affinity.TopologyKey = &none
 		}
 	}
 

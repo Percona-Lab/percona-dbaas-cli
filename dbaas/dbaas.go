@@ -36,6 +36,15 @@ func init() {
 	}
 }
 
+type PlatformType string
+
+const (
+	PlatformKubernetes PlatformType = "kubernetes"
+	PlatformMinikube   PlatformType = "minikube"
+	PlatformOpenshift  PlatformType = "openshift"
+	PlatformMinishift  PlatformType = "minishift"
+)
+
 var execCommand string
 
 type ErrCmdRun struct {
@@ -113,4 +122,48 @@ func GenRandString(ln int) string {
 	}
 
 	return string(b)
+}
+
+// GetPlatformType is for determine and return platform type
+func GetPlatformType() PlatformType {
+	if checkMinikube() {
+		return PlatformMinikube
+	}
+
+	if checkMinishift() {
+		return PlatformMinishift
+	}
+
+	if checkOpenshift() {
+		return PlatformOpenshift
+	}
+
+	return PlatformKubernetes
+}
+
+func checkMinikube() bool {
+	output, err := runCmd(execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
+	if err != nil {
+		return false
+	}
+
+	return strings.Contains(string(output), "k8s.io/minikube-hostpath")
+}
+
+func checkMinishift() bool {
+	output, err := runCmd(execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
+	if err != nil {
+		return false
+	}
+
+	return strings.Contains(string(output), "minishift")
+}
+
+func checkOpenshift() bool {
+	output, err := runCmd(execCommand, "api-versions")
+	if err != nil {
+		return false
+	}
+
+	return strings.Contains(string(output), "openshift")
 }

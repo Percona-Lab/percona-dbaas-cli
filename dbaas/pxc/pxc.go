@@ -85,7 +85,7 @@ Storage                 | %v
 `
 
 func (p *PXC) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), f, s3)
+	err := p.config.SetNew(p.Name(), f, s3, dbaas.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
