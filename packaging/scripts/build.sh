@@ -502,6 +502,8 @@ build_tarball(){
         cd build/src && go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas && go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
     fi
     cp percona-dbaas* ${WORKDIR}/${PSMDIR}/
+    cp percona-dbaas* ${WORKDIR}/${PSMDIR}/kubectl-pxc
+    cp percona-dbaas* ${WORKDIR}/${PSMDIR}/kubectl-psmdb
     cp percona-kubectl* ${WORKDIR}/${PSMDIR}/
     cd ${WORKDIR}/
     if [ ${WIN} = 1 -o ${MAC} = 1 ]; then
