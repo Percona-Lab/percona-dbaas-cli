@@ -574,7 +574,7 @@ func (cr *PerconaServerMongoDB) createBackup(f *pflag.FlagSet) (BackupSpec, erro
 		Enabled:          true,
 		RestartOnFailure: &t,
 		Debug:            true,
-		Image:            "perconalab/percona-server-mongodb-operator:1.1.0-backup",
+		Image:            "percona/percona-server-mongodb-operator:1.1.0-backup",
 		Coordinator: BackupCoordinatorSpec{
 			EnableClientsLogging: true,
 			Resources: &corev1.ResourceRequirements{
