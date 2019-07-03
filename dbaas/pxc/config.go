@@ -237,7 +237,6 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupSto
 	return nil
 }
 
-
 // Upgrade upgrades culster with given images
 func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["pxc"]; ok {
@@ -251,7 +250,7 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
@@ -317,10 +316,34 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 	}
 
 	// Disable ProxySQL if size set to 0
-	if cr.Spec.ProxySQL.Size == 0 {
+	if cr.Spec.ProxySQL.Size > 0 {
+		err := cr.setProxySQL(f)
+		if err != nil {
+			return err
+		}
+	} else {
 		cr.Spec.ProxySQL.Enabled = false
-		return nil
 	}
+
+	if s3 != nil {
+		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
+			dbaas.DefaultBcpStorageName: s3,
+		}
+	}
+
+	switch p {
+	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
+		none := AffinityTopologyKeyOff
+		cr.Spec.PXC.Affinity.TopologyKey = &none
+		cr.Spec.PXC.Resources = nil
+		cr.Spec.ProxySQL.Affinity.TopologyKey = &none
+		cr.Spec.ProxySQL.Resources = nil
+	}
+
+	return nil
+}
+
+func (cr *PerconaXtraDBCluster) setProxySQL(f *pflag.FlagSet) error {
 	proxyCPU, err := f.GetString("proxy-request-cpu")
 	if err != nil {
 		return errors.New("undefined `proxy-request-cpu`")
@@ -352,21 +375,6 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", proxytpk)
 	}
 	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
-
-	if s3 != nil {
-		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
-			dbaas.DefaultBcpStorageName: s3,
-		}
-	}
-
-	switch p {
-	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
-		none := AffinityTopologyKeyOff
-		cr.Spec.PXC.Affinity.TopologyKey = &none
-		cr.Spec.PXC.Resources = nil
-		cr.Spec.ProxySQL.Affinity.TopologyKey = &none
-		cr.Spec.ProxySQL.Resources = nil
-	}
 
 	return nil
 }
