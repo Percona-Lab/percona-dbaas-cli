@@ -19,15 +19,12 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
-	"text/template"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/tls"
 )
 
 func init() {
@@ -36,24 +33,18 @@ func init() {
 
 type Deploy interface {
 	// Bundle returns crd, rbac and operator manifests
-	Bundle() []BundleObject
+	Bundle(operatorVersion string) []BundleObject
 	// App returns application (custom resource) manifest
 	App() (string, error)
-	Secrets() (string, error)
-	NeedCertificates() []TLSSecrets
 
 	Name() string
 	OperatorName() string
 
-	CheckStatus(data []byte) (ClusterState, []string, error)
+	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
-	Update(crRaw []byte, f *pflag.FlagSet) (string, error)
-}
-
-type TLSSecrets struct {
-	SecretName string
-	Hosts      []string
+	Edit(crRaw []byte, f *pflag.FlagSet, storage *BackupStorageSpec) (string, error)
+	Upgrade(crRaw []byte, newImages map[string]string) error
 }
 
 type ClusterState string
@@ -72,15 +63,7 @@ type BundleObject struct {
 }
 
 type Objects struct {
-	Bundle  []BundleObject
-	Secrets Secrets
-}
-
-type Secrets struct {
-	Name string
-	Data *template.Template
-	Keys []string
-	Rnd  *rand.Rand
+	Bundle []BundleObject
 }
 
 const getStatusMaxTries = 1200
@@ -112,7 +95,7 @@ oc adm policy add-cluster-role-to-user pxc-admin %s
 func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+osUser())
 
-	err := applyBundles(app.Bundle())
+	err := applyBundles(app.Bundle(""))
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundles")
 		return
@@ -122,7 +105,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			errc <- errors.Errorf(osRightsMsg, execCommand, osUser(), execCommand, osAdminBundle(app.Bundle()), osUser())
+			errc <- errors.Errorf(osRightsMsg, execCommand, osUser(), execCommand, osAdminBundle(app.Bundle("")), osUser())
 		}
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return
@@ -131,49 +114,6 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	if ext {
 		errc <- ErrAlreadyExists{Typ: typ, Cluster: app.Name()}
 		return
-	}
-
-	secExt, err := IsObjExists("secret", app.Name()+"-secrets")
-	if err != nil {
-		errc <- errors.Wrap(err, "check if cluster secrets exists")
-		return
-	}
-
-	if !secExt {
-		scrt, err := app.Secrets()
-		if err != nil {
-			errc <- errors.Wrap(err, "get secrets")
-			return
-		}
-		err = apply(scrt)
-		if err != nil {
-			errc <- errors.Wrap(err, "apply secrets")
-			return
-		}
-	}
-
-	// TLS
-	for _, cert := range app.NeedCertificates() {
-		secExt, err := IsObjExists("secret", cert.SecretName)
-		if err != nil {
-			errc <- errors.Wrapf(err, "check if cluster secrets %s exists", cert.SecretName)
-			return
-		}
-		if secExt {
-			continue
-		}
-
-		tlsCerts, err := tls.GenerateSelfSigned(cert.Hosts)
-		if err != nil {
-			errc <- errors.Wrapf(err, "generate TLS certificates %s", cert.SecretName)
-			return
-		}
-
-		err = createTLSsecrets(cert.SecretName, tlsCerts)
-		if err != nil {
-			errc <- errors.Wrapf(err, "create TLS secrets for %s", cert.SecretName)
-			return
-		}
 	}
 
 	cr, err := app.App()
@@ -194,12 +134,17 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
+		secrets, err := getSecrets(app)
+		if err != nil {
+			errc <- errors.Wrap(err, "get cluster secrets")
+			return
+		}
 		status, err := GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := app.CheckStatus(status)
+		state, msgs, err := app.CheckStatus(status, secrets)
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -244,54 +189,26 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	}
 }
 
-func createTLSsecrets(name string, cert *tls.SelfSignedCerts) error {
-	secretObj := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name, //cert.SecretName,
-		},
+// CreateSecret creates k8s secret object with the given name and data
+func CreateSecret(name string, data map[string][]byte) error {
+	s := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Secret",
 		},
-		Data: map[string][]byte{
-			"ca.crt":  cert.CA,
-			"tls.crt": cert.Certificate,
-			"tls.key": cert.PKey,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
 		},
-		Type: corev1.SecretTypeTLS,
+		Data: data,
+		Type: corev1.SecretTypeOpaque,
 	}
 
-	secretJSON, err := json.Marshal(secretObj)
+	sj, err := json.Marshal(s)
 	if err != nil {
-		return errors.Wrapf(err, "marshal object")
+		errors.Wrap(err, "json marshal")
 	}
 
-	err = apply(string(secretJSON))
-	if err != nil {
-		return errors.Wrapf(err, "apply at server")
-	}
-
-	return nil
-}
-
-var passsymbols = []byte("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-
-func genPass() []byte {
-	pass := make([]byte, rand.Intn(5)+16)
-	for i := 0; i < len(pass); i++ {
-		pass[i] = passsymbols[rand.Intn(len(passsymbols))]
-	}
-
-	return pass
-}
-
-func GenSecrets(keys []string) map[string][]byte {
-	pass := make(map[string][]byte, len(keys))
-	for _, k := range keys {
-		pass[k] = genPass()
-	}
-
-	return pass
+	return errors.WithMessage(apply(string(sj)), "apply")
 }
 
 func osAdminBundle(bs []BundleObject) string {
@@ -352,4 +269,19 @@ func gkeUser() (string, error) {
 	}
 
 	return strings.TrimSpace(string(s)), nil
+}
+
+func getSecrets(app Deploy) (map[string][]byte, error) {
+	data, err := GetObject("secrets", app.Name()+"-secrets")
+	if err != nil {
+		return nil, errors.Wrap(err, "get object")
+	}
+
+	secretsObj := &corev1.Secret{}
+	err = json.Unmarshal(data, secretsObj)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshal")
+	}
+
+	return secretsObj.Data, nil
 }

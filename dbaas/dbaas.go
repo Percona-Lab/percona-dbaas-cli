@@ -61,8 +61,8 @@ func readOperatorLogs(operatorName string) ([]byte, error) {
 	return runCmd(execCommand, "logs", "-l", "name="+operatorName)
 }
 
-func GetObject(typ, clusterName string) ([]byte, error) {
-	return runCmd(execCommand, "get", typ+"/"+clusterName, "-o", "json")
+func GetObject(typ, name string) ([]byte, error) {
+	return runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
 func apply(k8sObj string) error {
@@ -78,6 +78,12 @@ func IsObjExists(typ, name string) (bool, error) {
 	switch typ {
 	case "pxc":
 		typ = "perconaxtradbcluster.pxc.percona.com"
+	case "psmdb":
+		typ = "perconaservermongodb.psmdb.percona.com"
+	case "pxc-backup":
+		typ = "perconaxtradbclusterbackup.pxc.percona.com"
+	case "psmdb-backup":
+		typ = "perconaservermongodbbackup.psmdb.percona.com"
 	}
 
 	out, err := runCmd(execCommand, "get", typ, name, "-o", "name")
@@ -86,6 +92,15 @@ func IsObjExists(typ, name string) (bool, error) {
 	}
 
 	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
+}
+
+func Instances(typ string) ([]string, error) {
+	out, err := runCmd(execCommand, "get", typ, "-o", "name")
+	if err != nil && !strings.Contains(err.Error(), "NotFound") {
+		return nil, errors.Wrapf(err, "get objects: %s", out)
+	}
+
+	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
 }
 
 const genSymbols = "abcdefghijklmnopqrstuvwxyz1234567890"

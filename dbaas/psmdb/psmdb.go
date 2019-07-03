@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pxc
+package psmdb
 
 import (
 	"bytes"
@@ -32,26 +32,33 @@ type Version string
 const (
 	Version100 Version = "1.0.0"
 
-	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.0.0"
+	defaultRSname          = "rs0"
+	defaultOperatorVersion = "perconalab/percona-server-mongodb-operator:andrew"
 )
 
-type PXC struct {
+type PSMDB struct {
 	name         string
-	config       *PerconaXtraDBCluster
+	rsName       string
+	config       *PerconaServerMongoDB
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
 }
 
-func New(name string, version Version) *PXC {
-	return &PXC{
-		name:   name,
+func New(clusterName, replsetName string, version Version) *PSMDB {
+	if replsetName == "" {
+		replsetName = defaultRSname
+	}
+
+	return &PSMDB{
+		name:   clusterName,
+		rsName: replsetName,
 		obj:    objects[version],
-		config: &PerconaXtraDBCluster{},
+		config: &PerconaServerMongoDB{},
 	}
 }
 
-func (p PXC) Bundle(operatorVersion string) []dbaas.BundleObject {
+func (p PSMDB) Bundle(operatorVersion string) []dbaas.BundleObject {
 	if operatorVersion == "" {
 		operatorVersion = defaultOperatorVersion
 	}
@@ -64,11 +71,11 @@ func (p PXC) Bundle(operatorVersion string) []dbaas.BundleObject {
 	return p.obj.Bundle
 }
 
-func (p PXC) Name() string {
+func (p PSMDB) Name() string {
 	return p.name
 }
 
-func (p PXC) App() (string, error) {
+func (p PSMDB) App() (string, error) {
 	cr, err := json.Marshal(p.config)
 	if err != nil {
 		return "", errors.Wrap(err, "marshal cr template")
@@ -77,35 +84,35 @@ func (p PXC) App() (string, error) {
 	return string(cr), nil
 }
 
-const createMsg = `Create MySQL cluster.
+const createMsg = `Create MongoDB cluster.
  
-PXC instances           | %v
-ProxySQL instances      | %v
+Replica Set Name        | %v
+Replica Set Size        | %v
 Storage                 | %v
 `
 
-func (p *PXC) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), f, s3)
+func (p *PSMDB) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.config.SetNew(p.Name(), p.rsName, f, s3)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
 
-	storage, err := p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
+	storage, err := p.config.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return "", errors.Wrap(err, "marshal pxc volume requests")
+		return "", errors.Wrap(err, "marshal psmdb volume requests")
 	}
 
-	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
+	return fmt.Sprintf(createMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size, string(storage)), nil
 }
 
-const updateMsg = `Update MySQL cluster.
+const updateMsg = `Update MongoDB cluster.
  
-PXC instances           | %v
-ProxySQL instances      | %v
+Replica Set Name        | %v
+Replica Set Size        | %v
 `
 
-func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
-	cr := &PerconaXtraDBCluster{}
+func (p *PSMDB) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
+	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
 		return "", errors.Wrap(err, "unmarshal current cr")
@@ -114,20 +121,19 @@ func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageS
 	p.config.APIVersion = cr.APIVersion
 	p.config.Kind = cr.Kind
 	p.config.Name = cr.Name
-	p.config.Finalizers = cr.Finalizers
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(f, storage)
+	err = p.config.UpdateWith(p.rsName, f, storage)
 	if err != nil {
-		return "", errors.Wrap(err, "applay changes to cr")
+		return "", errors.Wrap(err, "apply changes to cr")
 	}
 
-	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
+	return fmt.Sprintf(updateMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size), nil
 }
 
-func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
-	cr := &PerconaXtraDBCluster{}
+func (p *PSMDB) Upgrade(crRaw []byte, newImages map[string]string) error {
+	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal current cr")
@@ -136,7 +142,6 @@ func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
 	p.config.APIVersion = cr.APIVersion
 	p.config.Kind = cr.Kind
 	p.config.Name = cr.Name
-	p.config.Finalizers = cr.Finalizers
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
@@ -145,15 +150,13 @@ func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
 	return nil
 }
 
-const operatorImage = "percona/percona-xtradb-cluster-operator:"
+const operatorImage = "percona/percona-server-mongodb-operator:"
 
-func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[string]string, err error) {
+func (p *PSMDB) Images(ver string, f *pflag.FlagSet) (operator string, apps map[string]string, err error) {
 	apps = make(map[string]string)
-
 	if ver != "" {
 		operator = operatorImage + ver
-		apps["pxc"] = operatorImage + ver + "-pxc"
-		apps["proxysql"] = operatorImage + ver + "-proxysql"
+		apps["psmdb"] = operatorImage + ver + "-mongod4.0.9"
 		apps["backup"] = operatorImage + ver + "-backup"
 	}
 
@@ -165,20 +168,12 @@ func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[st
 		operator = op
 	}
 
-	pxc, err := f.GetString("pxc-image")
+	psmdb, err := f.GetString("psmdb-image")
 	if err != nil {
-		return operator, apps, errors.New("undefined `pxc-image`")
+		return operator, apps, errors.New("undefined `psmdb-image`")
 	}
-	if pxc != "" {
-		apps["pxc"] = pxc
-	}
-
-	proxysql, err := f.GetString("proxysql-image")
-	if err != nil {
-		return operator, apps, errors.New("undefined `proxysql-image`")
-	}
-	if proxysql != "" {
-		apps["proxysql"] = proxysql
+	if psmdb != "" {
+		apps["psmdb"] = psmdb
 	}
 
 	backup, err := f.GetString("backup-image")
@@ -192,24 +187,26 @@ func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[st
 	return operator, apps, nil
 }
 
-func (p *PXC) OperatorName() string {
-	return "percona-xtradb-cluster-operator"
+func (p *PSMDB) OperatorName() string {
+	return "percona-server-mongodb-operator"
 }
 
 type k8sStatus struct {
-	Status PerconaXtraDBClusterStatus
+	Status PerconaServerMongoDBStatus
 }
 
 const okmsg = `
-MySQL cluster started successfully, right endpoint for application:
+MongoDB cluster started successfully, right endpoint for application:
 Host: %s
-Port: 3306
-User: root
-Pass: %s
+Port: 27017
+ClusterAdmin User: %s
+ClusterAdmin Password: %s
+UserAdmin User: %s
+UserAdmin Password: %s
 
 Enjoy!`
 
-func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
+func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
@@ -217,13 +214,29 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
 	}
 
-	switch st.Status.Status {
+	status := st.Status.Replsets[p.rsName]
+	if status == nil {
+		switch st.Status.Status {
+		case AppStateReady:
+			host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
+			msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
+			return dbaas.ClusterStateReady, []string{msg}, nil
+		case AppStateError:
+			return dbaas.ClusterStateError, alterStatusMgs([]string{status.Message}), nil
+		default:
+			return dbaas.ClusterStateInit, nil, nil
+		}
+	}
+
+	switch status.Status {
 	case AppStateReady:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
-	case AppStateInit:
-		return dbaas.ClusterStateInit, nil, nil
+		host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
+		msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
+		return dbaas.ClusterStateReady, []string{msg}, nil
 	case AppStateError:
-		return dbaas.ClusterStateError, alterStatusMgs(st.Status.Messages), nil
+		return dbaas.ClusterStateError, alterStatusMgs([]string{status.Message}), nil
+	default:
+		return dbaas.ClusterStateInit, nil, nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
@@ -234,11 +247,11 @@ type operatorLog struct {
 	TS         float64 `json:"ts"`
 	Msg        string  `json:"msg"`
 	Error      string  `json:"error"`
-	Request    string  `json:"Request"`
-	Controller string  `json:"Controller"`
+	Request    string  `json:"request"`
+	Controller string  `json:"controller"`
 }
 
-func (p *PXC) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
+func (p *PSMDB) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	msgs := []dbaas.OutuputMsg{}
 
 	lines := bytes.Split(data, []byte("\n"))
@@ -253,7 +266,7 @@ func (p *PXC) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 			return nil, errors.Wrap(err, "unmarshal entry")
 		}
 
-		if entry.Controller != "perconaxtradbcluster-controller" {
+		if entry.Controller != "psmdb-controller" {
 			continue
 		}
 
@@ -303,42 +316,16 @@ func alterStatusMgs(msgs []string) []string {
 }
 
 func alterMessage(msg string) string {
-	app := ""
-	if i := strings.Index(msg, ":"); i >= 0 {
-		app = msg[:i]
-	}
-
 	if strings.Contains(msg, "node(s) didn't match pod affinity/anti-affinity") {
-		key := ""
-		switch app {
-		case "PXC":
-			key = "--pxc-anti-affinity-key"
-		case "ProxySQL":
-			key = "--proxy-anti-affinity-key"
-		}
-		return fmt.Sprintf("Cluster node(s) didn't satisfy %s pods [anti-]affinity rules. Try to change %s parameter or add more nodes/change topology of your cluster.", app, key)
+		return "Cluster node(s) didn't satisfy pods [anti-]affinity rules. Try to change --anti-affinity-key parameter or add more nodes/change topology of your cluster."
 	}
 
 	if strings.Contains(msg, "Insufficient memory.") {
-		key := ""
-		switch app {
-		case "PXC":
-			key = "--pxc-request-mem"
-		case "ProxySQL":
-			key = "--proxy-request-mem"
-		}
-		return fmt.Sprintf("Avaliable memory not enough to satisfy %s request. Try to change %s parameter or add more memmory to your cluster.", app, key)
+		return "Avaliable memory not enough to satisfy replica set request. Try to change --request-mem parameter or add more memmory to your cluster."
 	}
 
 	if strings.Contains(msg, "Insufficient cpu.") {
-		key := ""
-		switch app {
-		case "PXC":
-			key = "--pxc-request-cpu"
-		case "ProxySQL":
-			key = "--proxy-request-cpu"
-		}
-		return fmt.Sprintf("Avaliable CPU not enough to satisfy %s request. Try to change %s parameter or add more CPU to your cluster.", app, key)
+		return "Avaliable CPU not enough to satisfy replica set request. Try to change --request-cpu parameter or add more CPU to your cluster."
 	}
 
 	return msg

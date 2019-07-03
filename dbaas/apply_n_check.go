@@ -19,34 +19,32 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/pflag"
 )
 
-func Update(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	acr, err := GetObject(typ, app.Name())
+type ApplyChecker interface {
+	CR() (string, error)
+
+	Name() string
+	OperatorName() string
+
+	CheckStatus(data []byte) (ClusterState, []string, error)
+	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
+}
+
+func ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+	cr, err := app.CR()
 	if err != nil {
-		errc <- errors.Wrap(err, "get pxc config")
+		errc <- errors.Wrap(err, "create cr")
 		return
 	}
 
-	_, err = app.Update(acr, f)
-	if err != nil {
-		errc <- errors.Wrap(err, "update pxc config")
-		return
-	}
-
-	cr, err := app.App()
-	if err != nil {
-		errc <- errors.Wrap(err, "get cr")
-		return
-	}
 	err = apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
 	}
+	time.Sleep(1 * time.Minute)
 
-	time.Sleep(15 * time.Second)
 	tries := 0
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
@@ -89,7 +87,7 @@ func Update(typ string, f *pflag.FlagSet, app Deploy, ok chan<- string, msg chan
 		}
 
 		if tries >= getStatusMaxTries {
-			errc <- errors.Wrap(err, "unable to start cluster")
+			errc <- errors.Wrap(err, "unable to create object")
 			return
 		}
 

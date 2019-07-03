@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package psmdb
 
 import (
 	"fmt"
@@ -24,22 +24,29 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
-// bcpCmd represents the list command
-var bcpCmd = &cobra.Command{
-	Use:   "create-backup <pxc-cluster-name>",
-	Short: "Create MySQL backup",
+// restoreCmd represents the list command
+var restoreCmd = &cobra.Command{
+	Use:   "restore-backup <psmdb-cluster-name> <psmdb-backup-name>",
+	Short: "Restore MongoDB backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("You have to specify psmdb-cluster-name and psmdb-backup-name")
 		}
 
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		args = parseArgs(args)
+
 		name := args[0]
+		if len(args) < 2 || args[1] == "" {
+			fmt.Fprint(os.Stderr, "[ERROR] you have to specify psmdb-cluster-name and psmdb-backup-name\n")
+			return
+		}
+		bcpName := args[1]
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -48,7 +55,7 @@ var bcpCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbaas.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -57,8 +64,8 @@ var bcpCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			list, err := dbaas.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -67,23 +74,43 @@ var bcpCmd = &cobra.Command{
 			return
 		}
 
-		sp.Prefix = "Creating backup..."
+		sp.Prefix = "Looking for the backup..."
+		ext, err = dbaas.IsObjExists("psmdb-backup", bcpName)
 
-		bcp := pxc.NewBackup(name)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
+			return
+		}
 
-		bcp.Setup("fs-pvc")
+		if !ext {
+			sp.Stop()
+			fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "psmdb-backup", bcpName)
+			list, err := dbaas.List("psmdb-backup")
+			if err != nil {
+				return
+			}
+			fmt.Println("Avaliable backups:")
+			fmt.Print(list)
+			return
+		}
+
+		sp.Prefix = "Restoring backup..."
+
+		bcp := psmdb.NewRestore(name)
+
+		bcp.Setup(bcpName)
 
 		ok := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Backup("pxc-backup", bcp, ok, msg, cerr)
+		go dbaas.ApplyCheck("psmdb-restore", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
 			select {
 			case okmsg := <-ok:
-				sp.FinalMSG = fmt.Sprintf("Creating backup...[done]\n%s\n", okmsg)
+				sp.FinalMSG = fmt.Sprintf("Restoring backup...[done]\n%s\n", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -96,7 +123,7 @@ var bcpCmd = &cobra.Command{
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create backup: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] restore backup: %v\n", err)
 				return
 			}
 		}
@@ -104,5 +131,5 @@ var bcpCmd = &cobra.Command{
 }
 
 func init() {
-	pxcCmd.AddCommand(bcpCmd)
+	PSMDBCmd.AddCommand(restoreCmd)
 }

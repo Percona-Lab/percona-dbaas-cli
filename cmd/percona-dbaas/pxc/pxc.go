@@ -12,32 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package pxc
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-// listCmd represents the list command
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all MySQL clusters on current Kubernetes cluster",
-
-	Run: func(cmd *cobra.Command, args []string) {
-		list, err := dbaas.List("pxc")
-		if err != nil {
-			fmt.Printf("\n[error] %s\n", err)
-			return
-		}
-
-		fmt.Print(list)
-	},
+// PXCCmd represents the pxc command
+var PXCCmd = &cobra.Command{
+	Use:   "pxc",
+	Short: "Manage your MySQL cluster on Kubernetes",
 }
 
-func init() {
-	pxcCmd.AddCommand(listCmd)
+func parseArgs(args []string) []string {
+	if len(args) == 0 {
+		return args
+	}
+
+	if a := strings.Split(args[0], "/"); len(a) == 2 {
+		args = a
+	}
+
+	return args
 }

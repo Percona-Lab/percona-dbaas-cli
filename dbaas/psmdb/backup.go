@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pxc
+package psmdb
 
 import (
 	"bytes"
@@ -21,21 +21,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/pkg/errors"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
 type Backup struct {
 	name         string
 	cluster      string
-	config       *PerconaXtraDBBackup
+	config       *PerconaServerMongoDBBackup
 	opLogsLastTS float64
 }
 
 func NewBackup(cluster string) *Backup {
 	return &Backup{
 		cluster: cluster,
-		config:  &PerconaXtraDBBackup{},
+		config:  &PerconaServerMongoDBBackup{},
 	}
 }
 
@@ -58,7 +59,7 @@ func (b *Backup) CR() (string, error) {
 }
 
 func (*Backup) OperatorName() string {
-	return "percona-xtradb-cluster-operator"
+	return "percona-server-mongodb-operator"
 }
 
 func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
@@ -76,7 +77,7 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 			return nil, errors.Wrap(err, "unmarshal entry")
 		}
 
-		if entry.Controller != "perconaxtradbclusterbackup-controller" {
+		if entry.Controller != "perconaservermongodbbackup-controller" {
 			continue
 		}
 
@@ -108,13 +109,13 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 }
 
 const okmsgbcp = `
-MySQL backup created successfully:
+MongoDB backup created successfully:
 Name: %s
 Destination: %s
 `
 
 func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
-	st := &PerconaXtraDBBackup{}
+	st := &PerconaServerMongoDBBackup{}
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
@@ -122,11 +123,11 @@ func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) 
 	}
 
 	switch st.Status.State {
-	case BackupSucceeded:
+	case StateReady:
 		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgbcp, st.Name, st.Status.Destination)}, nil
-	case BackupStarting, BackupRunning:
+	case StateRequested:
 		return dbaas.ClusterStateInit, nil, nil
-	case BackupFailed:
+	case StateRejected:
 		return dbaas.ClusterStateError, []string{"backup attempt has failed"}, nil
 	}
 

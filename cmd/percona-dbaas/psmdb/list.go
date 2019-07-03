@@ -12,18 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package psmdb
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
+
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-// pxcCmd represents the pxc command
-var pxcCmd = &cobra.Command{
-	Use:   "pxc",
-	Short: "Manage your MySQL cluster on Kubernetes",
+// listCmd represents the list command
+var listCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all MongoDB clusters on current Kubernetes cluster",
+
+	Run: func(cmd *cobra.Command, args []string) {
+		list, err := dbaas.List("psmdb")
+		if err != nil {
+			fmt.Printf("\n[error] %s\n", err)
+			return
+		}
+
+		fmt.Print(list)
+	},
 }
 
 func init() {
-	rootCmd.AddCommand(pxcCmd)
+	PSMDBCmd.AddCommand(listCmd)
 }

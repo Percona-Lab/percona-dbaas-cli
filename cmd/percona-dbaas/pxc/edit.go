@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package pxc
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -26,14 +24,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
-var delePVC *bool
-
-// delCmd represents the list command
-var delCmd = &cobra.Command{
-	Use:   "delete <pxc-cluster-name>",
-	Short: "Delete MySQL cluster",
+// editCmd represents the edit command
+var editCmd = &cobra.Command{
+	Use:   "edit <pxc-cluster-name>",
+	Short: "Edit MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify pxc-cluster-name")
@@ -43,6 +40,8 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
+
+		app := pxc.New(name, defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -74,36 +73,31 @@ var delCmd = &cobra.Command{
 			return
 		}
 
-		if *delePVC {
-			sp.Stop()
-			var yn string
-			fmt.Printf("\nAll current data on \"%s\" cluster will be destroyed.\nAre you sure? [y/N] ", name)
-			scanner := bufio.NewScanner(os.Stdin)
-			for scanner.Scan() {
-				yn = strings.TrimSpace(scanner.Text())
-				break
-			}
-			if yn != "y" && yn != "Y" {
-				return
-			}
-			sp.Start()
-		}
-
-		sp.Prefix = "Deleting..."
-
-		ok := make(chan string)
+		created := make(chan string)
+		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Delete("pxc", name, *delePVC, ok, cerr)
-		tckr := time.NewTicker(1 * time.Second)
-		defer tckr.Stop()
+		go dbaas.Edit("pxc", app, cmd.Flags(), nil, created, msg, cerr)
+		sp.Prefix = "Applying changes..."
+
 		for {
 			select {
-			case <-ok:
-				sp.FinalMSG = "Deleting...[done]\n"
+			case <-created:
+				okmsg, _ := dbaas.ListName("pxc", name)
+				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
 				return
+			case omsg := <-msg:
+				switch omsg.(type) {
+				case dbaas.OutuputMsgDebug:
+					// fmt.Printf("\n[debug] %s\n", omsg)
+				case dbaas.OutuputMsgError:
+					sp.Stop()
+					fmt.Printf("[operator log error] %s\n", omsg)
+					sp.Start()
+				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] edit pxc: %v\n", err)
+				sp.HideCursor = true
 				return
 			}
 		}
@@ -111,7 +105,8 @@ var delCmd = &cobra.Command{
 }
 
 func init() {
-	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
+	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
+	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
 
-	pxcCmd.AddCommand(delCmd)
+	PXCCmd.AddCommand(editCmd)
 }
