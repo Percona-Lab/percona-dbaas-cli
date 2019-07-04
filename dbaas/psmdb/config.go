@@ -505,7 +505,6 @@ func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
 	return rs, nil
 }
 
-
 // Upgrade upgrades culster with given images
 func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["psmdb"]; ok {
@@ -516,7 +515,7 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
