@@ -237,7 +237,6 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupSto
 	return nil
 }
 
-
 // Upgrade upgrades culster with given images
 func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["pxc"]; ok {
@@ -251,7 +250,7 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.setDefaults()
 
