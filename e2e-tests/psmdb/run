@@ -1,0 +1,165 @@
+#!/bin/bash
+
+set -o errexit
+set -o xtrace
+
+export TEST_DIR=$(realpath $(dirname $0))
+. ${TEST_DIR}/../functions
+
+NAMESPACE="psmdb-${RANDOM}"
+OPERATOR_IMAGE_TO_UPDATE="perconalab/percona-server-mongodb-operator:master"
+PSMDB_IMAGE_TO_UPDATE="${OPERATOR_IMAGE_TO_UPDATE}-mongod4.0"
+BACKUP_IMAGE_TO_UPDATE="${OPERATOR_IMAGE_TO_UPDATE}-backup"
+
+S3_BUCKET="operator-testing"
+S3_SECRET="minio-secret"
+S3_ENDPOINT="http://minio-service:9000/"
+S3_REGION="us-east-1"
+
+CLUSTER=test-cluster
+LOGIN=userAdmin
+BACKUP_NAME=''
+
+init() {
+	create_namespace "${NAMESPACE}"
+	deploy_cert_manager
+	check_build
+	kubectl apply -f "${TEST_DIR}/conf/rbac.yaml" \
+			 	  -f "${TEST_DIR}/conf/operator.yaml" \
+			 	  -f "${TEST_DIR}/conf/minio-secret.yaml" \
+			 	  -f "${TEST_DIR}/conf/client.yaml"
+	deploy_helm "${NAMESPACE}"
+	deploy_minio
+}
+
+create() {
+	desc psmdb cluster creation
+	pass=$(percona-dbaas psmdb create "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none | grep 'UserAdmin Password:' | cut -d' ' -f3)
+
+	compare_kubectl statefulset/"${CLUSTER}"-rs0
+
+	run_mongo 'db.createUser({user: "myApp", pwd: "myPass", roles: [{ db: "myApp", role: "readWrite" }]})' \
+              "userAdmin:${pass}@${CLUSTER}-rs0.${NAMESPACE}"
+
+    run_mongo 'use myApp\n db.test.insert({ x: 100500 })' "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
+
+}
+
+add_storage() {
+	desc add storage to existing cluster
+	percona-dbaas psmdb add-storage "${CLUSTER}" \
+					    --s3-bucket "${S3_BUCKET}" \
+					    --s3-credentials-secret "${S3_SECRET}" \
+					    --s3-endpoint-url "${S3_ENDPOINT}" \
+					    --s3-region "${S3_REGION}"
+
+	bucket_name=$(kubectl get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.bucket}')
+	secret=$(kubectl get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.credentialsSecret}')
+	endpoint=$(kubectl get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.endpointUrl}')
+	region=$(kubectl get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.region}')
+
+	if [[ ${bucket_name} != ${S3_BUCKET} || ${secret} != ${S3_SECRET} \
+		  || ${endpoint} != ${S3_ENDPOINT} || ${region} != ${S3_REGION} ]]; then
+		echo "S3 bucket settings has not been provisioned"
+		exit 1
+	fi
+}
+
+edit() {
+	desc increasing the number of replicas
+	target_size=4
+	percona-dbaas psmdb edit "${CLUSTER}" --replset-size ${target_size}
+	if [[ $(kubectl get statefulset "${CLUSTER}-rs0" -o jsonpath='{.status.replicas}') -ne $((target_size+1)) ]]; then
+		echo "Replica set has not been updated accordingly."
+		exit 1
+	fi
+	percona-dbaas psmdb edit "${CLUSTER}" --replset-size 3
+}
+
+create_backup() {
+	desc create backup
+	BACKUP_NAME=$(percona-dbaas psmdb create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
+	if [[ $(kubectl get psmdb-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
+		echo "Backup creation has been failed."
+		exit 1
+	fi
+}
+
+restore_bakup() {
+	backup_name=$1
+	desc restore backup
+	run_mongo 'use myApp\n db.test.insert({ x: 100501 })' "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
+
+	RESTORE_NAME=$(percona-dbaas psmdb restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
+	if [[ $(kubectl get psmdb-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
+		echo "Restore process has been failed."
+		exit 1
+	fi
+
+	compare_mongo_cmd "find" "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
+
+}
+
+list() {
+	desc listing psmdb clusters
+	cluster_name=$(percona-dbaas psmdb list | grep -o "${CLUSTER}")
+	if [[ ${cluster_name} == '' ]]; then
+		echo "Can't find ${CLUSTER} created"
+		exit 1
+	fi
+}
+
+upgrade() {
+	desc upgrading psmdb cluster
+	percona-dbaas psmdb upgrade "${CLUSTER}" master \
+				  --operator-image "${OPERATOR_IMAGE_TO_UPDATE}" \
+				  --psmdb-image "${PSMDB_IMAGE_TO_UPDATE}" \
+				  --backup-image "${BACKUP_IMAGE_TO_UPDATE}"
+
+
+	sleep 10
+	wait_cluster_consistency "${CLUSTER}" 3
+	sleep 10
+	wait_cluster_consistency "${CLUSTER}" 3
+	sleep 10
+	wait_cluster_consistency "${CLUSTER}" 3
+	sleep 10
+	wait_cluster_consistency "${CLUSTER}" 3
+	sleep 10
+	wait_cluster_consistency "${CLUSTER}" 3
+	sleep 10
+	wait_cluster_consistency "${CLUSTER}" 3
+
+	current_mongod_image=$(kubectl get statefulset test-cluster-rs0 -o jsonpath='{.spec.template.spec.containers[?(@.name == "mongod")].image}')
+	current_backup_image=$(kubectl get statefulset test-cluster-rs0 -o jsonpath='{.spec.template.spec.containers[?(@.name == "backup-agent")].image}')
+
+
+	if [[ ${current_mongod_image} != "${PSMDB_IMAGE_TO_UPDATE}" || ${current_backup_image} != "${BACKUP_IMAGE_TO_UPDATE}" ]]; then
+		echo "Cluster has not been updated"
+		exit 1
+	fi
+}
+
+delete() {
+	desc deleting psmdb cluster
+	percona-dbaas psmdb delete "${CLUSTER}" rs0
+	status=$(kubectl get psmdb "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
+
+    if [[ ${status} != '' ]]; then
+    	echo "Test has been failed. Cluster ${CLUSTER} still exists."
+    	exit 1
+    fi
+}
+
+init
+create
+add_storage
+edit
+list
+upgrade
+create_backup
+restore_bakup "${BACKUP_NAME}"
+delete
+destroy "${NAMESPACE}"
+
+
