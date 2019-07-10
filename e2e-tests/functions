@@ -83,11 +83,25 @@ wait_pod() {
 wait_cluster_consistency() {
     cluster_name=$1
     cluster_size=$2
-    until [[ "$(kubectl get psmdb "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
-             && "$(kubectl get psmdb "${cluster_name}" -o jsonpath='{.status.replsets.rs0.ready}')" == "${cluster_size}" ]]; do
-        echo 'waiting for cluster readyness'
-        sleep 20
-    done
+    object_type=${3:-psmdb}
+
+    case ${object_type} in
+        psmdb )
+            until [[ "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
+                 && "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.replsets.rs0.ready}')" == "${cluster_size}" ]]; do
+                echo 'waiting for cluster readyness'
+                sleep 20
+            done
+            ;;
+        pxc )
+            until [[ "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
+                 && "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.proxysql.ready}')" == "${cluster_size}" \
+                 && "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.pxc.ready}')" == "${cluster_size}" ]]; do
+                echo 'waiting for cluster readyness'
+                sleep 20
+            done
+            ;;
+    esac
 }
 
 deploy_helm() {
@@ -258,4 +272,33 @@ desc() {
     printf "$msg"
     printf "\n-----------------------------------------------------------------------------------\n\n"
     set -o xtrace
+}
+
+run_mysql() {
+    local command="$1"
+    local uri="$2"
+
+    client_pod=$(get_client_pod)
+    wait_pod $client_pod 1>&2
+    kubectl exec $client_pod -- \
+        bash -c "printf '$command\n' | mysql -sN $uri" 2>&1 \
+        | sed -e 's/mysql: //' \
+        | (grep -v 'Using a password on the command line interface can be insecure.' || :)
+}
+
+get_client_pod() {
+    kubectl get pods \
+        --selector=name=pxc-client \
+        -o 'jsonpath={.items[].metadata.name}'
+}
+
+compare_mysql_cmd() {
+    local command_id="$1"
+    local command="$2"
+    local uri="$3"
+    local postfix="$4"
+
+    run_mysql "$command" "$uri" \
+        > $tmp_dir/${command_id}.sql
+    diff ${TEST_DIR}/compare/${command_id}${postfix}.sql $tmp_dir/${command_id}.sql
 }
