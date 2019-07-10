@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# GIT_COMMIT=$(git rev-parse HEAD)
-# GIT_BRANCH=${VERSION:-$(git rev-parse --abbrev-ref HEAD | sed -e 's^/^-^g; s^[.]^-^g;' | tr '[:upper:]' '[:lower:]')}
-# IMAGE=${IMAGE:-"perconalab/percona-server-mongodb-operator:${GIT_BRANCH}"}
-# IMAGE_MONGOD=${IMAGE_MONGOD:-"perconalab/percona-server-mongodb-operator:master-mongod4.0"}
-# IMAGE_BACKUP=${IMAGE_BACKUP:-"perconalab/percona-server-mongodb-operator:master-backup"}
 tmp_dir=$(mktemp -d)
 sed=$(which gsed || which sed)
 date=$(which gdate || which date)
@@ -94,126 +89,6 @@ wait_cluster_consistency() {
         sleep 20
     done
 }
-# wait_cron() {
-#     local backup=$1
-
-#     set +o xtrace
-#     retry=0
-#     echo -n $backup
-#     until kubectl get cronjob/$backup -o jsonpath='{.status.lastScheduleTime}' 2>/dev/null | grep 'T'; do
-#         sleep 1
-#         echo -n .
-#         let retry+=1
-#         if [ $retry -ge 360 ]; then
-#             kubectl logs $(get_operator_pod) \
-#                 | grep -v 'level=info' \
-#                 | grep -v 'level=debug' \
-#                 | grep -v 'Getting tasks for pod' \
-#                 | grep -v 'Getting pods from source' \
-#                 | tail -100
-#             echo max retry count $retry reached. something went wrong with operator or kubernetes cluster
-#             exit 1
-#         fi
-#     done
-#     set -o xtrace
-# }
-
-# wait_backup() {
-#     local backup_name=$1
-
-#     set +o xtrace
-#     retry=0
-#     echo -n $backup_name
-#     until [ "$(kubectl get psmdb-backup $backup_name -o jsonpath='{.status.state}')" == "ready" ]; do
-#         sleep 1
-#         echo -n .
-#         let retry+=1
-#         if [ $retry -ge 120 ]; then
-#             kubectl logs $(get_operator_pod) \
-#                 | grep -v 'level=info' \
-#                 | grep -v 'level=debug' \
-#                 | grep -v 'Getting tasks for pod' \
-#                 | grep -v 'Getting pods from source' \
-#                 | tail -100
-#             echo max retry count $retry reached. something went wrong with operator or kubernetes cluster
-#             exit 1
-#         fi
-#     done
-#     echo
-#     set -o xtrace
-# }
-
-# run_restore() {
-#     local backup_name=$1
-#     let last_pod="$2-1" || :
-
-#     run_mongo \
-#         'use myApp\n db.test.insert({ x: 100501 })' \
-#         "myApp:myPass@$cluster.$namespace"
-
-#     for i in $(seq 0 $last_pod); do
-#         compare_mongo_cmd "find" "myApp:myPass@$cluster-${i}.$cluster.$namespace" "-2nd"
-#     done
-
-#     cat $TEST_DIR/conf/restore.yml \
-#         | $sed -e "s/name:/name: restore-$backup_name/" \
-#         | $sed -e "s/backupName:/backupName: $backup_name/" \
-#         | kubectl apply -f -
-# }
-
-# wait_restore() {
-#     wait_restore_object "${1}"
-#     echo
-#     set -o xtrace
-
-#     simple_data_check "${cluster}" "${2}"
-# }
-
-# simple_data_check() {
-#     cluster_name=${1}
-#     let last_pod="$2-1" || :
-#     for i in $(seq 0 $last_pod); do
-#         compare_mongo_cmd "find" "myApp:myPass@${cluster_name}-${i}.${cluster_name}.$namespace"
-#     done
-# }
-
-# wait_restore_object() {
-#     local backup_name=$1
-
-#     set +o xtrace
-#     retry=0
-#     echo -n $backup_name
-#     until [ "$(kubectl get psmdb-restore restore-$backup_name -o jsonpath='{.status.state}')" == "ready" ]; do
-#         sleep 1
-#         echo -n .
-#         let retry+=1
-#         if [ $retry -ge 120 ]; then
-#             kubectl logs $(get_operator_pod) \
-#                 | grep -v 'level=info' \
-#                 | grep -v 'level=debug' \
-#                 | grep -v 'Getting tasks for pod' \
-#                 | grep -v 'Getting pods from source' \
-#                 | tail -100
-#             echo max retry count $retry reached. something went wrong with operator or kubernetes cluster
-#             exit 1
-#         fi
-#     done
-# }
-
-# deploy_operator() {
-#     desc 'start operator'
-
-#     kubectl apply -f ${SRC_DIR}/deploy/crd.yaml || :
-#     kubectl apply -f ${SRC_DIR}/deploy/rbac.yaml
-
-#     cat ${SRC_DIR}/deploy/operator.yaml \
-#         | sed -e "s^image: .*^image: ${IMAGE}^" \
-#         | kubectl apply -f -
-
-#     sleep 2
-
-#     wait_pod $(get_operator_pod)
-# }
 
 deploy_helm() {
     local namespace="$1"
@@ -267,16 +142,6 @@ deploy_minio() {
         bash -c 'AWS_ACCESS_KEY_ID=some-access-key AWS_SECRET_ACCESS_KEY=some-secret-key AWS_DEFAULT_REGION=us-east-1 \
         /usr/bin/aws --endpoint-url http://minio-service:9000 s3 mb s3://operator-testing'
 }
-
-# wait_for_running() {
-#     local name="$1"
-#     let last_pod="$(($2-1))" || :
-
-#     for i in $(seq 0 $last_pod); do
-#         wait_pod ${name}-${i}
-#     done
-#     sleep 10
-# }
 
 wait_for_delete() {
     local res="$1"
@@ -336,26 +201,6 @@ run_mongo() {
         bash -c "printf '$command\n' | mongo $driver://$uri$suffix/admin?ssl=false\&replicaSet=rs0"
 }
 
-# get_service_ip() {
-#     local service=$1
-#     if [ "$(kubectl get psmdb/${service/-rs0*/} -o 'jsonpath={.spec.replsets[].expose.enabled}')" != "true" ]; then
-#         echo -n $service.${service/-rs0*/}-rs0
-#         return
-#     fi
-#     while (kubectl get service/$service -o 'jsonpath={.spec.type}' 2>&1 || : ) | grep -q NotFound; do
-#         sleep 1
-#     done
-#     if [ "$(kubectl get service/$service -o 'jsonpath={.spec.type}')" = "ClusterIP" ]; then
-#         kubectl get service/$service -o 'jsonpath={.spec.clusterIP}'
-#         return
-#     fi
-#     until kubectl get service/$service -o 'jsonpath={.status.loadBalancer.ingress[]}' 2>&1 | egrep -q "hostname|ip"; do
-#         sleep 1
-#     done
-#     kubectl get service/$service -o 'jsonpath={.status.loadBalancer.ingress[].ip}'
-#     kubectl get service/$service -o 'jsonpath={.status.loadBalancer.ingress[].hostname}'
-# }
-
 compare_mongo_cmd() {
     local command="$1"
     local uri="$2"
@@ -369,61 +214,6 @@ compare_mongo_cmd() {
     diff ${TEST_DIR}/compare/${command}${postfix}.json $tmp_dir/${command}
 }
 
-# get_mongo_primary_endpoint() {
-#     local uri="$1"
-
-#     run_mongo 'db.isMaster().me' "$uri" "mongodb" ":27017" \
-#         | egrep -v "Time|Percona Server for MongoDB|bye|BinData|NumberLong|connecting to|Error saving history file|I NETWORK|W NETWORK|Implicit session:|versions do not match" \
-#         | sed -e 's^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9]+[0-9][0-9][0-9][0-9]^^' \
-#         | grep ":27017$"
-# }
-
-# get_mongo_primary() {
-#     local uri="$1"
-#     local cluster="$2"
-
-#     endpoint=$(get_mongo_primary_endpoint $uri)
-#     if [[ "$endpoint" =~ ".$cluster" ]]; then
-#         echo $endpoint \
-#             | cut -d . -f 1
-#     else
-#         kubectl get service -o wide \
-#             | grep " ${endpoint/:*/} " \
-#             | awk '{print$1}'
-#     fi
-# }
-
-# compare_mongo_user() {
-#     local uri="$1"
-#     local user=$(echo $uri | cut -d : -f 1)
-#     local expected_result=${TEST_DIR}/compare/$user.json
-
-#     if [[ "$IMAGE_MONGOD" =~ 4\.0$ ]] && [ -f ${TEST_DIR}/compare/$user-40.json ]; then
-#         expected_result=${TEST_DIR}/compare/$user-40.json
-#     fi
-
-#     run_mongo 'db.runCommand({connectionStatus:1,showPrivileges:true})' "$uri" \
-#         | egrep -v "Time|Percona Server for MongoDB|bye|BinData|NumberLong|connecting to|Error saving history file|I NETWORK|W NETWORK|Implicit session:|versions do not match" \
-#         | sed -e 's^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9]+[0-9][0-9][0-9][0-9]^^' \
-#         | $sed -e '/"ok" : 1/,+4d' \
-#         > $tmp_dir/$user.json
-#     diff $expected_result $tmp_dir/$user.json
-# }
-
-# start_gke() {
-#     gcloud container clusters create operator-testing-$RANDOM --zone europe-west3-c --project cloud-dev-112233 --preemptible --cluster-version 1.11
-# }
-
-# get_pumba() {
-#     kubectl get pods \
-#         --selector=name=pumba \
-#         -o 'jsonpath={.items[].metadata.name}'
-# }
-
-# run_pumba() {
-#     local cmd="$*"
-#     kubectl exec -it "$(get_pumba)" -- /pumba -l info ${cmd}
-# }
 
 deploy_cert_manager() {
     kubectl create namespace cert-manager || :
@@ -469,94 +259,3 @@ desc() {
     printf "\n-----------------------------------------------------------------------------------\n\n"
     set -o xtrace
 }
-
-# get_backup_dest() {
-#     local backup_name=$1
-
-#     kubectl get psmdb-backup $backup_name -o jsonpath='{.status.destination}' \
-#         | sed -e 's/.json$//'
-# }
-
-# get_service_endpoint() {
-#     local service=$1
-
-#     local hostname=$(
-#         kubectl get service/$service -o json \
-#             | jq '.status.loadBalancer.ingress[].hostname' \
-#             | sed -e 's/^"//; s/"$//;'
-#     )
-#     if [ -n "$hostname" -a "$hostname" != "null" ]; then
-#         echo $hostname
-#         return
-#     fi
-
-#     local ip=$(
-#         kubectl get service/$service -o json \
-#             | jq '.status.loadBalancer.ingress[].ip' \
-#             | sed -e 's/^"//; s/"$//;'
-#     )
-#     if [ -n "$ip" -a "$ip" != "null" ]; then
-#         echo $ip
-#         return
-#     fi
-
-#     exit 1
-# }
-
-# get_metric_values() {
-#     local metric=$1
-#     local instance=$2
-#     local start=$($date -u "+%s" -d "-1 minute")
-#     local end=$($date -u "+%s")
-#     local endpoint=$(get_service_endpoint monitoring-service)
-#     curl -s -k "https://$endpoint/graph/api/datasources/proxy/1/api/v1/query_range?query=$metric%7Binstance%3D%22$instance%22%7D&start=$start&end=$end&step=60" \
-#         | jq '.data.result[0].values[][1]' \
-#         | grep '^"[0-9]'
-# }
-
-# get_qan_values() {
-#     local instance=$1
-#     local start=$($date -u "+%Y-%m-%dT%H:%M:%S" -d "-30 minute")
-#     local end=$($date -u "+%Y-%m-%dT%H:%M:%S")
-#     local endpoint=$(get_service_endpoint monitoring-service)
-
-#     local uuid=$(
-#         curl -s -k "https://$endpoint/qan-api/instances?deleted=no" \
-#             | jq '.[] | select(.Subsystem == "mongo" and .Name == "'$instance'") | .UUID' \
-#             | sed -e 's/^"//; s/"$//;'
-#     )
-
-#     curl -s -k "https://$endpoint/qan-api/qan/profile/$uuid?begin=$start&end=$end&offset=0" \
-#         | jq '.Query[].Fingerprint'
-# }
-
-# apply_cluster() {
-#     local file=$1
-
-#     $sed -e "s#image: .*-mongod[34].*#image: $IMAGE_MONGOD#" "$file" \
-#         | $sed -e "s#image:\$#image: $IMAGE_MONGOD#" \
-#         | $sed -e "s#image: .*-backup.*\$#image: $IMAGE_BACKUP#" \
-#         | kubectl apply -f -
-# }
-
-# spinup_psmdb() {
-#     local cluster=$1
-#     local config=$2
-#     local size="${3:-3}"
-
-#     desc 'create first PSMDB cluster'
-#     apply_cluster $config
-
-#     desc 'check if Pod is started'
-#     wait_for_running "${cluster}" "$size"
-#     sleep 20
-
-#     compare_kubectl "statefulset/${cluster}"
-
-#     desc 'write data'
-
-#     run_mongo 'db.createUser({user: "myApp", pwd: "myPass", roles: [{ db: "myApp", role: "readWrite" }]})' \
-#               "userAdmin:userAdmin123456@${cluster}.${namespace}"
-
-#     run_mongo 'use myApp\n db.test.insert({ x: 100500 })' "myApp:myPass@${cluster}.${namespace}"
-# }
