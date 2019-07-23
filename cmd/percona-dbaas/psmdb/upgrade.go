@@ -32,7 +32,7 @@ import (
 // upgradeCmd represents the edit command
 var upgradeCmd = &cobra.Command{
 	Use:   "upgrade <psmdb-cluster-name> <to-version>",
-	Short: "Upgrade MySQL cluster",
+	Short: "Upgrade Percona Server MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify psmdb-cluster-name")
