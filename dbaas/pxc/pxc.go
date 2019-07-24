@@ -30,7 +30,7 @@ import (
 type Version string
 
 const (
-	CurrentVersion Version = "1.1.0"
+	CurrentVersion Version = "default"
 
 	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.1.0"
 )

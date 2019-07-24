@@ -30,7 +30,7 @@ import (
 type Version string
 
 const (
-	CurrentVersion Version = "1.1.0"
+	CurrentVersion Version = "default"
 
 	defaultRSname          = "rs0"
 	defaultOperatorVersion = "percona/percona-server-mongodb-operator:1.1.0"

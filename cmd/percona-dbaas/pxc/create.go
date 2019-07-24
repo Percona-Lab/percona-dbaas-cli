@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	defaultVersion = "1.0.0"
+	defaultVersion = "default"
 
 	noS3backupWarn = `[Error] S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
 You can skip this step by using --s3-skip-storage flag add the storage later with the "add-storage" command.
