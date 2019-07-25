@@ -1,8 +1,10 @@
 module github.com/Percona-Lab/percona-dbaas-cli
 
 require (
+	github.com/alecthomas/jsonschema v0.0.0-20190626084004-00dfc6288dec
 	github.com/briandowns/spinner v0.0.0-20190319032542-ac46072a5a91
 	github.com/fatih/color v1.7.0 // indirect
+	github.com/gorilla/mux v1.7.3
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.1 // indirect
 	github.com/mattn/go-isatty v0.0.7 // indirect
