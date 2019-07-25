@@ -1,3 +1,5 @@
+# github.com/alecthomas/jsonschema v0.0.0-20190626084004-00dfc6288dec
+github.com/alecthomas/jsonschema
 # github.com/briandowns/spinner v0.0.0-20190319032542-ac46072a5a91
 github.com/briandowns/spinner
 # github.com/fatih/color v1.7.0
@@ -7,6 +9,8 @@ github.com/gogo/protobuf/proto
 github.com/gogo/protobuf/sortkeys
 # github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf
 github.com/google/gofuzz
+# github.com/gorilla/mux v1.7.3
+github.com/gorilla/mux
 # github.com/inconshreveable/mousetrap v1.0.0
 github.com/inconshreveable/mousetrap
 # github.com/mattn/go-colorable v0.1.1
@@ -36,24 +40,24 @@ gopkg.in/inf.v0
 # k8s.io/api v0.0.0-20190409092523-d687e77c8ae9
 k8s.io/api/core/v1
 # k8s.io/apimachinery v0.0.0-20190409092423-760d1845f48b
-k8s.io/apimachinery/pkg/api/resource
+k8s.io/apimachinery/pkg/runtime
 k8s.io/apimachinery/pkg/apis/meta/v1
+k8s.io/apimachinery/pkg/api/resource
 k8s.io/apimachinery/pkg/util/intstr
 k8s.io/apimachinery/pkg/version
-k8s.io/apimachinery/pkg/runtime
-k8s.io/apimachinery/pkg/runtime/schema
-k8s.io/apimachinery/pkg/types
 k8s.io/apimachinery/pkg/conversion
-k8s.io/apimachinery/pkg/fields
-k8s.io/apimachinery/pkg/labels
-k8s.io/apimachinery/pkg/selection
-k8s.io/apimachinery/pkg/util/runtime
-k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/pkg/conversion/queryparams
+k8s.io/apimachinery/pkg/runtime/schema
 k8s.io/apimachinery/pkg/util/errors
 k8s.io/apimachinery/pkg/util/json
 k8s.io/apimachinery/pkg/util/naming
+k8s.io/apimachinery/pkg/util/runtime
 k8s.io/apimachinery/pkg/util/sets
+k8s.io/apimachinery/pkg/types
+k8s.io/apimachinery/pkg/fields
+k8s.io/apimachinery/pkg/labels
+k8s.io/apimachinery/pkg/selection
+k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/reflect
 k8s.io/apimachinery/pkg/util/validation
 k8s.io/apimachinery/pkg/util/net
