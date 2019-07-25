@@ -173,7 +173,7 @@ pipeline {
                         source $HOME/google-cloud-sdk/path.bash.inc
                         gcloud auth activate-service-account --key-file $CLIENT_SECRET_FILE
                         gcloud config set project $GCP_PROJECT
-                        gcloud container clusters delete --zone us-central1-a $CLUSTER_NAME-basic $CLUSTER_NAME-scaling $CLUSTER_NAME-selfhealing $CLUSTER_NAME-backups
+                        gcloud container clusters delete --zone us-central1-a $CLUSTER_NAME-pxc $CLUSTER_NAME-psmdb
                         sudo docker rmi -f \$(sudo docker images -q) || true
 
                         sudo rm -rf $HOME/google-cloud-sdk
