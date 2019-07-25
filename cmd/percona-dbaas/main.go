@@ -23,6 +23,7 @@ import (
 
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/pxc"
+	broker "github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/service-broker/command"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -39,6 +40,7 @@ func init() {
 
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)
+	rootCmd.AddCommand(broker.PxcBrokerCmd)
 }
 
 func main() {
