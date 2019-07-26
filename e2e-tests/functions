@@ -12,25 +12,6 @@ if oc projects 2>&1 | egrep -q 'You have access to the following projects|You ar
     OPENSHIFT=1
 fi
 
-build() {
-
-    if [[ -z $(which go) ]]; then
-        echo "Can't find go compiler. Please check wheather it's installed and present in PATH"
-    fi
-
-    pushd ${SRC_DIR}/cmd/percona-dbaas > /dev/null 2>&1
-    go build
-    popd > /dev/null 2>&1
-}
-
-check_build() {
-    export PATH=${SRC_DIR}/cmd/percona-dbaas:${PATH}
-    
-    if [[ ! -f ${SRC_DIR}/cmd/percona-dbaas/percona-dbaas ]]; then
-        build
-    fi
-}
-
 create_namespace() {
     local namespace="$1"
     if [ "$OPENSHIFT" == 1 ]; then

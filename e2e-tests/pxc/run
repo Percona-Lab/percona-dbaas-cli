@@ -22,7 +22,6 @@ BACKUP_NAME=''
 
 init() {
 	create_namespace "${NAMESPACE}"
-	check_build
 
 	kubectl apply -f "${TEST_DIR}/../conf/minio-secret.yaml" \
 	              -f "${TEST_DIR}/conf/operator.yaml" \

@@ -22,7 +22,7 @@ BACKUP_NAME=''
 init() {
     create_namespace "${NAMESPACE}"
     deploy_cert_manager
-    check_build
+
     kubectl apply -f "${TEST_DIR}/conf/rbac.yaml" \
                   -f "${TEST_DIR}/conf/operator.yaml" \
                   -f "${TEST_DIR}/../conf/minio-secret.yaml" \
