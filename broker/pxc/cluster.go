@@ -1,13 +1,10 @@
 package pxc
 
 import (
-	"fmt"
 	"log"
-	"os"
 	"time"
 
-	"github.com/briandowns/spinner"
-
+	"github.com/Percona-Lab/percona-dbaas-cli/broker"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
@@ -20,71 +17,57 @@ You can skip this step by using --s3-skip-storage flag add the storage later wit
 `
 )
 
-func (p *Controller) DeployPXCCluster(params ProvisionParameters, skipS3Storage *bool) error {
-	app := pxc.New(params.ClusterName, defaultVersion)
-	conf := p.flags
+func (p *Controller) DeployPXCCluster(params ProvisionParameters, skipS3Storage *bool, instanceID string) error {
+	app := NewPXC(params.ClusterName, defaultVersion)
+	conf := Config{}
+	conf.SetDefault()
 
 	var s3stor *dbaas.BackupStorageSpec
-	if !*skipS3Storage {
-		var err error
-		s3stor, err = dbaas.S3Storage(app, conf)
-		if err != nil {
-			switch err.(type) {
-			case dbaas.ErrNoS3Options:
-				fmt.Printf(noS3backupWarn, err)
-			default:
-				fmt.Println("[Error] create S3 backup storage:", err)
-			}
-			return nil
-		}
-	}
 
 	setupmsg, err := app.Setup(conf, s3stor)
 	if err != nil {
-		fmt.Println("[Error] set configuration:", err)
+		log.Println("[Error] set configuration:", err)
 		return nil
 	}
 
-	fmt.Println(setupmsg)
+	log.Println(setupmsg)
 
 	created := make(chan string)
 	msg := make(chan dbaas.OutuputMsg)
 	cerr := make(chan error)
 
 	go dbaas.Create("pxc", app, created, msg, cerr)
-	sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
-	sp.Color("green", "bold")
-	sp.Prefix = "Starting..."
-	sp.Start()
-	defer sp.Stop()
+
 	for {
 		select {
 		case okmsg := <-created:
-			sp.FinalMSG = fmt.Sprintf("Starting...[done]\n%s\n", okmsg)
+			p.instanceMap[instanceID].LastOperation.State = broker.SucceedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = broker.SucceedOperationDescription
+			log.Printf("Starting...[done] %s", okmsg)
 			return nil
 		case omsg := <-msg:
 			switch omsg.(type) {
 			case dbaas.OutuputMsgDebug:
 				// fmt.Printf("\n[debug] %s\n", omsg)
 			case dbaas.OutuputMsgError:
-				sp.Stop()
-				fmt.Printf("[operator log error] %s\n", omsg)
-
-				sp.Start()
+				p.instanceMap[instanceID].LastOperation.State = broker.FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = broker.FailedOperationDescription
+				log.Printf("[operator log error] %s\n", omsg)
 			}
 		case err := <-cerr:
-			sp.Stop()
 			switch err.(type) {
 			case dbaas.ErrAlreadyExists:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
+				p.instanceMap[instanceID].LastOperation.State = broker.FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = broker.InProgressOperationDescription
+				log.Printf("[ERROR] %v", err)
 				list, err := dbaas.List("pxc")
 				if err != nil {
 					return nil
 				}
-				fmt.Println("Avaliable clusters:")
-				fmt.Print(list)
+				log.Println("Avaliable clusters:")
+				log.Print(list)
 			default:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+				log.Printf("[ERROR] create pxc: %v", err)
 			}
 		}
 	}
@@ -103,7 +86,7 @@ func (p *Controller) DeletePXCCluster(name string) error {
 			log.Println("Deleting...[done]")
 			return nil
 		case err := <-cerr:
-			fmt.Fprintf(os.Stderr, "\n[ERROR] delete pxc: %v\n", err)
+			log.Printf("[ERROR] delete pxc: %v", err)
 			return err
 		}
 	}

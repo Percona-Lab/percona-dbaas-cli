@@ -23,8 +23,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 type Version string
@@ -37,17 +39,17 @@ const (
 
 type PXC struct {
 	name         string
-	config       *PerconaXtraDBCluster
+	config       *pxc.PerconaXtraDBCluster
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
 }
 
-func New(name string, version Version) *PXC {
+func NewPXC(name string, version pxc.Version) *PXC {
 	return &PXC{
 		name:   name,
-		obj:    Objects[version],
-		config: &PerconaXtraDBCluster{},
+		obj:    pxc.Objects[version],
+		config: &pxc.PerconaXtraDBCluster{},
 	}
 }
 
@@ -84,8 +86,107 @@ ProxySQL instances      | %v
 Storage                 | %v
 `
 
-func (p *PXC) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), f, s3, dbaas.GetPlatformType())
+func (p *PXC) SetNew(clusterName string, c Config, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (err error) {
+	p.config.ObjectMeta.Name = clusterName
+	p.config.SetDefaults()
+
+	volSizeFlag := c.StorageSize
+	volSize, err := resource.ParseQuantity(volSizeFlag)
+	if err != nil {
+		return errors.Wrap(err, "storage-size")
+	}
+	p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: volSize}
+
+	volClassNameFlag := c.StorageClass
+
+	if volClassNameFlag != "" {
+		p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
+	}
+
+	p.config.Spec.PXC.Size = c.Instances
+
+	pxcCPU := c.RequestCPU
+	_, err = resource.ParseQuantity(pxcCPU)
+	if err != nil {
+		return errors.Wrap(err, "pxc-request-cpu")
+	}
+	pxcMemory := c.RequestMem
+	_, err = resource.ParseQuantity(pxcMemory)
+	if err != nil {
+		return errors.Wrap(err, "pxc-request-mem")
+	}
+	p.config.Spec.PXC.Resources = &pxc.PodResources{
+		Requests: &pxc.ResourcesList{
+			CPU:    pxcCPU,
+			Memory: pxcMemory,
+		},
+	}
+
+	pxctpk := c.AntiAffinityKey
+
+	if _, ok := pxc.AffinityValidTopologyKeys[pxctpk]; !ok {
+		return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", pxctpk)
+	}
+	p.config.Spec.PXC.Affinity.TopologyKey = &pxctpk
+
+	p.config.Spec.ProxySQL.Size = c.ProxyInstances
+
+	// Disable ProxySQL if size set to 0
+	if p.config.Spec.ProxySQL.Size > 0 {
+		err := p.setProxySQL(c)
+		if err != nil {
+			return err
+		}
+	} else {
+		p.config.Spec.ProxySQL.Enabled = false
+	}
+
+	if s3 != nil {
+		p.config.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
+			dbaas.DefaultBcpStorageName: s3,
+		}
+	}
+
+	switch platform {
+	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
+		none := pxc.AffinityTopologyKeyOff
+		p.config.Spec.PXC.Affinity.TopologyKey = &none
+		p.config.Spec.PXC.Resources = nil
+		p.config.Spec.ProxySQL.Affinity.TopologyKey = &none
+		p.config.Spec.ProxySQL.Resources = nil
+	}
+	return nil
+}
+
+func (p *PXC) setProxySQL(c Config) error {
+	proxyCPU := c.ProxyRequestCPU
+	_, err := resource.ParseQuantity(proxyCPU)
+	if err != nil {
+		return errors.Wrap(err, "proxy-request-cpu")
+	}
+	proxyMemory := c.ProxyRequestMem
+	_, err = resource.ParseQuantity(proxyMemory)
+	if err != nil {
+		return errors.Wrap(err, "proxy-request-mem")
+	}
+	p.config.Spec.ProxySQL.Resources = &pxc.PodResources{
+		Requests: &pxc.ResourcesList{
+			CPU:    proxyCPU,
+			Memory: proxyMemory,
+		},
+	}
+
+	proxytpk := c.ProxyAntiAffinityKey
+	if _, ok := pxc.AffinityValidTopologyKeys[proxytpk]; !ok {
+		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", proxytpk)
+	}
+	p.config.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
+
+	return nil
+}
+
+func (p *PXC) Setup(c Config, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.SetNew(p.Name(), c, s3, dbaas.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
@@ -105,7 +206,7 @@ ProxySQL instances      | %v
 `
 
 func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
-	cr := &PerconaXtraDBCluster{}
+	cr := &pxc.PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
 		return "", errors.Wrap(err, "unmarshal current cr")
@@ -127,7 +228,7 @@ func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageS
 }
 
 func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
-	cr := &PerconaXtraDBCluster{}
+	cr := &pxc.PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal current cr")
@@ -197,7 +298,7 @@ func (p *PXC) OperatorName() string {
 }
 
 type k8sStatus struct {
-	Status PerconaXtraDBClusterStatus
+	Status pxc.PerconaXtraDBClusterStatus
 }
 
 const okmsg = `
@@ -218,11 +319,11 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 	}
 
 	switch st.Status.Status {
-	case AppStateReady:
+	case pxc.AppStateReady:
 		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
-	case AppStateInit:
+	case pxc.AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
-	case AppStateError:
+	case pxc.AppStateError:
 		return dbaas.ClusterStateError, alterStatusMgs(st.Status.Messages), nil
 	}
 

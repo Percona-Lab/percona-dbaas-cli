@@ -11,13 +11,13 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/pxcbroker"
+	"github.com/Percona-Lab/percona-dbaas-cli/broker"
 )
 
 // Controller represents controller for broker API
 type Controller struct {
-	instanceMap map[string]*pxcbroker.ServiceInstance
-	bindingMap  map[string]*pxcbroker.ServiceBinding
+	instanceMap map[string]*broker.ServiceInstance
+	bindingMap  map[string]*broker.ServiceBinding
 	flags       *pflag.FlagSet
 }
 
@@ -36,6 +36,7 @@ type ProvisionParameters struct {
 	Size string
 }
 
+// BindParameters is for binding services
 type BindParameters struct {
 	// ClusterName - the database name
 	ClusterName string
@@ -47,29 +48,29 @@ type BindParameters struct {
 // New creates new controller
 func New(flags *pflag.FlagSet) (Controller, error) {
 	var pxc Controller
-	pxc.instanceMap = make(map[string]*pxcbroker.ServiceInstance)
-	pxc.bindingMap = make(map[string]*pxcbroker.ServiceBinding)
+	pxc.instanceMap = make(map[string]*broker.ServiceInstance)
+	pxc.bindingMap = make(map[string]*broker.ServiceBinding)
 	pxc.flags = flags
 
 	return pxc, nil
 }
 
 func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Get Service Broker Catalog...")
+	log.Println("Get Service Broker Catalog...")
 
-	planList := []pxcbroker.ServicePlan{
-		pxcbroker.ServicePlan{
+	planList := []broker.ServicePlan{
+		broker.ServicePlan{
 			Name:        "Default",
 			ID:          "Default",
 			Description: "",
-			Metadata: &pxcbroker.ServicePlanMetadata{
+			Metadata: &broker.ServicePlanMetadata{
 				DisplayName: "Default",
 			},
-			Schemas: &pxcbroker.ServiceSchemas{
-				Instance: pxcbroker.ServiceInstanceSchema{
+			Schemas: &broker.ServiceSchemas{
+				Instance: broker.ServiceInstanceSchema{
 					Create: mustGetJSONSchema(&ProvisionParameters{}),
 				},
-				Binding: pxcbroker.ServiceBindingSchema{
+				Binding: broker.ServiceBindingSchema{
 					Create: mustGetJSONSchema(&BindParameters{}),
 				},
 			},
@@ -78,20 +79,20 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	var catalog = pxcbroker.Catalog{
-		Services: []pxcbroker.Service{
-			pxcbroker.Service{
+	var catalog = broker.Catalog{
+		Services: []broker.Service{
+			broker.Service{
 				ID:          "pxc-service-broker-id",
 				Name:        "percona-xtradb-cluster",
 				Description: "database",
 				Bindable:    true,
 				Plans:       planList,
-				Metadata: &pxcbroker.ServiceMetadata{
+				Metadata: &broker.ServiceMetadata{
 					DisplayName:         "Percona XtraDB Cluster Operator",
 					LongDescription:     "Percona is Cloud Native",
-					DocumentationUrl:    "https://github.com/percona/percona-xtradb-cluster-operator",
-					SupportUrl:          "",
-					ImageUrl:            "https://www.percona.com/blog/wp-content/uploads/2016/06/Percona-XtraDB-Cluster-certification-1-300x250.png",
+					DocumentationURL:    "https://github.com/percona/percona-xtradb-cluster-operator",
+					SupportURL:          "",
+					ImageURL:            "https://www.percona.com/blog/wp-content/uploads/2016/06/Percona-XtraDB-Cluster-certification-1-300x250.png",
 					ProviderDisplayName: "percona",
 				},
 				Tags: []string{
@@ -113,7 +114,7 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	var params ProvisionParameters
 	log.Println("Create Service Instance...")
 
-	var instance pxcbroker.ServiceInstance
+	var instance broker.ServiceInstance
 
 	err := ProvisionDataFromRequest(r, &instance)
 	if err != nil {
@@ -126,125 +127,115 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	if p["ClusterName"] != nil {
 		params.ClusterName = p["ClusterName"].(string)
 	}
+
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+
 	skipS3 := true
-	err = c.DeployPXCCluster(params, &skipS3)
+	err = c.DeployPXCCluster(params, &skipS3, instanceID)
 	if err != nil {
 		log.Println("Deploy cluster", err)
 	}
 
-	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-
-	instance.InternalId = instanceID
-	instance.DashboardUrl = "http://dashbaord_url"
-	instance.Id = ExtractVarsFromRequest(r, "service_instance_guid")
-	instance.LastOperation = &pxcbroker.LastOperation{
-		State:                    "in progress",
-		Description:              "creating service instance...",
+	instance.InternalID = instanceID
+	instance.DashboardURL = "http://dashbaord_url"
+	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
+	instance.LastOperation = &broker.LastOperation{
+		State:                    broker.InProgressOperationSate,
+		Description:              broker.InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
 
-	c.instanceMap[instance.Id] = &instance
+	c.instanceMap[instance.ID] = &instance
 
-	response := pxcbroker.CreateServiceInstanceResponse{
-		DashboardUrl:  instance.DashboardUrl,
+	response := broker.CreateServiceInstanceResponse{
+		DashboardURL:  instance.DashboardURL,
 		LastOperation: instance.LastOperation,
 	}
 	WriteResponse(w, http.StatusAccepted, response)
 }
 
 func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Get Service Instance State....")
+	log.Println("Get Service Instance State....")
 
-	instanceId := ExtractVarsFromRequest(r, "service_instance_guid")
-	instance := c.instanceMap[instanceId]
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+	instance := c.instanceMap[instanceID]
 	if instance == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	state := "running"
-	if state == "pending" {
-		instance.LastOperation.State = "in progress"
-		instance.LastOperation.Description = "creating service instance..."
-	} else if state == "running" {
-		instance.LastOperation.State = "succeeded"
-		instance.LastOperation.Description = "successfully created service instance"
-	} else {
-		instance.LastOperation.State = "failed"
-		instance.LastOperation.Description = "failed to create service instance"
-	}
-
-	response := pxcbroker.CreateServiceInstanceResponse{
-		DashboardUrl:  instance.DashboardUrl,
+	response := broker.CreateServiceInstanceResponse{
+		DashboardURL:  instance.DashboardURL,
 		LastOperation: instance.LastOperation,
 	}
 	WriteResponse(w, http.StatusOK, response)
 }
 
 func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Remove Service Instance...")
+	log.Println("Remove Service Instance...")
 
-	instanceId := ExtractVarsFromRequest(r, "service_instance_guid")
-	instance := c.instanceMap[instanceId]
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+	instance := c.instanceMap[instanceID]
 	if instance == nil {
 		w.WriteHeader(http.StatusGone)
 		return
 	}
 	c.DeletePXCCluster("some-name")
-	delete(c.instanceMap, instanceId)
+	delete(c.instanceMap, instanceID)
 
 	WriteResponse(w, http.StatusOK, "{}")
 }
 
 func (c *Controller) Bind(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Bind Service Instance...")
-	/*
-		bindingId := ExtractVarsFromRequest(r, "service_binding_guid")
-		instanceId := ExtractVarsFromRequest(r, "service_instance_guid")
+	log.Println("Bind Service Instance...")
 
-		instance := c.instanceMap[instanceId]
-		if instance == nil {
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
+	bindingID := ExtractVarsFromRequest(r, "service_binding_guid")
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
 
-		c.bindingMap[bindingId] = &broker.ServiceBinding{
-			Id:                bindingId,
-			ServiceId:         instance.ServiceId,
-			ServicePlanId:     instance.PlanId,
-			PrivateKey:        privateKey,
-			ServiceInstanceId: instance.Id,
-		}
-	*/
-	response := pxcbroker.CreateServiceBindingResponse{}
+	instance := c.instanceMap[instanceID]
+	if instance == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	c.bindingMap[bindingID] = &broker.ServiceBinding{
+		ID:                bindingID,
+		ServiceID:         instance.ServiceID,
+		ServicePlanID:     instance.PlanID,
+		ServiceInstanceID: instance.ID,
+	}
+
+	credentials := broker.Credential{
+		UserName:   "PXCUser",
+		PublicIP:   "ServiceAddress",
+		PrivateKey: "UserPass",
+	}
+	response := broker.CreateServiceBindingResponse{
+		Credentials: credentials,
+	}
+
 	WriteResponse(w, http.StatusCreated, response)
 }
 
 func (c *Controller) UnBind(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Unbind Service Instance...")
+	log.Println("Unbind Service Instance...")
 
-	/*	bindingId := utils.ExtractVarsFromRequest(r, "service_binding_guid")
-		instanceId := utils.ExtractVarsFromRequest(r, "service_instance_guid")
-		instance := c.instanceMap[instanceId]
-		if instance == nil {
-			w.WriteHeader(http.StatusGone)
-			return
-		}
+	bindingID := ExtractVarsFromRequest(r, "service_binding_guid")
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+	instance := c.instanceMap[instanceID]
+	if instance == nil {
+		w.WriteHeader(http.StatusGone)
+		return
+	}
 
-		err := c.cloudClient.RevokeKeyPair(instance.InternalId, c.bindingMap[bindingId].PrivateKey)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+	delete(c.bindingMap, bindingID)
 
-		delete(c.bindingMap, bindingId)
-	*/
 	WriteResponse(w, http.StatusOK, "{}")
 }
 
-func (c *Controller) deleteAssociatedBindings(instanceId string) error {
+func (c *Controller) deleteAssociatedBindings(instanceID string) error {
 	for id, binding := range c.bindingMap {
-		if binding.ServiceInstanceId == instanceId {
+		if binding.ServiceInstanceID == instanceID {
 			delete(c.bindingMap, id)
 		}
 	}
@@ -282,7 +273,7 @@ func ExtractVarsFromRequest(r *http.Request, varName string) string {
 }
 
 // mustGetJSONSchema takes an struct{} and returns the related JSON schema
-func mustGetJSONSchema(obj interface{}) pxcbroker.Schema {
+func mustGetJSONSchema(obj interface{}) broker.Schema {
 	var reflector = jsonschema.Reflector{
 		ExpandedStruct: true,
 	}
@@ -290,7 +281,7 @@ func mustGetJSONSchema(obj interface{}) pxcbroker.Schema {
 	if err != nil {
 		panic(err)
 	}
-	schema := pxcbroker.Schema{}
+	schema := broker.Schema{}
 	err = json.Unmarshal(schemaBytes, &schema.Parameters)
 	if err != nil {
 		panic(err)
