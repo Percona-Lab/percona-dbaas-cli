@@ -18,12 +18,12 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-var objects map[Version]dbaas.Objects
+var Objects map[Version]dbaas.Objects
 
 func init() {
-	objects = make(map[Version]dbaas.Objects)
+	Objects = make(map[Version]dbaas.Objects)
 
-	objects[CurrentVersion] = dbaas.Objects{
+	Objects[CurrentVersion] = dbaas.Objects{
 		Bundle: bundle100,
 	}
 }

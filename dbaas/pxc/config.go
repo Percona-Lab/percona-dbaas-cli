@@ -195,7 +195,7 @@ type ServerVersion struct {
 
 const AffinityTopologyKeyOff = "none"
 
-var affinityValidTopologyKeys = map[string]struct{}{
+var AffinityValidTopologyKeys = map[string]struct{}{
 	AffinityTopologyKeyOff:                     struct{}{},
 	"kubernetes.io/hostname":                   struct{}{},
 	"failure-domain.beta.kubernetes.io/zone":   struct{}{},
@@ -252,7 +252,7 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 
 func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
-	cr.setDefaults()
+	cr.SetDefaults()
 
 	volSizeFlag, err := f.GetString("storage-size")
 	if err != nil {
@@ -305,7 +305,7 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 	if err != nil {
 		return errors.New("undefined `pxc-anti-affinity-key`")
 	}
-	if _, ok := affinityValidTopologyKeys[pxctpk]; !ok {
+	if _, ok := AffinityValidTopologyKeys[pxctpk]; !ok {
 		return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", pxctpk)
 	}
 	cr.Spec.PXC.Affinity.TopologyKey = &pxctpk
@@ -371,7 +371,7 @@ func (cr *PerconaXtraDBCluster) setProxySQL(f *pflag.FlagSet) error {
 	if err != nil {
 		return errors.New("undefined `proxy-anti-affinity-key`")
 	}
-	if _, ok := affinityValidTopologyKeys[proxytpk]; !ok {
+	if _, ok := AffinityValidTopologyKeys[proxytpk]; !ok {
 		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", proxytpk)
 	}
 	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
@@ -379,7 +379,7 @@ func (cr *PerconaXtraDBCluster) setProxySQL(f *pflag.FlagSet) error {
 	return nil
 }
 
-func (cr *PerconaXtraDBCluster) setDefaults() {
+func (cr *PerconaXtraDBCluster) SetDefaults() {
 	one := intstr.FromInt(1)
 
 	cr.TypeMeta.APIVersion = "pxc.percona.com/v1"
