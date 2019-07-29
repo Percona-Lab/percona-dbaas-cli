@@ -109,7 +109,7 @@ pipeline {
             steps {
                  withCredentials([usernamePassword(credentialsId: 'hub.docker.com', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
                     sh '''
-                        DOCKER_TAG=perconalab/percona-dbaas-cli:$VERSION
+                        DOCKER_TAG=perconalab/percona-xtradb-cluster-operator::master-broker-$VERSION
                         docker_tag_file='./results/docker/TAG'
                         mkdir -p $(dirname ${docker_tag_file})
                         echo ${DOCKER_TAG} > "${docker_tag_file}"
