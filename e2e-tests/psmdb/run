@@ -22,6 +22,9 @@ BACKUP_NAME=''
 
 init() {
     export PATH="${SRC_DIR}/build/_output/bin/percona-dbaas":${PATH}
+
+    ls -al "${SRC_DIR}/build/_output/bin"
+    
     create_namespace "${NAMESPACE}"
     deploy_cert_manager
 
