@@ -20,7 +20,10 @@ type ServiceInstance struct {
 
 	LastOperation *LastOperation `json:"last_operation,omitempty"`
 
-	Parameters interface{} `json:"parameters,omitempty"`
+	//Parameters interface{} `json:"parameters,omitempty"`
+	Parameters struct {
+		PXCParameters
+	} `json:"parameters,omitempty"`
 }
 
 type LastOperation struct {
@@ -37,3 +40,10 @@ type CreateServiceInstanceResponse struct {
 type OperationState string
 
 type OperationDescription string
+
+type PXCParameters struct {
+	ClusterName string `json:"ClusterName,omitempty"`
+	Replicas    *int32 `json:"Replicas,omitempty"`
+	TopologyKey string `json:"TopologyKey,omitempty"`
+	Size        string `json:"Size,omitempty"`
+}

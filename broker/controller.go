@@ -53,13 +53,34 @@ func New() (Controller, error) {
 func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	log.Println("Get Service Broker Catalog...")
 
-	planList := []ServicePlan{
+	PXCPlanList := []ServicePlan{
 		ServicePlan{
-			Name:        "Default",
-			ID:          "Default",
-			Description: "",
+			Name:        "percona-xtradb-cluster",
+			ID:          "percona-xtradb",
+			Description: "percona xtradb cluster",
 			Metadata: &ServicePlanMetadata{
-				DisplayName: "Default",
+				DisplayName: "standard",
+			},
+			Schemas: &ServiceSchemas{
+				Instance: ServiceInstanceSchema{
+					Create: mustGetJSONSchema(&ProvisionParameters{}),
+				},
+				Binding: ServiceBindingSchema{
+					Create: mustGetJSONSchema(&BindParameters{}),
+				},
+			},
+			Bindable: true,
+			Free:     true,
+		},
+	}
+
+	PSMDBPlanList := []ServicePlan{
+		ServicePlan{
+			Name:        "percona-server-for-mongodb",
+			ID:          "percona-server-for-mongodb",
+			Description: "percona server for mongodbr",
+			Metadata: &ServicePlanMetadata{
+				DisplayName: "standard",
 			},
 			Schemas: &ServiceSchemas{
 				Instance: ServiceInstanceSchema{
@@ -81,13 +102,32 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 				Name:        "percona-xtradb-cluster",
 				Description: "database",
 				Bindable:    true,
-				Plans:       planList,
+				Plans:       PXCPlanList,
 				Metadata: &ServiceMetadata{
 					DisplayName:         "Percona XtraDB Cluster Operator",
 					LongDescription:     "Percona is Cloud Native",
 					DocumentationURL:    "https://github.com/percona/percona-xtradb-cluster-operator",
 					SupportURL:          "",
 					ImageURL:            "https://www.percona.com/blog/wp-content/uploads/2016/06/Percona-XtraDB-Cluster-certification-1-300x250.png",
+					ProviderDisplayName: "percona",
+				},
+				Tags: []string{
+					"pxc",
+				},
+				PlanUpdateable: true,
+			},
+			Service{
+				ID:          "percona-server-for-mongodb",
+				Name:        "percona-server-for-mongodb",
+				Description: "database",
+				Bindable:    true,
+				Plans:       PSMDBPlanList,
+				Metadata: &ServiceMetadata{
+					DisplayName:         "Percona Kubernetes Operator for Percona Server for MongoDB",
+					LongDescription:     "Percona is Cloud Native",
+					DocumentationURL:    "https://www.percona.com/doc/kubernetes-operator-for-psmongodb/index.html",
+					SupportURL:          "",
+					ImageURL:            "https://www.percona.com/blog/wp-content/uploads/2016/04/Percona_ServerfMDBLogoVert.png",
 					ProviderDisplayName: "percona",
 				},
 				Tags: []string{
@@ -105,6 +145,26 @@ const (
 	defaultPolling = 10
 )
 
+/*
+{
+	"service_id":"pxc-service-broker-id",
+	"plan_id":"percona-xtrad",
+	"organization_guid":"fc84e819-b242-11e9-8ef4-0242ac110009",
+	"space_guid":"72315ffb-b236-11e9-850d-08002763c817",
+	"parameters":{
+	   "ClusterName":"some-name",
+	   "Replicas":3,
+	   "Size":"1Gi",
+	   "TopologyKey":"none"
+	},
+	"context":{
+	   "clusterid":"fc84e819-b242-11e9-8ef4-0242ac110009",
+	   "namespace":"myproject",
+	   "platform":"kubernetes"
+	}
+ }
+*/
+
 func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request) {
 	var params ProvisionParameters
 	log.Println("Create Service Instance...")
@@ -116,23 +176,27 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 		log.Println("Provision instatnce:", err)
 	}
 
-	p := instance.Parameters.(map[string]interface{})
+	/*p := instance.Parameters.(map[string]interface{})
 
 	log.Println("Deploy cluster")
 	if p["ClusterName"] != nil {
 		params.ClusterName = p["ClusterName"].(string)
-	}
+	}*/
+
+	params.ClusterName = instance.Parameters.ClusterName
+	params.Replicas = instance.Parameters.Replicas
+	params.Size = instance.Parameters.Size
+	params.TopologyKey = instance.Parameters.TopologyKey
 
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
 
 	skipS3 := true
-	err = c.DeployPXCCluster(params, &skipS3, instanceID)
+	err = c.DeployCluster(instance, &skipS3, instanceID)
 	if err != nil {
 		log.Println("Deploy cluster", err)
 	}
 
 	instance.InternalID = instanceID
-	instance.DashboardURL = "http://dashbaord_url"
 	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
@@ -175,7 +239,7 @@ func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusGone)
 		return
 	}
-	c.DeletePXCCluster("some-name")
+	c.DeletePXCCluster(instance.Parameters.ClusterName)
 	delete(c.instanceMap, instanceID)
 
 	WriteResponse(w, http.StatusOK, "{}")
@@ -243,7 +307,7 @@ func ProvisionDataFromRequest(r *http.Request, object interface{}) error {
 	if err != nil {
 		return err
 	}
-
+	log.Println(string(body))
 	err = json.Unmarshal(body, object)
 	if err != nil {
 		return err
