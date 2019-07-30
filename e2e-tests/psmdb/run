@@ -26,10 +26,6 @@ init() {
     create_namespace "${NAMESPACE}"
     deploy_cert_manager
 
-    kubectl apply -f "${TEST_DIR}/conf/rbac.yaml" \
-                  -f "${TEST_DIR}/conf/operator.yaml" \
-                  -f "${TEST_DIR}/../conf/minio-secret.yaml" \
-                  -f "${TEST_DIR}/conf/client.yaml"
     deploy_helm "${NAMESPACE}"
     deploy_minio
 }
