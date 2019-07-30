@@ -4,6 +4,13 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
+const (
+	pxcServiceID     = "pxc-service-broker-id"
+	pxcServiceName   = "percona-xtradb-cluster"
+	psmdbServiseID   = "percona-server-for-mongodb"
+	psmdbServiceName = "percona-server-for-mongodb"
+)
+
 func SetDefault(c *dbaas.ClusterConfig) {
 	c.PXC.StorageSize = "6G"
 	c.PXC.StorageClass = ""
