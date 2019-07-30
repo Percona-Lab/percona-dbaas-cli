@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -16,60 +17,118 @@ You can skip this step by using --s3-skip-storage flag add the storage later wit
 `
 )
 
-func (p *Controller) DeployPXCCluster(params ProvisionParameters, skipS3Storage *bool, instanceID string) error {
-	app := pxc.New(params.ClusterName, defaultVersion) //NewPXC(params.ClusterName, defaultVersion)
-	conf := dbaas.ClusterConfig{}
-	SetDefault(&conf)
+func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
+	switch instance.ServiceID {
+	case "pxc-service-broker-id":
+		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
+		conf := dbaas.ClusterConfig{}
+		SetDefault(&conf)
 
-	var s3stor *dbaas.BackupStorageSpec
+		var s3stor *dbaas.BackupStorageSpec
 
-	setupmsg, err := app.Setup(conf, s3stor)
-	if err != nil {
-		log.Println("[Error] set configuration:", err)
-		return nil
-	}
-
-	log.Println(setupmsg)
-
-	created := make(chan string)
-	msg := make(chan dbaas.OutuputMsg)
-	cerr := make(chan error)
-
-	go dbaas.Create("pxc", app, created, msg, cerr)
-
-	for {
-		select {
-		case okmsg := <-created:
-			p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-			p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-			log.Printf("Starting...[done] %s", okmsg)
+		setupmsg, err := app.Setup(conf, s3stor)
+		if err != nil {
+			log.Println("[Error] set configuration:", err)
 			return nil
-		case omsg := <-msg:
-			switch omsg.(type) {
-			case dbaas.OutuputMsgDebug:
-				// fmt.Printf("\n[debug] %s\n", omsg)
-			case dbaas.OutuputMsgError:
-				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-				log.Printf("[operator log error] %s\n", omsg)
-			}
-		case err := <-cerr:
-			switch err.(type) {
-			case dbaas.ErrAlreadyExists:
-				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
-				log.Printf("[ERROR] %v", err)
-				list, err := dbaas.List("pxc")
-				if err != nil {
-					return nil
+		}
+
+		log.Println(setupmsg)
+
+		created := make(chan string)
+		msg := make(chan dbaas.OutuputMsg)
+		cerr := make(chan error)
+
+		go dbaas.Create("pxc", app, created, msg, cerr)
+
+		for {
+			select {
+			case okmsg := <-created:
+				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+				log.Printf("Starting...[done] %s", okmsg)
+				return nil
+			case omsg := <-msg:
+				switch omsg.(type) {
+				case dbaas.OutuputMsgDebug:
+					// fmt.Printf("\n[debug] %s\n", omsg)
+				case dbaas.OutuputMsgError:
+					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+					log.Printf("[operator log error] %s\n", omsg)
 				}
-				log.Println("Avaliable clusters:")
-				log.Print(list)
-			default:
-				log.Printf("[ERROR] create pxc: %v", err)
+			case err := <-cerr:
+				switch err.(type) {
+				case dbaas.ErrAlreadyExists:
+					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+					log.Printf("[ERROR] %v", err)
+					list, err := dbaas.List("pxc")
+					if err != nil {
+						return nil
+					}
+					log.Println("Avaliable clusters:")
+					log.Print(list)
+				default:
+					log.Printf("[ERROR] create pxc: %v", err)
+				}
+			}
+		}
+	case "percona-server-for-mongodb":
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
+		conf := dbaas.ClusterConfig{}
+		SetDefault(&conf)
+
+		var s3stor *dbaas.BackupStorageSpec
+
+		setupmsg, err := app.Setup(conf, s3stor)
+		if err != nil {
+			log.Println("[Error] set configuration:", err)
+			return nil
+		}
+
+		log.Println(setupmsg)
+
+		created := make(chan string)
+		msg := make(chan dbaas.OutuputMsg)
+		cerr := make(chan error)
+
+		go dbaas.Create("pxc", app, created, msg, cerr)
+
+		for {
+			select {
+			case okmsg := <-created:
+				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+				log.Printf("Starting...[done] %s", okmsg)
+				return nil
+			case omsg := <-msg:
+				switch omsg.(type) {
+				case dbaas.OutuputMsgDebug:
+					// fmt.Printf("\n[debug] %s\n", omsg)
+				case dbaas.OutuputMsgError:
+					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+					log.Printf("[operator log error] %s\n", omsg)
+				}
+			case err := <-cerr:
+				switch err.(type) {
+				case dbaas.ErrAlreadyExists:
+					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+					log.Printf("[ERROR] %v", err)
+					list, err := dbaas.List("pxc")
+					if err != nil {
+						return nil
+					}
+					log.Println("Avaliable clusters:")
+					log.Print(list)
+				default:
+					log.Printf("[ERROR] create pxc: %v", err)
+				}
 			}
 		}
 	}
+	return nil
 }
 
 func (p *Controller) DeletePXCCluster(name string) error {
