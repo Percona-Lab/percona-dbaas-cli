@@ -20,7 +20,7 @@ build_cli() {
         mkdir -p build/_output/bin
         GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
             -ldflags '-w -s -X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH}' \
-            -o build/_output/bin/percona-dbaas-cli \
+            -o build/_output/bin/percona-dbaas \
             cmd/percona-dbaas/main.go
     "
 
