@@ -4,6 +4,7 @@ set -o errexit
 set -o xtrace
 
 export TEST_DIR=$(realpath $(dirname $0))
+export SRC_DIR="$(realpath ${TEST_DIR}../../)"
 . ${TEST_DIR}/../functions
 
 NAMESPACE="psmdb-${RANDOM}"
@@ -20,6 +21,7 @@ CLUSTER=test-cluster
 BACKUP_NAME=''
 
 init() {
+    export PATH="${SRC_DIR}/build/_output/bin/percona-dbaas":${PATH}
     create_namespace "${NAMESPACE}"
     deploy_cert_manager
 
