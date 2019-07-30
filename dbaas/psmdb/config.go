@@ -26,6 +26,112 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
+func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+	config.PSMDB.StorageSize, err = f.GetString("storage-size")
+	if err != nil {
+		return config, errors.New("undefined `storage-size`")
+	}
+	config.PSMDB.StorageClass, err = f.GetString("storage-class")
+	if err != nil {
+		return config, errors.New("undefined `storage-class`")
+	}
+	config.PSMDB.Instances, err = f.GetInt32("replset-size")
+	if err != nil {
+		return config, errors.New("undefined `replset-size`")
+	}
+	config.PSMDB.RequestCPU, err = f.GetString("request-cpu")
+	if err != nil {
+		return config, errors.New("undefined `request-cpu`")
+	}
+	config.PSMDB.RequestMem, err = f.GetString("request-mem")
+	if err != nil {
+		return config, errors.New("undefined `request-mem`")
+	}
+	config.PSMDB.AntiAffinityKey, err = f.GetString("anti-affinity-key")
+	if err != nil {
+		return config, errors.New("undefined `anti-affinity-key`")
+	}
+	skipS3Storage, err := f.GetBool("s3-skip-storage")
+	if err != nil {
+		return config, errors.New("undefined `s3-skip-storage`")
+	}
+
+	if !skipS3Storage {
+		config.S3.EndpointURL, err = f.GetString("s3-endpoint-url")
+		if err != nil {
+			return config, errors.New("undefined `s3-endpoint-url`")
+		}
+		config.S3.Bucket, err = f.GetString("s3-bucket")
+		if err != nil {
+			return config, errors.New("undefined `s3-bucket`")
+		}
+		config.S3.Region, err = f.GetString("s3-region")
+		if err != nil {
+			return config, errors.New("undefined `s3-region`")
+		}
+		config.S3.CredentialsSecret, err = f.GetString("s3-credentials-secret")
+		if err != nil {
+			return config, errors.New("undefined `s3-credentials-secret`")
+		}
+		config.S3.KeyID, err = f.GetString("s3-key-id")
+		if err != nil {
+			return config, errors.New("undefined `s3-key-id`")
+		}
+		config.S3.Key, err = f.GetString("s3-key")
+		if err != nil {
+			return config, errors.New("undefined `s3-key`")
+		}
+	}
+
+	return
+
+}
+
+func ParseEditFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+	config.PSMDB.Instances, err = f.GetInt32("replset-size")
+	if err != nil {
+		return config, errors.New("undefined `replset-size`")
+	}
+
+	return
+
+}
+
+func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+	config.PSMDB.Instances, err = f.GetInt32("replset-size")
+	if err != nil {
+		return config, errors.New("undefined `replset-size`")
+	}
+
+	config.S3.EndpointURL, err = f.GetString("s3-endpoint-url")
+	if err != nil {
+		return config, errors.New("undefined `s3-endpoint-url`")
+	}
+	config.S3.Bucket, err = f.GetString("s3-bucket")
+	if err != nil {
+		return config, errors.New("undefined `s3-bucket`")
+	}
+	config.S3.Region, err = f.GetString("s3-region")
+	if err != nil {
+		return config, errors.New("undefined `s3-region`")
+	}
+	config.S3.CredentialsSecret, err = f.GetString("s3-credentials-secret")
+	if err != nil {
+		return config, errors.New("undefined `s3-credentials-secret`")
+	}
+	config.S3.KeyID, err = f.GetString("s3-key-id")
+	if err != nil {
+		return config, errors.New("undefined `s3-key-id`")
+	}
+	config.S3.Key, err = f.GetString("s3-key")
+	if err != nil {
+		return config, errors.New("undefined `s3-key`")
+	}
+
+	return
+
+}
+
 // PerconaServerMongoDB is the Schema for the perconaservermongodbs API
 type PerconaServerMongoDB struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -403,7 +509,7 @@ type ServerVersion struct {
 	Info     k8sversion.Info
 }
 
-func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaServerMongoDB) UpdateWith(rsName string, c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
 	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
 		if cr.Spec.Backup.Storages == nil {
 			cr.Spec.Backup.Storages = make(map[string]dbaas.BackupStorageSpec)
@@ -412,10 +518,7 @@ func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet, s3 *
 		cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName] = *s3
 	}
 
-	size, err := f.GetInt32("replset-size")
-	if err != nil {
-		return errors.New("undefined `replset-size`")
-	}
+	size := c.PSMDB.Instances
 
 	if size == 0 {
 		return nil
@@ -432,77 +535,70 @@ func (cr *PerconaServerMongoDB) UpdateWith(rsName string, f *pflag.FlagSet, s3 *
 	return errors.Errorf("unknown replica set '%s'", rsName)
 }
 
-func NewReplSet(name string, f *pflag.FlagSet) (*ReplsetSpec, error) {
-	rs := &ReplsetSpec{
-		Name: name,
+func (cr *PerconaServerMongoDB) NewReplSet(name string, c dbaas.ClusterConfig) error {
+	if len(cr.Spec.Replsets) == 0 {
+		return errors.New("no replsets")
 	}
+	cr.Spec.Replsets[0].Name = name
 
-	volSizeFlag, err := f.GetString("storage-size")
-	if err != nil {
-		return nil, errors.New("undefined `storage-size`")
-	}
-	volSize, err := resource.ParseQuantity(volSizeFlag)
-	if err != nil {
-		return nil, errors.Wrap(err, "storage-size")
-	}
+	if len(c.PSMDB.StorageSize) > 0 {
+		volSizeFlag := c.PSMDB.StorageSize
 
-	rs.VolumeSpec = &VolumeSpec{
-		PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-			Resources: corev1.ResourceRequirements{
-				Requests: corev1.ResourceList{corev1.ResourceStorage: volSize},
+		volSize, err := resource.ParseQuantity(volSizeFlag)
+		if err != nil {
+			return errors.Wrap(err, "storage-size")
+		}
+
+		cr.Spec.Replsets[0].VolumeSpec = &VolumeSpec{
+			PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
+				Resources: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceStorage: volSize},
+				},
 			},
-		},
+		}
 	}
 
-	volClassNameFlag, err := f.GetString("storage-class")
-	if err != nil {
-		return nil, errors.New("undefined `storage-class`")
+	if len(c.PSMDB.StorageClass) > 0 {
+		volClassNameFlag := c.PSMDB.StorageClass
+
+		if volClassNameFlag != "" {
+			cr.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
+		}
 	}
 
-	if volClassNameFlag != "" {
-		rs.VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
+	if c.PSMDB.Instances > 0 {
+		cr.Spec.Replsets[0].Size = c.PSMDB.Instances
 	}
 
-	rs.Size, err = f.GetInt32("replset-size")
-	if err != nil {
-		return nil, errors.New("undefined `replset-size`")
-	}
+	if len(c.PSMDB.RequestCPU) > 0 && len(c.PSMDB.RequestMem) > 0 {
+		psmdbCPU := c.PSMDB.RequestCPU
+		_, err := resource.ParseQuantity(psmdbCPU)
+		if err != nil {
+			return errors.Wrap(err, "request-cpu")
+		}
 
-	psmdbCPU, err := f.GetString("request-cpu")
-	if err != nil {
-		return nil, errors.New("undefined `request-cpu`")
+		psmdbMemory := c.PSMDB.RequestMem
+		_, err = resource.ParseQuantity(psmdbMemory)
+		if err != nil {
+			return errors.Wrap(err, "request-mem")
+		}
+		cr.Spec.Replsets[0].Resources = &ResourcesSpec{
+			Requests: &ResourceSpecRequirements{
+				CPU:    psmdbCPU,
+				Memory: psmdbMemory,
+			},
+		}
 	}
-	_, err = resource.ParseQuantity(psmdbCPU)
-	if err != nil {
-		return nil, errors.Wrap(err, "request-cpu")
+	if len(c.PSMDB.AntiAffinityKey) > 0 {
+		psmdbtpk := c.PSMDB.AntiAffinityKey
+		if _, ok := affinityValidTopologyKeys[psmdbtpk]; !ok {
+			return errors.Errorf("invalid `anti-affinity-key` value: %s", psmdbtpk)
+		}
+		cr.Spec.Replsets[0].Affinity = &PodAffinity{
+			TopologyKey: &psmdbtpk,
+		}
 	}
-	psmdbMemory, err := f.GetString("request-mem")
-	if err != nil {
-		return nil, errors.New("undefined `request-mem`")
-	}
-	_, err = resource.ParseQuantity(psmdbMemory)
-	if err != nil {
-		return nil, errors.Wrap(err, "request-mem")
-	}
-	rs.Resources = &ResourcesSpec{
-		Requests: &ResourceSpecRequirements{
-			CPU:    psmdbCPU,
-			Memory: psmdbMemory,
-		},
-	}
-
-	psmdbtpk, err := f.GetString("anti-affinity-key")
-	if err != nil {
-		return nil, errors.New("undefined `anti-affinity-key`")
-	}
-	if _, ok := affinityValidTopologyKeys[psmdbtpk]; !ok {
-		return nil, errors.Errorf("invalid `anti-affinity-key` value: %s", psmdbtpk)
-	}
-	rs.Affinity = &PodAffinity{
-		TopologyKey: &psmdbtpk,
-	}
-
-	return rs, nil
+	return nil
 }
 
 // Upgrade upgrades culster with given images
@@ -515,20 +611,18 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
-	cr.setDefaults()
-
-	rs, err := NewReplSet(rsName, f)
+	err = cr.setDefaults(rsName)
+	if err != nil {
+		return errors.Wrap(err, "set defaults")
+	}
+	err = cr.NewReplSet(rsName, c)
 	if err != nil {
 		return errors.Wrap(err, "new replset")
 	}
 
-	cr.Spec.Replsets = []*ReplsetSpec{
-		rs,
-	}
-
-	cr.Spec.Backup, err = cr.createBackup(f)
+	cr.Spec.Backup, err = cr.createBackup()
 	if err != nil {
 		return errors.Wrap(err, "backup spec")
 	}
@@ -551,7 +645,37 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, f *pflag.Flag
 	return nil
 }
 
-func (cr *PerconaServerMongoDB) setDefaults() {
+func (cr *PerconaServerMongoDB) setDefaults(rsName string) error {
+	rs := &ReplsetSpec{
+		Name: rsName,
+	}
+
+	volSizeFlag := "6G"
+	volSize, err := resource.ParseQuantity(volSizeFlag)
+	if err != nil {
+		return errors.Wrap(err, "storage-size")
+	}
+	rs.VolumeSpec = &VolumeSpec{
+		PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceStorage: volSize},
+			},
+		},
+	}
+	rs.Size = int32(3)
+	rs.Resources = &ResourcesSpec{
+		Requests: &ResourceSpecRequirements{
+			CPU:    "600m",
+			Memory: "1G",
+		},
+	}
+	psmdbtpk := "kubernetes.io/hostname"
+	rs.Affinity = &PodAffinity{
+		TopologyKey: &psmdbtpk,
+	}
+	cr.Spec.Replsets = []*ReplsetSpec{
+		rs,
+	}
 	cr.TypeMeta.APIVersion = "psmdb.percona.com/v1"
 	cr.TypeMeta.Kind = "PerconaServerMongoDB"
 
@@ -560,9 +684,11 @@ func (cr *PerconaServerMongoDB) setDefaults() {
 	}
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.1.0-mongod4.0"
+
+	return nil
 }
 
-func (cr *PerconaServerMongoDB) createBackup(f *pflag.FlagSet) (BackupSpec, error) {
+func (cr *PerconaServerMongoDB) createBackup() (BackupSpec, error) {
 	t := true
 	volSize, err := resource.ParseQuantity("1Gi")
 	if err != nil {

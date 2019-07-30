@@ -5,9 +5,7 @@ import (
 	"net/http"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/broker"
-	"github.com/Percona-Lab/percona-dbaas-cli/broker/pxc"
 	"github.com/gorilla/mux"
-	"github.com/spf13/pflag"
 )
 
 // Server is for handling broker API
@@ -17,14 +15,14 @@ type Server struct {
 }
 
 // NewPXCBroker return server for PXC broker
-func NewPXCBroker(port string, flags *pflag.FlagSet) (*Server, error) {
-	controller, err := pxc.New(flags)
+func NewPXCBroker(port string) (*Server, error) {
+	controller, err := broker.New()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Server{
-		controller: &controller,
+		controller: controller,
 		port:       port,
 	}, nil
 }

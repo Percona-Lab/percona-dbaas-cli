@@ -23,7 +23,7 @@ import (
 
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/pxc"
-	broker "github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/service-broker/command"
+	broker "github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/service-broker"
 )
 
 // rootCmd represents the base command when called without any subcommands

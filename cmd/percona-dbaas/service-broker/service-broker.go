@@ -1,4 +1,4 @@
-package command
+package servicebroker
 
 import (
 	"log"
@@ -13,7 +13,7 @@ var PxcBrokerCmd = &cobra.Command{
 	Short: "Start PXC broker",
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Println("Starting broker")
-		server, err := server.NewPXCBroker(cmd.Flag("port").Value.String(), cmd.Flags())
+		server, err := server.NewPXCBroker(cmd.Flag("port").Value.String())
 		if err != nil {
 			log.Println(err)
 			return
@@ -21,6 +21,7 @@ var PxcBrokerCmd = &cobra.Command{
 		server.Start()
 	},
 }
+
 var skipS3Storage *bool
 
 func init() {

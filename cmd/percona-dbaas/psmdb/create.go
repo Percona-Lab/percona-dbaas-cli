@@ -62,10 +62,15 @@ var createCmd = &cobra.Command{
 
 		app := psmdb.New(clusterName, rsName, defaultVersion)
 
+		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
+		if err != nil {
+			fmt.Println("Parsing flags", err)
+			return
+		}
 		var s3stor *dbaas.BackupStorageSpec
 		if !*skipS3Storage {
 			var err error
-			s3stor, err = dbaas.S3Storage(app, cmd.Flags())
+			s3stor, err = dbaas.S3Storage(app, config.S3)
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
@@ -77,7 +82,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		setupmsg, err := app.Setup(cmd.Flags(), s3stor)
+		setupmsg, err := app.Setup(config, s3stor)
 		if err != nil {
 			fmt.Println("[Error] set configuration:", err)
 			return

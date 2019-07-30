@@ -91,8 +91,8 @@ Replica Set Size        | %v
 Storage                 | %v
 `
 
-func (p *PSMDB) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), p.rsName, f, s3, dbaas.GetPlatformType())
+func (p *PSMDB) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.config.SetNew(p.Name(), p.rsName, c, s3, dbaas.GetPlatformType())
 
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
@@ -112,7 +112,7 @@ Replica Set Name        | %v
 Replica Set Size        | %v
 `
 
-func (p *PSMDB) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
+func (p *PSMDB) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
@@ -125,7 +125,7 @@ func (p *PSMDB) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorag
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(p.rsName, f, storage)
+	err = p.config.UpdateWith(p.rsName, c, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "apply changes to cr")
 	}

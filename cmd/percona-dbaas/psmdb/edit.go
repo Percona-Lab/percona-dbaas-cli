@@ -83,8 +83,11 @@ var editCmd = &cobra.Command{
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-
-		go dbaas.Edit("psmdb", app, cmd.Flags(), nil, created, msg, cerr)
+		config, err := psmdb.ParseEditFlagsToConfig(cmd.Flags())
+		if err != nil {
+			fmt.Println("Parsing flags", err)
+		}
+		go dbaas.Edit("psmdb", app, config, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {

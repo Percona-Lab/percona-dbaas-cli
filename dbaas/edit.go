@@ -19,17 +19,16 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/pflag"
 )
 
-func Edit(typ string, app Deploy, f *pflag.FlagSet, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
 		return
 	}
 
-	_, err = app.Edit(acr, f, storage)
+	_, err = app.Edit(acr, c, storage)
 	if err != nil {
 		errc <- errors.Wrap(err, "update config")
 		return
