@@ -8,6 +8,6 @@ LABEL name="Percona Database As a Service Command Line Interface" \
       maintainer="Percona Development <info@percona.com>"
 
 COPY LICENSE /licenses/
-COPY build/_output/bin/percona-dbaas-cli /usr/local/bin/percona-dbaas-cli
+COPY build/_output/bin/percona-dbaas /usr/local/bin/percona-dbaas
 
 USER nobody

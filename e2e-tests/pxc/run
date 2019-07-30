@@ -24,7 +24,6 @@ BACKUP_NAME=''
 init() {
 	export PATH="${SRC_DIR}/build/_output/bin":${PATH}
 
-	ls -al "${SRC_DIR}/build/_output/bin"
 	create_namespace "${NAMESPACE}"
 
 	kubectl apply -f "${TEST_DIR}/../conf/minio-secret.yaml" \
