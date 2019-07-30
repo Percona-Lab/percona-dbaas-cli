@@ -36,7 +36,7 @@ init() {
 
 create() {
     desc psmdb cluster creation
-    pass=$(percona-dbaas psmdb create "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none | grep 'UserAdmin Password:' | cut -d' ' -f3)
+    pass=$(percona-dbaas --demo psmdb create "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none | grep 'UserAdmin Password:' | cut -d' ' -f3)
 
     compare_kubectl statefulset/"${CLUSTER}"-rs0
 
@@ -49,7 +49,7 @@ create() {
 
 add_storage() {
     desc add storage to existing cluster
-    percona-dbaas psmdb add-storage "${CLUSTER}" \
+    percona-dbaas --demo psmdb add-storage "${CLUSTER}" \
                         --s3-bucket "${S3_BUCKET}" \
                         --s3-credentials-secret "${S3_SECRET}" \
                         --s3-endpoint-url "${S3_ENDPOINT}" \
@@ -70,17 +70,17 @@ add_storage() {
 edit() {
     desc increasing the number of replicas
     target_size=4
-    percona-dbaas psmdb edit "${CLUSTER}" --replset-size ${target_size}
+    percona-dbaas --demo psmdb edit "${CLUSTER}" --replset-size ${target_size}
     if [[ $(kubectl get statefulset "${CLUSTER}-rs0" -o jsonpath='{.status.replicas}') -ne $((target_size+1)) ]]; then
         echo "Replica set has not been updated accordingly."
         exit 1
     fi
-    percona-dbaas psmdb edit "${CLUSTER}" --replset-size 3
+    percona-dbaas --demo psmdb edit "${CLUSTER}" --replset-size 3
 }
 
 create_backup() {
     desc create backup
-    BACKUP_NAME=$(percona-dbaas psmdb create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
+    BACKUP_NAME=$(percona-dbaas --demo psmdb create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
     if [[ $(kubectl get psmdb-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
         echo "Backup creation has been failed."
         exit 1
@@ -92,7 +92,7 @@ restore_bakup() {
     desc restore backup
     run_mongo 'use myApp\n db.test.insert({ x: 100501 })' "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
 
-    RESTORE_NAME=$(percona-dbaas psmdb restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
+    RESTORE_NAME=$(percona-dbaas --demo psmdb restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
     if [[ $(kubectl get psmdb-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
         echo "Restore process has been failed."
         exit 1
@@ -104,7 +104,7 @@ restore_bakup() {
 
 list() {
     desc listing psmdb clusters
-    cluster_name=$(percona-dbaas psmdb list | grep -o "${CLUSTER}")
+    cluster_name=$(percona-dbaas --demo psmdb list | grep -o "${CLUSTER}")
     if [[ ${cluster_name} == '' ]]; then
         echo "Can't find ${CLUSTER} created"
         exit 1
@@ -113,7 +113,7 @@ list() {
 
 upgrade() {
     desc upgrading psmdb cluster
-    percona-dbaas psmdb upgrade "${CLUSTER}" master \
+    percona-dbaas --demo psmdb upgrade "${CLUSTER}" master \
                   --operator-image "${OPERATOR_IMAGE_TO_UPDATE}" \
                   --psmdb-image "${PSMDB_IMAGE_TO_UPDATE}" \
                   --backup-image "${BACKUP_IMAGE_TO_UPDATE}"
@@ -144,7 +144,7 @@ upgrade() {
 
 delete() {
     desc deleting psmdb cluster
-    percona-dbaas psmdb delete "${CLUSTER}" rs0
+    percona-dbaas --demo psmdb delete "${CLUSTER}" rs0
     status=$(kubectl get psmdb "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
 
     if [[ ${status} != '' ]]; then

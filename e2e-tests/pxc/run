@@ -36,7 +36,7 @@ init() {
 
 create() {
 	desc pxc cluster creation
-	PASS=$(percona-dbaas pxc create "${CLUSTER}" --s3-skip-storage --proxy-anti-affinity-key none  --pxc-anti-affinity-key none| grep 'Pass:' | cut -d' ' -f2)
+	PASS=$(percona-dbaas --demo pxc create "${CLUSTER}" --s3-skip-storage --proxy-anti-affinity-key none  --pxc-anti-affinity-key none| grep 'Pass:' | cut -d' ' -f2)
 
 	compare_kubectl statefulset/"${CLUSTER}"-pxc
 
@@ -50,7 +50,7 @@ create() {
 
 add_storage() {
 	desc add storage to existing cluster
-	percona-dbaas pxc add-storage "${CLUSTER}" \
+	percona-dbaas --demo pxc add-storage "${CLUSTER}" \
 					    --s3-bucket "${S3_BUCKET}" \
 					    --s3-credentials-secret "${S3_SECRET}" \
 					    --s3-endpoint-url "${S3_ENDPOINT}" \
@@ -71,18 +71,18 @@ add_storage() {
 edit() {
 	desc increasing the number of replicas
 	target_size=4
-	percona-dbaas pxc edit "${CLUSTER}" --proxy-instances ${target_size} --pxc-instances ${target_size}
+	percona-dbaas --demo pxc edit "${CLUSTER}" --proxy-instances ${target_size} --pxc-instances ${target_size}
 	if [[ $(kubectl get statefulset "${CLUSTER}-pxc" -o jsonpath='{.status.replicas}') -ne $((target_size+1)) \
 		  || $(kubectl get statefulset "${CLUSTER}-proxysql" -o jsonpath='{.status.replicas}') -ne ${target_size} ]]; then
 		echo "Custer nodes has not been resized accordingly."
 		exit 1
 	fi
-	percona-dbaas pxc edit "${CLUSTER}" --proxy-instances 3 --pxc-instances 3
+	percona-dbaas --demo pxc edit "${CLUSTER}" --proxy-instances 3 --pxc-instances 3
 }
 
 list() {
 	desc listing pxc clusters
-	cluster_name=$(percona-dbaas pxc list | grep -o "${CLUSTER}")
+	cluster_name=$(percona-dbaas --demo pxc list | grep -o "${CLUSTER}")
 	if [[ ${cluster_name} == '' ]]; then
 		echo "Can't find ${CLUSTER} created"
 		exit 1
@@ -91,7 +91,7 @@ list() {
 
 upgrade() {
 	desc upgrading pxc cluster
-	percona-dbaas pxc upgrade "${CLUSTER}" master \
+	percona-dbaas --demo pxc upgrade "${CLUSTER}" master \
 				  --operator-image "${OPERATOR_IMAGE_TO_UPDATE}" \
 				  --proxysql-image "${PROXYSQL_IMAGE_TO_UPDATE}" \
 				  --pxc-image "${PXC_IMAGE_TO_UPDATE}"
@@ -122,7 +122,7 @@ upgrade() {
 
 create_backup() {
 	desc create backup
-	BACKUP_NAME=$(percona-dbaas pxc create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
+	BACKUP_NAME=$(percona-dbaas --demo pxc create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
 	if [[ $(kubectl get pxc-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
 		echo "Backup creation has been failed."
 		exit 1
@@ -137,7 +137,7 @@ restore_bakup() {
         "-h ${CLUSTER}-pxc -uroot -p${PASS}"
     compare_mysql_cmd "select-2" "SELECT * from myApp.myApp;" "-h ${CLUSTER}-pxc-0.${CLUSTER}-pxc -uroot -p${PASS}"
 
-	RESTORE_NAME=$(percona-dbaas pxc restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
+	RESTORE_NAME=$(percona-dbaas --demo pxc restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
 	if [[ $(kubectl get pxc-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
 		echo "Restore process has been failed."
 		exit 1
@@ -162,7 +162,7 @@ restore_bakup() {
 
 delete() {
 	desc deleting pxc cluster
-	percona-dbaas pxc delete "${CLUSTER}"
+	percona-dbaas --demo pxc delete "${CLUSTER}"
 	status=$(kubectl get pxc "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
 
     if [[ ${status} != '' ]]; then
