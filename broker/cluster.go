@@ -1,10 +1,9 @@
-package pxc
+package broker
 
 import (
 	"log"
 	"time"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/broker"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
@@ -18,9 +17,9 @@ You can skip this step by using --s3-skip-storage flag add the storage later wit
 )
 
 func (p *Controller) DeployPXCCluster(params ProvisionParameters, skipS3Storage *bool, instanceID string) error {
-	app := NewPXC(params.ClusterName, defaultVersion)
-	conf := Config{}
-	conf.SetDefault()
+	app := pxc.New(params.ClusterName, defaultVersion) //NewPXC(params.ClusterName, defaultVersion)
+	conf := dbaas.ClusterConfig{}
+	SetDefault(&conf)
 
 	var s3stor *dbaas.BackupStorageSpec
 
@@ -41,8 +40,8 @@ func (p *Controller) DeployPXCCluster(params ProvisionParameters, skipS3Storage 
 	for {
 		select {
 		case okmsg := <-created:
-			p.instanceMap[instanceID].LastOperation.State = broker.SucceedOperationState
-			p.instanceMap[instanceID].LastOperation.Description = broker.SucceedOperationDescription
+			p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
 			log.Printf("Starting...[done] %s", okmsg)
 			return nil
 		case omsg := <-msg:
@@ -50,15 +49,15 @@ func (p *Controller) DeployPXCCluster(params ProvisionParameters, skipS3Storage 
 			case dbaas.OutuputMsgDebug:
 				// fmt.Printf("\n[debug] %s\n", omsg)
 			case dbaas.OutuputMsgError:
-				p.instanceMap[instanceID].LastOperation.State = broker.FailedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = broker.FailedOperationDescription
+				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
 				log.Printf("[operator log error] %s\n", omsg)
 			}
 		case err := <-cerr:
 			switch err.(type) {
 			case dbaas.ErrAlreadyExists:
-				p.instanceMap[instanceID].LastOperation.State = broker.FailedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = broker.InProgressOperationDescription
+				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
 				log.Printf("[ERROR] %v", err)
 				list, err := dbaas.List("pxc")
 				if err != nil {

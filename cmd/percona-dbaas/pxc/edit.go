@@ -73,11 +73,17 @@ var editCmd = &cobra.Command{
 			return
 		}
 
+		config, err := pxc.ParseEditFlagsToConfig(cmd.Flags())
+		if err != nil {
+			fmt.Println("[Error] parse flags to config:", err)
+			return
+		}
+
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("pxc", app, cmd.Flags(), nil, created, msg, cerr)
+		go dbaas.Edit("pxc", app, config, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {

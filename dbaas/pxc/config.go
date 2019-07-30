@@ -26,6 +26,139 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
+func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+	config.PXC.StorageSize, err = f.GetString("storage-size")
+	if err != nil {
+		return config, errors.New("undefined `storage size`")
+	}
+	config.PXC.StorageClass, err = f.GetString("storage-class")
+	if err != nil {
+		return config, errors.New("undefined `storage class`")
+	}
+	config.PXC.Instances, err = f.GetInt32("pxc-instances")
+	if err != nil {
+		return config, errors.New("undefined `pxc-instances`")
+	}
+	config.PXC.RequestCPU, err = f.GetString("pxc-request-cpu")
+	if err != nil {
+		return config, errors.New("undefined `pxc-request-cpu`")
+	}
+	config.PXC.RequestMem, err = f.GetString("pxc-request-mem")
+	if err != nil {
+		return config, errors.New("undefined `pxc-request-mem`")
+	}
+	config.PXC.AntiAffinityKey, err = f.GetString("pxc-anti-affinity-key")
+	if err != nil {
+		return config, errors.New("undefined `pxc-anti-affinity-key`")
+	}
+
+	config.ProxySQL.Instances, err = f.GetInt32("proxy-instances")
+	if err != nil {
+		return config, errors.New("undefined `proxy-instances`")
+	}
+	if config.ProxySQL.Instances > 0 {
+		config.ProxySQL.RequestCPU, err = f.GetString("proxy-request-cpu")
+		if err != nil {
+			return config, errors.New("undefined `proxy-request-cpu`")
+		}
+		config.ProxySQL.RequestMem, err = f.GetString("proxy-request-mem")
+		if err != nil {
+			return config, errors.New("undefined `proxy-request-mem`")
+		}
+		config.ProxySQL.AntiAffinityKey, err = f.GetString("proxy-anti-affinity-key")
+		if err != nil {
+			return config, errors.New("undefined `proxy-anti-affinity-key`")
+		}
+	}
+
+	skipS3Storage, err := f.GetBool("s3-skip-storage")
+	if err != nil {
+		return config, errors.New("undefined `s3-skip-storage`")
+	}
+
+	if !skipS3Storage {
+		config.S3.EndpointURL, err = f.GetString("s3-endpoint-url")
+		if err != nil {
+			return config, errors.New("undefined `s3-endpoint-url`")
+		}
+		config.S3.Bucket, err = f.GetString("s3-bucket")
+		if err != nil {
+			return config, errors.New("undefined `s3-bucket`")
+		}
+		config.S3.Region, err = f.GetString("s3-region")
+		if err != nil {
+			return config, errors.New("undefined `s3-region`")
+		}
+		config.S3.CredentialsSecret, err = f.GetString("s3-credentials-secret")
+		if err != nil {
+			return config, errors.New("undefined `s3-credentials-secret`")
+		}
+		config.S3.KeyID, err = f.GetString("s3-key-id")
+		if err != nil {
+			return config, errors.New("undefined `s3-key-id`")
+		}
+		config.S3.Key, err = f.GetString("s3-key")
+		if err != nil {
+			return config, errors.New("undefined `s3-key`")
+		}
+	}
+
+	return
+}
+
+func ParseEditFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+	config.PXC.Instances, err = f.GetInt32("pxc-instances")
+	if err != nil {
+		return config, errors.New("undefined `pxc-instances`")
+	}
+
+	config.ProxySQL.Instances, err = f.GetInt32("proxy-instances")
+	if err != nil {
+		return config, errors.New("undefined `proxy-instances`")
+	}
+
+	return
+}
+
+func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+	config.PXC.Instances, err = f.GetInt32("pxc-instances")
+	if err != nil {
+		return config, errors.New("undefined `pxc-instances`")
+	}
+
+	config.ProxySQL.Instances, err = f.GetInt32("proxy-instances")
+	if err != nil {
+		return config, errors.New("undefined `proxy-instances`")
+	}
+
+	config.S3.EndpointURL, err = f.GetString("s3-endpoint-url")
+	if err != nil {
+		return config, errors.New("undefined `s3-endpoint-url`")
+	}
+	config.S3.Bucket, err = f.GetString("s3-bucket")
+	if err != nil {
+		return config, errors.New("undefined `s3-bucket`")
+	}
+	config.S3.Region, err = f.GetString("s3-region")
+	if err != nil {
+		return config, errors.New("undefined `s3-region`")
+	}
+	config.S3.CredentialsSecret, err = f.GetString("s3-credentials-secret")
+	if err != nil {
+		return config, errors.New("undefined `s3-credentials-secret`")
+	}
+	config.S3.KeyID, err = f.GetString("s3-key-id")
+	if err != nil {
+		return config, errors.New("undefined `s3-key-id`")
+	}
+	config.S3.Key, err = f.GetString("s3-key")
+	if err != nil {
+		return config, errors.New("undefined `s3-key`")
+	}
+
+	return
+}
+
 // PerconaXtraDBClusterSpec defines the desired state of PerconaXtraDBCluster
 type PerconaXtraDBClusterSpec struct {
 	Platform    *Platform           `json:"platform,omitempty"`
@@ -204,7 +337,7 @@ var AffinityValidTopologyKeys = map[string]struct{}{
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
 
-func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaXtraDBCluster) UpdateWith(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
 	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
 		if cr.Spec.Backup.Storages == nil {
 			cr.Spec.Backup.Storages = make(map[string]*dbaas.BackupStorageSpec)
@@ -213,20 +346,12 @@ func (cr *PerconaXtraDBCluster) UpdateWith(f *pflag.FlagSet, s3 *dbaas.BackupSto
 		cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName] = s3
 	}
 
-	pxcSize, err := f.GetInt32("pxc-instances")
-	if err != nil {
-		return errors.New("undefined `pxc-instances`")
-	}
-	if pxcSize > 0 {
-		cr.Spec.PXC.Size = pxcSize
+	if c.PXC.Instances > 0 {
+		cr.Spec.PXC.Size = c.PXC.Instances
 	}
 
-	proxySize, err := f.GetInt32("proxy-instances")
-	if err != nil {
-		return errors.New("undefined `proxy-instances`")
-	}
-	if proxySize > 0 {
-		cr.Spec.ProxySQL.Size = proxySize
+	if c.ProxySQL.Instances > 0 {
+		cr.Spec.ProxySQL.Size = c.ProxySQL.Instances
 	}
 
 	// Disable ProxySQL if size set to 0
@@ -250,74 +375,64 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
+func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.SetDefaults()
 
-	volSizeFlag, err := f.GetString("storage-size")
-	if err != nil {
-		return errors.New("undefined `storage-size`")
-	}
-	volSize, err := resource.ParseQuantity(volSizeFlag)
-	if err != nil {
-		return errors.Wrap(err, "storage-size")
-	}
-	cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: volSize}
-
-	volClassNameFlag, err := f.GetString("storage-class")
-	if err != nil {
-		return errors.New("undefined `storage-class`")
+	if len(c.PXC.StorageSize) > 0 {
+		volSizeFlag := c.PXC.StorageSize
+		volSize, err := resource.ParseQuantity(volSizeFlag)
+		if err != nil {
+			return errors.Wrap(err, "storage-size")
+		}
+		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: volSize}
 	}
 
-	if volClassNameFlag != "" {
-		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
+	if len(c.PXC.StorageClass) > 0 {
+		volClassNameFlag := c.PXC.StorageClass
+		if volClassNameFlag != "" {
+			cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
+		}
 	}
 
-	cr.Spec.PXC.Size, err = f.GetInt32("pxc-instances")
-	if err != nil {
-		return errors.New("undefined `pxc-instances`")
+	if c.PXC.Instances > 0 {
+		cr.Spec.PXC.Size = c.PXC.Instances
 	}
 
-	pxcCPU, err := f.GetString("pxc-request-cpu")
-	if err != nil {
-		return errors.New("undefined `pxc-request-cpu`")
-	}
-	_, err = resource.ParseQuantity(pxcCPU)
-	if err != nil {
-		return errors.Wrap(err, "pxc-request-cpu")
-	}
-	pxcMemory, err := f.GetString("pxc-request-mem")
-	if err != nil {
-		return errors.New("undefined `pxc-request-mem`")
-	}
-	_, err = resource.ParseQuantity(pxcMemory)
-	if err != nil {
-		return errors.Wrap(err, "pxc-request-mem")
-	}
-	cr.Spec.PXC.Resources = &PodResources{
-		Requests: &ResourcesList{
-			CPU:    pxcCPU,
-			Memory: pxcMemory,
-		},
+	if len(c.PXC.RequestCPU) > 0 && len(c.PXC.RequestMem) > 0 {
+		pxcCPU := c.PXC.RequestCPU
+		_, err = resource.ParseQuantity(pxcCPU)
+		if err != nil {
+			return errors.Wrap(err, "pxc-request-cpu")
+		}
+		pxcMemory := c.PXC.RequestMem
+		_, err = resource.ParseQuantity(pxcMemory)
+		if err != nil {
+			return errors.Wrap(err, "pxc-request-mem")
+		}
+		cr.Spec.PXC.Resources = &PodResources{
+			Requests: &ResourcesList{
+				CPU:    pxcCPU,
+				Memory: pxcMemory,
+			},
+		}
 	}
 
-	pxctpk, err := f.GetString("pxc-anti-affinity-key")
-	if err != nil {
-		return errors.New("undefined `pxc-anti-affinity-key`")
+	if len(c.PXC.AntiAffinityKey) > 0 {
+		pxctpk := c.PXC.AntiAffinityKey
+		if _, ok := AffinityValidTopologyKeys[pxctpk]; !ok {
+			return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", pxctpk)
+		}
+		cr.Spec.PXC.Affinity.TopologyKey = &pxctpk
 	}
-	if _, ok := AffinityValidTopologyKeys[pxctpk]; !ok {
-		return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", pxctpk)
-	}
-	cr.Spec.PXC.Affinity.TopologyKey = &pxctpk
 
-	cr.Spec.ProxySQL.Size, err = f.GetInt32("proxy-instances")
-	if err != nil {
-		return errors.New("undefined `proxy-instances`")
+	if c.ProxySQL.Instances > 0 {
+		cr.Spec.ProxySQL.Size = c.ProxySQL.Instances
 	}
 
 	// Disable ProxySQL if size set to 0
 	if cr.Spec.ProxySQL.Size > 0 {
-		err := cr.setProxySQL(f)
+		err := cr.setProxySQL(c)
 		if err != nil {
 			return err
 		}
@@ -343,19 +458,13 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, f *pflag.FlagSet, s3 
 	return nil
 }
 
-func (cr *PerconaXtraDBCluster) setProxySQL(f *pflag.FlagSet) error {
-	proxyCPU, err := f.GetString("proxy-request-cpu")
-	if err != nil {
-		return errors.New("undefined `proxy-request-cpu`")
-	}
-	_, err = resource.ParseQuantity(proxyCPU)
+func (cr *PerconaXtraDBCluster) setProxySQL(c dbaas.ClusterConfig) error {
+	proxyCPU := c.ProxySQL.RequestCPU
+	_, err := resource.ParseQuantity(proxyCPU)
 	if err != nil {
 		return errors.Wrap(err, "proxy-request-cpu")
 	}
-	proxyMemory, err := f.GetString("proxy-request-mem")
-	if err != nil {
-		return errors.New("undefined `proxy-request-Memory`")
-	}
+	proxyMemory := c.ProxySQL.RequestMem
 	_, err = resource.ParseQuantity(proxyMemory)
 	if err != nil {
 		return errors.Wrap(err, "proxy-request-mem")
@@ -367,10 +476,7 @@ func (cr *PerconaXtraDBCluster) setProxySQL(f *pflag.FlagSet) error {
 		},
 	}
 
-	proxytpk, err := f.GetString("proxy-anti-affinity-key")
-	if err != nil {
-		return errors.New("undefined `proxy-anti-affinity-key`")
-	}
+	proxytpk := c.ProxySQL.AntiAffinityKey
 	if _, ok := AffinityValidTopologyKeys[proxytpk]; !ok {
 		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", proxytpk)
 	}

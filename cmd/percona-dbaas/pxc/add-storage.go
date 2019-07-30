@@ -76,7 +76,13 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		s3stor, err := dbaas.S3Storage(app, cmd.Flags())
+		config, err := pxc.ParseAddStorageFlagsToConfig(cmd.Flags())
+		if err != nil {
+			fmt.Println("[Error] parse flags to config:", err)
+			return
+		}
+
+		s3stor, err := dbaas.S3Storage(app, config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
@@ -91,7 +97,7 @@ var storageCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("pxc", app, cmd.Flags(), s3stor, created, msg, cerr)
+		go dbaas.Edit("pxc", app, config, s3stor, created, msg, cerr)
 		sp.Prefix = "Adding the storage..."
 
 		for {

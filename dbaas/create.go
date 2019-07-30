@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/pflag"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -43,7 +42,7 @@ type Deploy interface {
 	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
-	Edit(crRaw []byte, f *pflag.FlagSet, storage *BackupStorageSpec) (string, error)
+	Edit(crRaw []byte, c ClusterConfig, storage *BackupStorageSpec) (string, error)
 	Upgrade(crRaw []byte, newImages map[string]string) error
 }
 

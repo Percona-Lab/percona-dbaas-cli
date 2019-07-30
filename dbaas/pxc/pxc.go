@@ -84,8 +84,8 @@ ProxySQL instances      | %v
 Storage                 | %v
 `
 
-func (p *PXC) Setup(f *pflag.FlagSet, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), f, s3, dbaas.GetPlatformType())
+func (p *PXC) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.config.SetNew(p.Name(), c, s3, dbaas.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}
@@ -104,7 +104,7 @@ PXC instances           | %v
 ProxySQL instances      | %v
 `
 
-func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageSpec) (string, error) {
+func (p *PXC) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
@@ -118,7 +118,7 @@ func (p *PXC) Edit(crRaw []byte, f *pflag.FlagSet, storage *dbaas.BackupStorageS
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(f, storage)
+	err = p.config.UpdateWith(c, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "applay changes to cr")
 	}
