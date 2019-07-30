@@ -39,6 +39,8 @@ build_cli() {
     if [ "$RHEL" != "1" ]; then
         docker push ${IMAGE}
     fi
+
+    export PATH=${src_dir}/build/_output/bin/:${PATH}
 }
 
 until docker ps;
