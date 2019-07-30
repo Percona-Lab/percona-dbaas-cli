@@ -98,8 +98,8 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	var catalog = Catalog{
 		Services: []Service{
 			Service{
-				ID:          "pxc-service-broker-id",
-				Name:        "percona-xtradb-cluster",
+				ID:          pxcServiceName,
+				Name:        pxcServiceName,
 				Description: "database",
 				Bindable:    true,
 				Plans:       PXCPlanList,
@@ -117,8 +117,8 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 				PlanUpdateable: true,
 			},
 			Service{
-				ID:          "percona-server-for-mongodb",
-				Name:        "percona-server-for-mongodb",
+				ID:          psmdbServiseID,
+				Name:        psmdbServiceName,
 				Description: "database",
 				Bindable:    true,
 				Plans:       PSMDBPlanList,
