@@ -4,7 +4,7 @@ set -o errexit
 set -o xtrace
 
 export TEST_DIR=$(realpath $(dirname $0))
-export SRC_DIR="$(realpath ${TEST_DIR}../../)"
+export SRC_DIR="$(realpath ${TEST_DIR}/../../)"
 . ${TEST_DIR}/../functions
 
 NAMESPACE="pxc-${RANDOM}"
