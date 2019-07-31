@@ -21,7 +21,7 @@ type ServiceInstance struct {
 	LastOperation *LastOperation `json:"last_operation,omitempty"`
 
 	Parameters struct {
-		PXCParameters
+		Parameters
 	} `json:"parameters,omitempty"`
 
 	Context Context `json:"context"`
@@ -38,15 +38,20 @@ type CreateServiceInstanceResponse struct {
 	LastOperation *LastOperation `json:"last_operation,omitempty"`
 }
 
+type GetServiceInstanceLastOperationResponse struct {
+	*LastOperation
+}
+
 type OperationState string
 
 type OperationDescription string
 
-type PXCParameters struct {
-	ClusterName string `json:"ClusterName,omitempty"`
-	Replicas    *int32 `json:"Replicas,omitempty"`
-	TopologyKey string `json:"TopologyKey,omitempty"`
-	Size        string `json:"Size,omitempty"`
+type Parameters struct {
+	ClusterName      string `json:"cluster_name"`
+	Replicas         int32  `json:"replicas,omitempty"`
+	ProxySQLReplicas int32  `json:"proxy_sql_replicas,omitempty"`
+	TopologyKey      string `json:"topology_key,omitempty"`
+	Size             string `json:"size,omitempty"`
 }
 
 type Context struct {

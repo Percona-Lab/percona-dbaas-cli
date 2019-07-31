@@ -18,18 +18,33 @@ type Controller struct {
 }
 
 // ProvisionParameters represents the parameters that can be tuned on a cluster
-type ProvisionParameters struct {
+type PXCProvisionParameters struct {
 	// ClusterName of the cluster resource
-	ClusterName string
+	ClusterName string `json:"cluster_name"`
 
 	// Replicas represents the number of nodes for cluster
-	Replicas *int32
+	Replicas int32 `json:"replicas,omitempty"`
 
 	//TopologyyKey
-	TopologyKey string
+	TopologyKey string `json:"topology_key,omitempty"`
 
 	// Size represents the size. Example: 1Gi
-	Size string
+	Size string `json:"size,omitempty"`
+}
+
+// ProvisionParameters represents the parameters that can be tuned on a cluster
+type PSMDBProvisionParameters struct {
+	// ClusterName of the cluster resource
+	ClusterName string `json:"cluster_name"`
+
+	// Replicas represents the number of nodes for cluster
+	Replicas int32 `json:"replicas,omitempty"`
+
+	//TopologyyKey
+	TopologyKey string `json:"topology_key,omitempty"`
+
+	// Size represents the size. Example: 1Gi
+	Size string `json:"size,omitempty"`
 }
 
 // BindParameters is for binding services
@@ -56,14 +71,14 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	PXCPlanList := []ServicePlan{
 		ServicePlan{
 			Name:        "percona-xtradb-cluster",
-			ID:          "percona-xtradb",
+			ID:          "percona-xtradb-id",
 			Description: "percona xtradb cluster",
 			Metadata: &ServicePlanMetadata{
 				DisplayName: "standard",
 			},
 			Schemas: &ServiceSchemas{
 				Instance: ServiceInstanceSchema{
-					Create: mustGetJSONSchema(&ProvisionParameters{}),
+					Create: mustGetJSONSchema(&PXCProvisionParameters{}),
 				},
 				Binding: ServiceBindingSchema{
 					Create: mustGetJSONSchema(&BindParameters{}),
@@ -77,14 +92,14 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	PSMDBPlanList := []ServicePlan{
 		ServicePlan{
 			Name:        "percona-server-for-mongodb",
-			ID:          "percona-server-for-mongodb",
+			ID:          "percona-server-for-mongodb-id",
 			Description: "percona server for mongodbr",
 			Metadata: &ServicePlanMetadata{
 				DisplayName: "standard",
 			},
 			Schemas: &ServiceSchemas{
 				Instance: ServiceInstanceSchema{
-					Create: mustGetJSONSchema(&ProvisionParameters{}),
+					Create: mustGetJSONSchema(&PSMDBProvisionParameters{}),
 				},
 				Binding: ServiceBindingSchema{
 					Create: mustGetJSONSchema(&BindParameters{}),
@@ -98,7 +113,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	var catalog = Catalog{
 		Services: []Service{
 			Service{
-				ID:          pxcServiceName,
+				ID:          pxcServiceID,
 				Name:        pxcServiceName,
 				Description: "database",
 				Bindable:    true,
@@ -117,7 +132,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 				PlanUpdateable: true,
 			},
 			Service{
-				ID:          psmdbServiseID,
+				ID:          psmdbServiceID,
 				Name:        psmdbServiceName,
 				Description: "database",
 				Bindable:    true,
@@ -150,7 +165,6 @@ const (
 )
 
 func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request) {
-	var params ProvisionParameters
 	log.Println("Create Service Instance...")
 
 	var instance ServiceInstance
@@ -160,18 +174,11 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 		log.Println("Provision instatnce:", err)
 	}
 
-	params.ClusterName = instance.Parameters.ClusterName
-	params.Replicas = instance.Parameters.Replicas
-	params.Size = instance.Parameters.Size
-	params.TopologyKey = instance.Parameters.TopologyKey
-
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
 
 	skipS3 := true
-	err = c.DeployCluster(instance, &skipS3, instanceID)
-	if err != nil {
-		log.Println("Deploy cluster", err)
-	}
+
+	c.DeployCluster(instance, &skipS3, instanceID)
 
 	instance.InternalID = instanceID
 	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
@@ -184,9 +191,9 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	c.instanceMap[instance.ID] = &instance
 
 	response := CreateServiceInstanceResponse{
-		DashboardURL:  instance.DashboardURL,
 		LastOperation: instance.LastOperation,
 	}
+
 	WriteResponse(w, http.StatusAccepted, response)
 }
 
@@ -200,8 +207,24 @@ func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	response := GetServiceInstanceLastOperationResponse{
+		instance.LastOperation,
+	}
+
+	WriteResponse(w, http.StatusOK, response)
+}
+
+func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *http.Request) {
+	log.Println("Get Service Instance Last Operaton...")
+
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+	instance := c.instanceMap[instanceID]
+	if instance == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
 	response := CreateServiceInstanceResponse{
-		DashboardURL:  instance.DashboardURL,
 		LastOperation: instance.LastOperation,
 	}
 	WriteResponse(w, http.StatusOK, response)
@@ -217,7 +240,12 @@ func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	c.DeletePXCCluster(instance)
+	err := c.DeletePXCCluster(instance)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	delete(c.instanceMap, instanceID)
 
 	WriteResponse(w, http.StatusOK, "{}")
@@ -285,7 +313,7 @@ func ProvisionDataFromRequest(r *http.Request, object interface{}) error {
 	if err != nil {
 		return err
 	}
-	log.Println(string(body))
+
 	err = json.Unmarshal(body, object)
 	if err != nil {
 		return err
