@@ -13,7 +13,7 @@ PSMDB_IMAGE_TO_UPDATE="${OPERATOR_IMAGE_TO_UPDATE}-mongod4.0"
 BACKUP_IMAGE_TO_UPDATE="${OPERATOR_IMAGE_TO_UPDATE}-backup"
 
 S3_BUCKET="operator-testing"
-S3_SECRET="minio-secret"
+S3_SECRET="minio-service"
 S3_ENDPOINT="http://minio-service:9000/"
 S3_REGION="us-east-1"
 
@@ -24,15 +24,18 @@ init() {
     export PATH="${SRC_DIR}/build/_output/bin":${PATH}
 
     create_namespace "${NAMESPACE}"
-    deploy_cert_manager
+
+    kubectl apply -f "${TEST_DIR}/conf/client.yaml"
 
     deploy_helm "${NAMESPACE}"
     deploy_minio
 }
 
 create() {
+    local LAST_OUT="$(mktemp)"
     desc psmdb cluster creation
-    pass=$(percona-dbaas --demo psmdb create "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none | grep 'UserAdmin Password:' | cut -d' ' -f3)
+    percona-dbaas --demo psmdb create "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none > "${LAST_OUT}"
+    pass=$(grep 'UserAdmin Password:' "${LAST_OUT}" | cut -d' ' -f3)
 
     compare_kubectl statefulset/"${CLUSTER}"-rs0
 
@@ -85,10 +88,14 @@ create_backup() {
 
 restore_bakup() {
     backup_name=$1
+    local LAST_OUT="$(mktemp)"
+
     desc restore backup
     run_mongo 'use myApp\n db.test.insert({ x: 100501 })' "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
+    compare_mongo_cmd "find" "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}" "-2nd"
 
-    RESTORE_NAME=$(percona-dbaas --demo psmdb restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
+    percona-dbaas --demo psmdb restore-backup "${CLUSTER}" "${backup_name}" > "${LAST_OUT}"
+    RESTORE_NAME=$(grep 'Name:' "${LAST_OUT}" | cut -d' ' -f2)
     if [[ $(kubectl_bin  get psmdb-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
         echo "Restore process has been failed."
         exit 1
@@ -99,8 +106,10 @@ restore_bakup() {
 }
 
 list() {
+    local LAST_OUT="$(mktemp)"
     desc listing psmdb clusters
-    cluster_name=$(percona-dbaas --demo psmdb list | grep -o "${CLUSTER}")
+    percona-dbaas --demo psmdb list > "${LAST_OUT}"
+    cluster_name=$(grep -o "${CLUSTER}" "${LAST_OUT}")
     if [[ ${cluster_name} == '' ]]; then
         echo "Can't find ${CLUSTER} created"
         exit 1

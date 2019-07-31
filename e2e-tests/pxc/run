@@ -13,7 +13,7 @@ PROXYSQL_IMAGE_TO_UPDATE="${OPERATOR_IMAGE_TO_UPDATE}-proxysql"
 PXC_IMAGE_TO_UPDATE="${OPERATOR_IMAGE_TO_UPDATE}-pxc"
 
 S3_BUCKET="operator-testing"
-S3_SECRET="minio-secret"
+S3_SECRET="minio-service"
 S3_ENDPOINT="http://minio-service:9000/"
 S3_REGION="us-east-1"
 
@@ -24,15 +24,17 @@ BACKUP_NAME=''
 init() {
 	export PATH="${SRC_DIR}/build/_output/bin":${PATH}
 
-	create_namespace "${NAMESPACE}"
+	kubectl apply -f "${TEST_DIR}/conf/client.yaml"
 
 	deploy_helm "${NAMESPACE}"
 	deploy_minio
 }
 
 create() {
+	local LAST_OUT="$(mktemp)"
 	desc pxc cluster creation
-	PASS=$(percona-dbaas --demo pxc create "${CLUSTER}" --s3-skip-storage --proxy-anti-affinity-key none  --pxc-anti-affinity-key none| grep 'Pass:' | cut -d' ' -f2)
+	percona-dbaas --demo pxc create "${CLUSTER}" --s3-skip-storage --proxy-anti-affinity-key none  --pxc-anti-affinity-key none > "${LAST_OUT}"
+	PASS=$(grep 'Pass:' "${LAST_OUT}" | cut -d' ' -f2)
 
 	compare_kubectl statefulset/"${CLUSTER}"-pxc
 
@@ -77,8 +79,10 @@ edit() {
 }
 
 list() {
+	local LAST_OUT="$(mktemp)"
 	desc listing pxc clusters
-	cluster_name=$(percona-dbaas --demo pxc list | grep -o "${CLUSTER}")
+	percona-dbaas --demo pxc list > "${LAST_OUT}"
+	cluster_name=$(grep -o "${CLUSTER}" "${LAST_OUT}")
 	if [[ ${cluster_name} == '' ]]; then
 		echo "Can't find ${CLUSTER} created"
 		exit 1
@@ -117,8 +121,10 @@ upgrade() {
 }
 
 create_backup() {
+	local LAST_OUT="$(mktemp)"
 	desc create backup
-	BACKUP_NAME=$(percona-dbaas --demo pxc create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
+	percona-dbaas --demo pxc create-backup "${CLUSTER}" > "${LAST_OUT}"
+	BACKUP_NAME=$(grep 'Name:' "${LAST_OUT}" | cut -d' ' -f2)
 	if [[ $(kubectl_bin  get pxc-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
 		echo "Backup creation has been failed."
 		exit 1
@@ -127,13 +133,15 @@ create_backup() {
 
 restore_bakup() {
 	backup_name=$1
+	local LAST_OUT="$(mktemp)"
 	desc restore backup
 	run_mysql \
         'INSERT myApp.myApp (id) VALUES (100501)' \
         "-h ${CLUSTER}-pxc -uroot -p${PASS}"
     compare_mysql_cmd "select-2" "SELECT * from myApp.myApp;" "-h ${CLUSTER}-pxc-0.${CLUSTER}-pxc -uroot -p${PASS}"
 
-	RESTORE_NAME=$(percona-dbaas --demo pxc restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
+	percona-dbaas --demo pxc restore-backup "${CLUSTER}" "${backup_name}" > "${LAST_OUT}"
+	RESTORE_NAME=$(grep 'Name:' "${LAST_OUT}"| cut -d' ' -f2)
 	if [[ $(kubectl_bin  get pxc-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
 		echo "Restore process has been failed."
 		exit 1
