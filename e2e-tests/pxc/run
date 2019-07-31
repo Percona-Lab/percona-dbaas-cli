@@ -52,10 +52,10 @@ add_storage() {
 					    --s3-endpoint-url "${S3_ENDPOINT}" \
 					    --s3-region "${S3_REGION}"
 
-	bucket_name=$(kubectl get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.bucket}')
-	secret=$(kubectl get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.credentialsSecret}')
-	endpoint=$(kubectl get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.endpointUrl}')
-	region=$(kubectl get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.region}')
+	bucket_name=$(kubectl_bin  get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.bucket}')
+	secret=$(kubectl_bin  get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.credentialsSecret}')
+	endpoint=$(kubectl_bin  get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.endpointUrl}')
+	region=$(kubectl_bin  get pxc "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.region}')
 
 	if [[ ${bucket_name} != ${S3_BUCKET} || ${secret} != ${S3_SECRET} \
 		  || ${endpoint} != ${S3_ENDPOINT} || ${region} != ${S3_REGION} ]]; then
@@ -68,8 +68,8 @@ edit() {
 	desc increasing the number of replicas
 	target_size=4
 	percona-dbaas --demo pxc edit "${CLUSTER}" --proxy-instances ${target_size} --pxc-instances ${target_size}
-	if [[ $(kubectl get statefulset "${CLUSTER}-pxc" -o jsonpath='{.status.replicas}') -ne $((target_size+1)) \
-		  || $(kubectl get statefulset "${CLUSTER}-proxysql" -o jsonpath='{.status.replicas}') -ne ${target_size} ]]; then
+	if [[ $(kubectl_bin  get statefulset "${CLUSTER}-pxc" -o jsonpath='{.status.replicas}') -ne $((target_size+1)) \
+		  || $(kubectl_bin  get statefulset "${CLUSTER}-proxysql" -o jsonpath='{.status.replicas}') -ne ${target_size} ]]; then
 		echo "Custer nodes has not been resized accordingly."
 		exit 1
 	fi
@@ -106,8 +106,8 @@ upgrade() {
 	sleep 10
 	wait_cluster_consistency "${CLUSTER}" 3 pxc
 
-	current_proxysql_image=$(kubectl get statefulset test-cluster-proxysql -o jsonpath='{.spec.template.spec.containers[?(@.name == "proxysql")].image}')
-	current_pxc_image=$(kubectl get statefulset test-cluster-pxc -o jsonpath='{.spec.template.spec.containers[?(@.name == "pxc")].image}')
+	current_proxysql_image=$(kubectl_bin  get statefulset test-cluster-proxysql -o jsonpath='{.spec.template.spec.containers[?(@.name == "proxysql")].image}')
+	current_pxc_image=$(kubectl_bin  get statefulset test-cluster-pxc -o jsonpath='{.spec.template.spec.containers[?(@.name == "pxc")].image}')
 
 
 	if [[ ${current_proxysql_image} != "${PROXYSQL_IMAGE_TO_UPDATE}" || ${current_pxc_image} != "${PXC_IMAGE_TO_UPDATE}" ]]; then
@@ -119,7 +119,7 @@ upgrade() {
 create_backup() {
 	desc create backup
 	BACKUP_NAME=$(percona-dbaas --demo pxc create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
-	if [[ $(kubectl get pxc-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
+	if [[ $(kubectl_bin  get pxc-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
 		echo "Backup creation has been failed."
 		exit 1
 	fi
@@ -134,7 +134,7 @@ restore_bakup() {
     compare_mysql_cmd "select-2" "SELECT * from myApp.myApp;" "-h ${CLUSTER}-pxc-0.${CLUSTER}-pxc -uroot -p${PASS}"
 
 	RESTORE_NAME=$(percona-dbaas --demo pxc restore-backup "${CLUSTER}" "${backup_name}"| grep 'Name:' | cut -d' ' -f2)
-	if [[ $(kubectl get pxc-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
+	if [[ $(kubectl_bin  get pxc-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "Succeeded" ]]; then
 		echo "Restore process has been failed."
 		exit 1
 	fi
@@ -159,7 +159,7 @@ restore_bakup() {
 delete() {
 	desc deleting pxc cluster
 	percona-dbaas --demo pxc delete "${CLUSTER}"
-	status=$(kubectl get pxc "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
+	status=$(kubectl_bin  get pxc "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
 
     if [[ ${status} != '' ]]; then
     	echo "Test has been failed. Cluster ${CLUSTER} still exists."

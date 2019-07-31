@@ -20,15 +20,15 @@ create_namespace() {
         oc project "$namespace"
         oc adm policy add-scc-to-user hostaccess -z default || :
     else
-        kubectl delete namespace "$namespace" || :
+        kubectl_bin delete namespace "$namespace" || :
         wait_for_delete "namespace/$namespace"
-        kubectl create namespace "$namespace"
-        kubectl config set-context $(kubectl config current-context) --namespace="$namespace"
+        kubectl_bin create namespace "$namespace"
+        kubectl_bin config set-context $(kubectl_bin config current-context) --namespace="$namespace"
     fi
 }
 
 get_operator_pod() {
-    kubectl get pods \
+    kubectl_bin get pods \
         --selector=name=percona-server-mongodb-operator \
         -o 'jsonpath={.items[].metadata.name}'
 }
@@ -40,15 +40,15 @@ wait_pod() {
     set +o xtrace
     retry=0
     echo -n $pod
-    #until kubectl get pod/$pod -o jsonpath='{.status.phase}' 2>/dev/null | grep 'Running'; do
-    until kubectl get pod/$pod -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep 'true'; do
+    #until kubectl_bin get pod/$pod -o jsonpath='{.status.phase}' 2>/dev/null | grep 'Running'; do
+    until kubectl_bin get pod/$pod -o jsonpath='{.status.containerStatuses[0].ready}' 2>/dev/null | grep 'true'; do
         sleep 1
         echo -n .
         let retry+=1
         if [ $retry -ge 120 ]; then
-            kubectl describe pod/$pod
-            kubectl logs $pod
-            kubectl logs $(get_operator_pod) \
+            kubectl_bin describe pod/$pod
+            kubectl_bin logs $pod
+            kubectl_bin logs $(get_operator_pod) \
                 | grep -v 'level=info' \
                 | grep -v 'level=debug' \
                 | grep -v 'Getting tasks for pod' \
@@ -68,16 +68,16 @@ wait_cluster_consistency() {
 
     case ${object_type} in
         psmdb )
-            until [[ "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
-                 && "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.replsets.rs0.ready}')" == "${cluster_size}" ]]; do
+            until [[ "$(kubectl_bin get "${object_type}" "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
+                 && "$(kubectl_bin get "${object_type}" "${cluster_name}" -o jsonpath='{.status.replsets.rs0.ready}')" == "${cluster_size}" ]]; do
                 echo 'waiting for cluster readyness'
                 sleep 20
             done
             ;;
         pxc )
-            until [[ "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
-                 && "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.proxysql.ready}')" == "${cluster_size}" \
-                 && "$(kubectl get "${object_type}" "${cluster_name}" -o jsonpath='{.status.pxc.ready}')" == "${cluster_size}" ]]; do
+            until [[ "$(kubectl_bin get "${object_type}" "${cluster_name}" -o jsonpath='{.status.state}')" == "ready" \
+                 && "$(kubectl_bin get "${object_type}" "${cluster_name}" -o jsonpath='{.status.proxysql.ready}')" == "${cluster_size}" \
+                 && "$(kubectl_bin get "${object_type}" "${cluster_name}" -o jsonpath='{.status.pxc.ready}')" == "${cluster_size}" ]]; do
                 echo 'waiting for cluster readyness'
                 sleep 20
             done
@@ -94,14 +94,14 @@ deploy_helm() {
         oc project tiller
         oc process -f https://github.com/openshift/origin/raw/master/examples/helm/tiller-template.yaml -p TILLER_NAMESPACE="tiller" -p HELM_VERSION=$HELM_VERSION | oc apply -f -
     else
-        kubectl --namespace kube-system create sa tiller || :
-        kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller || :
+        kubectl_bin --namespace kube-system create sa tiller || :
+        kubectl_bin create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller || :
         helm init --service-account tiller
-        kubectl config set-context $(kubectl config current-context) --namespace="kube-system"
+        kubectl_bin config set-context $(kubectl_bin config current-context) --namespace="kube-system"
     fi
 
     tiller_pod=$(
-        kubectl get pods \
+        kubectl_bin get pods \
             --selector=name=tiller \
             -o 'jsonpath={.items[].metadata.name}'
     )
@@ -111,14 +111,14 @@ deploy_helm() {
         oc project "$namespace"
         oc policy add-role-to-user edit "system:serviceaccount:tiller:tiller"
     else
-        kubectl config set-context $(kubectl config current-context) --namespace="$namespace"
+        kubectl_bin config set-context $(kubectl_bin config current-context) --namespace="$namespace"
     fi
 }
 
 deploy_minio() {
     desc 'install Minio'
     helm del --purge minio-service || :
-    # kubectl delete pvc minio-service --force
+    # kubectl_bin delete pvc minio-service --force
     helm install \
         --name minio-service \
         --set accessKey=some-access-key \
@@ -129,11 +129,11 @@ deploy_minio() {
         --set environment.MINIO_REGION=us-east-1 \
         --set environment.MINIO_HTTP_TRACE=/tmp/trace.log \
         stable/minio
-    MINIO_POD=$(kubectl get pods --selector=release=minio-service -o 'jsonpath={.items[].metadata.name}')
+    MINIO_POD=$(kubectl_bin get pods --selector=release=minio-service -o 'jsonpath={.items[].metadata.name}')
     wait_pod "${MINIO_POD}"
 
     # create bucket
-    kubectl run -i --rm aws-cli --image=perconalab/awscli --restart=Never -- \
+    kubectl_bin run -i --rm aws-cli --image=perconalab/awscli --restart=Never -- \
         bash -c 'AWS_ACCESS_KEY_ID=some-access-key AWS_SECRET_ACCESS_KEY=some-secret-key AWS_DEFAULT_REGION=us-east-1 \
         /usr/bin/aws --endpoint-url http://minio-service:9000 s3 mb s3://operator-testing'
 }
@@ -144,12 +144,12 @@ wait_for_delete() {
     set +o xtrace
     echo -n "$res - "
     retry=0
-    until (kubectl get $res || :) 2>&1 | grep NotFound; do
+    until (kubectl_bin get $res || :) 2>&1 | grep NotFound; do
         sleep 1
         echo -n .
         let retry+=1
         if [ $retry -ge 60 ]; then
-            kubectl logs $(get_operator_pod) \
+            kubectl_bin logs $(get_operator_pod) \
                 | grep -v 'level=info' \
                 | grep -v 'level=debug' \
                 | grep -v 'Getting tasks for pod' \
@@ -172,7 +172,7 @@ compare_kubectl() {
         expected_result=${expected_result//.yml/-oc.yml}
     fi
 
-    kubectl get -o yaml ${resource} \
+    kubectl_bin get -o yaml ${resource} \
         | egrep -v "namespace:|uid:|resourceVersion:|selfLink:|creationTimestamp:|image:|clusterIP:|dataSource:|procMount:" \
         | egrep -v "^  storageClassName:|finalizers:|kubernetes.io/pvc-protection|volumeName:|storage-provisioner:|status: \{\}|volumeMode: Filesystem" \
         | egrep -v "percona.com/.*-hash:|control-plane.alpha.kubernetes.io/leader:|volume.kubernetes.io/selected-node:" \
@@ -190,9 +190,9 @@ run_mongo() {
     local uri="$2"
     local driver=${3:-mongodb+srv}
     local suffix=${4:-.svc.cluster.local}
-    local client_container=$(kubectl get pods --selector=name=psmdb-client -o 'jsonpath={.items[].metadata.name}')
+    local client_container=$(kubectl_bin get pods --selector=name=psmdb-client -o 'jsonpath={.items[].metadata.name}')
 
-    kubectl exec ${client_container} -- \
+    kubectl_bin exec ${client_container} -- \
         bash -c "printf '$command\n' | mongo $driver://$uri$suffix/admin?ssl=false\&replicaSet=rs0"
 }
 
@@ -211,15 +211,15 @@ compare_mongo_cmd() {
 
 
 deploy_cert_manager() {
-    kubectl create namespace cert-manager || :
-    kubectl label namespace cert-manager certmanager.k8s.io/disable-validation=true || :
-    kubectl apply -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.7/deploy/manifests/cert-manager.yaml --validate=false || : 2>/dev/null
+    kubectl_bin create namespace cert-manager || :
+    kubectl_bin label namespace cert-manager certmanager.k8s.io/disable-validation=true || :
+    kubectl_bin apply -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.7/deploy/manifests/cert-manager.yaml --validate=false || : 2>/dev/null
 }
 
 destroy() {
     local namespace="$1"
 
-    kubectl logs $(get_operator_pod) \
+    kubectl_bin logs $(get_operator_pod) \
         | grep -v 'level=info' \
         | grep -v 'level=debug' \
         | grep -v 'Getting tasks for pod' \
@@ -233,15 +233,15 @@ destroy() {
     #TODO: maybe will be enabled later
     #diff $TEST_DIR/compare/operator.log $tmp_dir/operator.log
 
-    kubectl delete psmdb --all
-    kubectl delete psmdb-backup --all || :
-    kubectl delete psmdb-recovery --all || :
+    kubectl_bin delete psmdb --all
+    kubectl_bin delete psmdb-backup --all || :
+    kubectl_bin delete psmdb-recovery --all || :
 
-    kubectl delete -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.7/deploy/manifests/cert-manager.yaml 2>/dev/null || :
+    kubectl_bin delete -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.7/deploy/manifests/cert-manager.yaml 2>/dev/null || :
     if [ "$OPENSHIFT" == 1 ]; then
         oc delete --grace-period=0 --force=true project "$namespace"
     else
-        kubectl delete --grace-period=0 --force=true namespace "$namespace"
+        kubectl_bin delete --grace-period=0 --force=true namespace "$namespace"
     fi
     rm -rf ${tmp_dir}
 }
@@ -261,14 +261,14 @@ run_mysql() {
 
     client_pod=$(get_client_pod)
     wait_pod $client_pod 1>&2
-    kubectl exec $client_pod -- \
+    kubectl_bin exec $client_pod -- \
         bash -c "printf '$command\n' | mysql -sN $uri" 2>&1 \
         | sed -e 's/mysql: //' \
         | (grep -v 'Using a password on the command line interface can be insecure.' || :)
 }
 
 get_client_pod() {
-    kubectl get pods \
+    kubectl_bin get pods \
         --selector=name=pxc-client \
         -o 'jsonpath={.items[].metadata.name}'
 }
@@ -282,4 +282,28 @@ compare_mysql_cmd() {
     run_mysql "$command" "$uri" \
         > $tmp_dir/${command_id}.sql
     diff ${TEST_DIR}/compare/${command_id}${postfix}.sql $tmp_dir/${command_id}.sql
+}
+
+kubectl_bin() {
+    local LAST_OUT="$(mktemp)"
+    local LAST_ERR="$(mktemp)"
+    local exit_status=0
+    for i in $(seq 0 2); do
+        kubectl_bin "$@" 1>"$LAST_OUT" 2>"$LAST_ERR"
+        exit_status=$?
+        [[ ${-/x} != $- ]] && echo "--- $i stdout" | cat - "$LAST_OUT" >&$BASH_XTRACEFD
+        [[ ${-/x} != $- ]] && echo "--- $i stderr" | cat - "$LAST_ERR" >&$BASH_XTRACEFD
+        if [[ ${exit_status} != 0 ]]; then
+            sleep "$((timeout * i))"
+        else
+            cat "$LAST_OUT"
+            cat "$LAST_ERR" >&2
+            rm "$LAST_OUT" "$LAST_ERR"
+            return ${exit_status}
+        fi
+    done
+    cat "$LAST_OUT"
+    cat "$LAST_ERR" >&2
+    rm "$LAST_OUT" "$LAST_ERR"
+    return ${exit_status}
 }
