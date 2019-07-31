@@ -1,5 +1,8 @@
 #!/bin/bash
 
+exec 5>&2
+BASH_XTRACEFD="5"
+
 tmp_dir=$(mktemp -d)
 sed=$(which gsed || which sed)
 date=$(which gdate || which date)
