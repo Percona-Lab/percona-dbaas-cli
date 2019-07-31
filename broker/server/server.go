@@ -32,6 +32,7 @@ func (s *Server) Start() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/v2/catalog", s.controller.Catalog).Methods("GET")
+	router.HandleFunc("/v2/service_instances", s.controller.GetServiceInstances).Methods("GET")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.GetServiceInstance).Methods("GET")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.CreateServiceInstance).Methods("PUT")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.RemoveServiceInstance).Methods("DELETE")
