@@ -19,7 +19,7 @@ You can skip this step by using --s3-skip-storage flag add the storage later wit
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
 	switch instance.ServiceID {
-	case "pxc-service-broker-id":
+	case pxcServiceID:
 		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
 		SetDefault(&conf)
@@ -73,7 +73,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 				}
 			}
 		}
-	case "percona-server-for-mongodb":
+	case psmdbServiseID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
 		SetDefault(&conf)
@@ -92,7 +92,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Create("pxc", app, created, msg, cerr)
+		go dbaas.Create("psmdb", app, created, msg, cerr)
 
 		for {
 			select {
@@ -123,7 +123,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 					log.Println("Avaliable clusters:")
 					log.Print(list)
 				default:
-					log.Printf("[ERROR] create pxc: %v", err)
+					log.Printf("[ERROR] create psmdb: %v", err)
 				}
 			}
 		}
@@ -131,21 +131,40 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	return nil
 }
 
-func (p *Controller) DeletePXCCluster(name string) error {
+func (p *Controller) DeletePXCCluster(instance *ServiceInstance) error {
 	ok := make(chan string)
 	cerr := make(chan error)
 	delePVC := true
-	go dbaas.Delete("pxc", pxc.New(name, defaultVersion), delePVC, ok, cerr)
-	tckr := time.NewTicker(1 * time.Second)
-	defer tckr.Stop()
-	for {
-		select {
-		case <-ok:
-			log.Println("Deleting...[done]")
-			return nil
-		case err := <-cerr:
-			log.Printf("[ERROR] delete pxc: %v", err)
-			return err
+	name := instance.Parameters.ClusterName
+	switch instance.ServiceID {
+	case pxcServiceID:
+		go dbaas.Delete("pxc", pxc.New(name, defaultVersion), delePVC, ok, cerr)
+		tckr := time.NewTicker(1 * time.Second)
+		defer tckr.Stop()
+		for {
+			select {
+			case <-ok:
+				log.Println("Deleting...[done]")
+				return nil
+			case err := <-cerr:
+				log.Printf("[ERROR] delete pxc: %v", err)
+				return err
+			}
+		}
+	case psmdbServiseID:
+		go dbaas.Delete("psmdb", pxc.New(name, defaultVersion), delePVC, ok, cerr)
+		tckr := time.NewTicker(1 * time.Second)
+		defer tckr.Stop()
+		for {
+			select {
+			case <-ok:
+				log.Println("Deleting...[done]")
+				return nil
+			case err := <-cerr:
+				log.Printf("[ERROR] delete pxc: %v", err)
+				return err
+			}
 		}
 	}
+	return nil
 }

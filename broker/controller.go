@@ -141,29 +141,13 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	WriteResponse(w, http.StatusOK, catalog)
 }
 
+func (c *Controller) GetServiceInstances(w http.ResponseWriter, r *http.Request) {
+	WriteResponse(w, http.StatusOK, c.instanceMap)
+}
+
 const (
 	defaultPolling = 10
 )
-
-/*
-{
-	"service_id":"pxc-service-broker-id",
-	"plan_id":"percona-xtrad",
-	"organization_guid":"fc84e819-b242-11e9-8ef4-0242ac110009",
-	"space_guid":"72315ffb-b236-11e9-850d-08002763c817",
-	"parameters":{
-	   "ClusterName":"some-name",
-	   "Replicas":3,
-	   "Size":"1Gi",
-	   "TopologyKey":"none"
-	},
-	"context":{
-	   "clusterid":"fc84e819-b242-11e9-8ef4-0242ac110009",
-	   "namespace":"myproject",
-	   "platform":"kubernetes"
-	}
- }
-*/
 
 func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request) {
 	var params ProvisionParameters
@@ -175,13 +159,6 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 		log.Println("Provision instatnce:", err)
 	}
-
-	/*p := instance.Parameters.(map[string]interface{})
-
-	log.Println("Deploy cluster")
-	if p["ClusterName"] != nil {
-		params.ClusterName = p["ClusterName"].(string)
-	}*/
 
 	params.ClusterName = instance.Parameters.ClusterName
 	params.Replicas = instance.Parameters.Replicas
@@ -239,7 +216,8 @@ func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Reques
 		w.WriteHeader(http.StatusGone)
 		return
 	}
-	c.DeletePXCCluster(instance.Parameters.ClusterName)
+
+	c.DeletePXCCluster(instance)
 	delete(c.instanceMap, instanceID)
 
 	WriteResponse(w, http.StatusOK, "{}")
