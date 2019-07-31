@@ -11,10 +11,6 @@ import (
 
 const (
 	defaultVersion = "default"
-
-	noS3backupWarn = `[Error] S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
-You can skip this step by using --s3-skip-storage flag add the storage later with the "add-storage" command.
-`
 )
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
@@ -23,6 +19,15 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
 		SetDefault(&conf)
+		if instance.Parameters.Replicas > int32(0) {
+			conf.PXC.Instances = instance.Parameters.Replicas
+		}
+		if len(instance.Parameters.Size) > 0 {
+			conf.PXC.StorageSize = instance.Parameters.Size
+		}
+		if len(instance.Parameters.TopologyKey) > 0 {
+			conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
+		}
 
 		var s3stor *dbaas.BackupStorageSpec
 
@@ -39,45 +44,46 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		cerr := make(chan error)
 
 		go dbaas.Create("pxc", app, created, msg, cerr)
-
-		for {
-			select {
-			case okmsg := <-created:
-				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-				log.Printf("Starting...[done] %s", okmsg)
-				return nil
-			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-					log.Printf("[operator log error] %s\n", omsg)
-				}
-			case err := <-cerr:
-				switch err.(type) {
-				case dbaas.ErrAlreadyExists:
+		go func() {
+			for {
+				select {
+				case okmsg := <-created:
+					p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+					p.instanceMap[instanceID].LastOperation.AsyncPollIntervalSeconds = 0
+					log.Printf("Starting...[done] %s", okmsg)
+					return
+				case omsg := <-msg:
+					switch omsg.(type) {
+					case dbaas.OutuputMsgDebug:
+						// fmt.Printf("\n[debug] %s\n", omsg)
+					case dbaas.OutuputMsgError:
+						p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+						p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+						log.Printf("[operator log error] %s\n", omsg)
+					}
+					return
+				case err := <-cerr:
 					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
 					p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
-					log.Printf("[ERROR] %v", err)
-					list, err := dbaas.List("pxc")
-					if err != nil {
-						return nil
-					}
-					log.Println("Avaliable clusters:")
-					log.Print(list)
-				default:
-					log.Printf("[ERROR] create pxc: %v", err)
+					log.Println("create error:", err)
+					return
 				}
 			}
-		}
-	case psmdbServiseID:
+		}()
+	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
 		SetDefault(&conf)
-
+		if instance.Parameters.Replicas > int32(0) {
+			conf.PSMDB.Instances = instance.Parameters.Replicas
+		}
+		if len(instance.Parameters.Size) > 0 {
+			conf.PSMDB.StorageSize = instance.Parameters.Size
+		}
+		if len(instance.Parameters.TopologyKey) > 0 {
+			conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
+		}
 		var s3stor *dbaas.BackupStorageSpec
 
 		setupmsg, err := app.Setup(conf, s3stor)
@@ -93,40 +99,32 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		cerr := make(chan error)
 
 		go dbaas.Create("psmdb", app, created, msg, cerr)
-
-		for {
-			select {
-			case okmsg := <-created:
-				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-				log.Printf("Starting...[done] %s", okmsg)
-				return nil
-			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-					log.Printf("[operator log error] %s\n", omsg)
-				}
-			case err := <-cerr:
-				switch err.(type) {
-				case dbaas.ErrAlreadyExists:
+		go func() {
+			for {
+				select {
+				case okmsg := <-created:
+					p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+					log.Printf("Starting...[done] %s", okmsg)
+					return
+				case omsg := <-msg:
+					switch omsg.(type) {
+					case dbaas.OutuputMsgDebug:
+						// fmt.Printf("\n[debug] %s\n", omsg)
+					case dbaas.OutuputMsgError:
+						p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+						p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+						log.Printf("[operator log error] %s\n", omsg)
+					}
+					return
+				case err := <-cerr:
 					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
 					p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
-					log.Printf("[ERROR] %v", err)
-					list, err := dbaas.List("pxc")
-					if err != nil {
-						return nil
-					}
-					log.Println("Avaliable clusters:")
-					log.Print(list)
-				default:
-					log.Printf("[ERROR] create psmdb: %v", err)
+					log.Println("Create error:", err)
+					return
 				}
 			}
-		}
+		}()
 	}
 	return nil
 }
@@ -134,7 +132,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 func (p *Controller) DeletePXCCluster(instance *ServiceInstance) error {
 	ok := make(chan string)
 	cerr := make(chan error)
-	delePVC := true
+	delePVC := false
 	name := instance.Parameters.ClusterName
 	switch instance.ServiceID {
 	case pxcServiceID:
@@ -151,8 +149,8 @@ func (p *Controller) DeletePXCCluster(instance *ServiceInstance) error {
 				return err
 			}
 		}
-	case psmdbServiseID:
-		go dbaas.Delete("psmdb", pxc.New(name, defaultVersion), delePVC, ok, cerr)
+	case psmdbServiceID:
+		go dbaas.Delete("psmdb", psmdb.New(name, name, defaultVersion), delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
