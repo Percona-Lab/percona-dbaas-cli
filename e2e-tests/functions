@@ -292,7 +292,7 @@ kubectl_bin() {
     local LAST_ERR="$(mktemp)"
     local exit_status=0
     for i in $(seq 0 2); do
-        kubectl_bin "$@" 1>"$LAST_OUT" 2>"$LAST_ERR"
+        kubectl "$@" 1>"$LAST_OUT" 2>"$LAST_ERR"
         exit_status=$?
         [[ ${-/x} != $- ]] && echo "--- $i stdout" | cat - "$LAST_OUT" >&$BASH_XTRACEFD
         [[ ${-/x} != $- ]] && echo "--- $i stderr" | cat - "$LAST_ERR" >&$BASH_XTRACEFD
