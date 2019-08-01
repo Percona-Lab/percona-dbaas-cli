@@ -18,7 +18,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	case pxcServiceID:
 		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
-		SetDefault(&conf)
+		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PXC.Instances = instance.Parameters.Replicas
 		}
@@ -74,7 +74,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
-		SetDefault(&conf)
+		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PSMDB.Instances = instance.Parameters.Replicas
 		}
@@ -129,7 +129,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	return nil
 }
 
-func (p *Controller) DeletePXCCluster(instance *ServiceInstance) error {
+func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	ok := make(chan string)
 	cerr := make(chan error)
 	delePVC := false
