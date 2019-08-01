@@ -14,8 +14,8 @@ type Server struct {
 	port       string
 }
 
-// NewPXCBroker return server for PXC broker
-func NewPXCBroker(port string) (*Server, error) {
+// NewBroker return server for PXC broker
+func NewBroker(port string) (*Server, error) {
 	controller, err := broker.New()
 	if err != nil {
 		return nil, err
