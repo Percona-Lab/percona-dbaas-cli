@@ -240,7 +240,7 @@ func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err := c.DeletePXCCluster(instance)
+	err := c.DeleteCluster(instance)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

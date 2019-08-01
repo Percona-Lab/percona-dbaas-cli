@@ -11,7 +11,7 @@ const (
 	psmdbServiceName = "percona-server-for-mongodb"
 )
 
-func SetDefault(c *dbaas.ClusterConfig) {
+func SetPXCDefaults(c *dbaas.ClusterConfig) {
 	c.PXC.StorageSize = "6G"
 	c.PXC.Instances = int32(3)
 	c.PXC.RequestCPU = "600m"
@@ -24,10 +24,14 @@ func SetDefault(c *dbaas.ClusterConfig) {
 	c.ProxySQL.AntiAffinityKey = "kubernetes.io/hostname"
 
 	c.S3.SkipStorage = true
+}
 
+func SetPSMDBDefaults(c *dbaas.ClusterConfig) {
 	c.PSMDB.StorageSize = "6G"
 	c.PSMDB.Instances = int32(3)
 	c.PSMDB.RequestCPU = "600m"
 	c.PSMDB.RequestMem = "1G"
 	c.PSMDB.AntiAffinityKey = "kubernetes.io/hostname"
+
+	c.S3.SkipStorage = true
 }
