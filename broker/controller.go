@@ -271,7 +271,7 @@ func (c *Controller) Bind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	credentials := Credential{
-		UserName:   "PXCUser",
+		UserName:   "User",
 		PublicIP:   "ServiceAddress",
 		PrivateKey: "UserPass",
 	}

@@ -9,11 +9,11 @@ import (
 
 // PxcBrokerCmd represents the pxc broker command
 var PxcBrokerCmd = &cobra.Command{
-	Use:   "pxc-broker",
-	Short: "Start PXC broker",
+	Use:   "service-broker",
+	Short: "Start service broker",
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Println("Starting broker")
-		server, err := server.NewPXCBroker(cmd.Flag("port").Value.String())
+		server, err := server.NewBroker(cmd.Flag("port").Value.String())
 		if err != nil {
 			log.Println(err)
 			return

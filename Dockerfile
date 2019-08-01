@@ -9,4 +9,4 @@ EXPOSE 8081
 WORKDIR /go/src/github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas
 RUN go install
 
-ENTRYPOINT ["percona-dbaas", "pxc-broker"]
+ENTRYPOINT ["percona-dbaas", "service-broker"]
