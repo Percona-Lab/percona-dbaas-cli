@@ -42,35 +42,8 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-
 		go dbaas.Create("pxc", app, created, msg, cerr)
-		go func() {
-			for {
-				select {
-				case okmsg := <-created:
-					p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-					p.instanceMap[instanceID].LastOperation.AsyncPollIntervalSeconds = 0
-					log.Printf("Starting...[done] %s", okmsg)
-					return
-				case omsg := <-msg:
-					switch omsg.(type) {
-					case dbaas.OutuputMsgDebug:
-						// fmt.Printf("\n[debug] %s\n", omsg)
-					case dbaas.OutuputMsgError:
-						p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-						p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-						log.Printf("[operator log error] %s\n", omsg)
-					}
-					return
-				case err := <-cerr:
-					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
-					log.Println("create error:", err)
-					return
-				}
-			}
-		}()
+		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
@@ -97,36 +70,37 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-
 		go dbaas.Create("psmdb", app, created, msg, cerr)
-		go func() {
-			for {
-				select {
-				case okmsg := <-created:
-					p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-					log.Printf("Starting...[done] %s", okmsg)
-					return
-				case omsg := <-msg:
-					switch omsg.(type) {
-					case dbaas.OutuputMsgDebug:
-						// fmt.Printf("\n[debug] %s\n", omsg)
-					case dbaas.OutuputMsgError:
-						p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-						p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-						log.Printf("[operator log error] %s\n", omsg)
-					}
-					return
-				case err := <-cerr:
-					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
-					log.Println("Create error:", err)
-					return
-				}
-			}
-		}()
+		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	}
 	return nil
+}
+
+func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID string) {
+	for {
+		select {
+		case okmsg := <-created:
+			p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+			log.Printf("Starting...[done] %s", okmsg)
+			return
+		case omsg := <-msg:
+			switch omsg.(type) {
+			case dbaas.OutuputMsgDebug:
+				// fmt.Printf("\n[debug] %s\n", omsg)
+			case dbaas.OutuputMsgError:
+				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+				log.Printf("[operator log error] %s\n", omsg)
+			}
+			return
+		case err := <-cerr:
+			p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+			log.Println("Create error:", err)
+			return
+		}
+	}
 }
 
 func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
@@ -139,30 +113,25 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 		go dbaas.Delete("pxc", pxc.New(name, defaultVersion), delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
-		for {
-			select {
-			case <-ok:
-				log.Println("Deleting...[done]")
-				return nil
-			case err := <-cerr:
-				log.Printf("[ERROR] delete pxc: %v", err)
-				return err
-			}
-		}
+		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
 		go dbaas.Delete("psmdb", psmdb.New(name, name, defaultVersion), delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
-		for {
-			select {
-			case <-ok:
-				log.Println("Deleting...[done]")
-				return nil
-			case err := <-cerr:
-				log.Printf("[ERROR] delete pxc: %v", err)
-				return err
-			}
-		}
+		p.listenDeleteChannels(ok, cerr)
 	}
 	return nil
+}
+
+func (p *Controller) listenDeleteChannels(ok chan string, cerr chan error) {
+	for {
+		select {
+		case <-ok:
+			log.Println("Deleting...[done]")
+			return
+		case err := <-cerr:
+			log.Printf("[ERROR] delete pxc: %v", err)
+			return
+		}
+	}
 }
