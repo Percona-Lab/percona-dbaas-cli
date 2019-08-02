@@ -2,7 +2,6 @@ package broker
 
 import (
 	"log"
-	"time"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
@@ -111,13 +110,9 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	switch instance.ServiceID {
 	case pxcServiceID:
 		go dbaas.Delete("pxc", pxc.New(name, defaultVersion), delePVC, ok, cerr)
-		tckr := time.NewTicker(1 * time.Second)
-		defer tckr.Stop()
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
 		go dbaas.Delete("psmdb", psmdb.New(name, name, defaultVersion), delePVC, ok, cerr)
-		tckr := time.NewTicker(1 * time.Second)
-		defer tckr.Stop()
 		p.listenDeleteChannels(ok, cerr)
 	}
 	return nil
