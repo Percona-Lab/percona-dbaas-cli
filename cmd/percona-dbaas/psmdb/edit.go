@@ -29,8 +29,8 @@ import (
 
 // editCmd represents the edit command
 var editCmd = &cobra.Command{
-	Use:   "edit <psmdb-cluster-name>",
-	Short: "Edit MongoDB cluster",
+	Use:   "modify-db <psmdb-cluster-name>",
+	Short: "Modify MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify psmdb-cluster-name")

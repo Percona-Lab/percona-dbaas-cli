@@ -24,8 +24,8 @@ import (
 
 // listCmd represents the list command
 var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all MongoDB clusters on current Kubernetes cluster",
+	Use:   "describe-db",
+	Short: "Show either specific MongoDB cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
 		list, err := dbaas.List("psmdb")

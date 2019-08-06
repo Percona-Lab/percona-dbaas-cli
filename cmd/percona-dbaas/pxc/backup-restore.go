@@ -29,7 +29,7 @@ import (
 
 // restoreCmd represents the list command
 var restoreCmd = &cobra.Command{
-	Use:   "restore-backup <pxc-cluster-name> <pxc-backup-name>",
+	Use:   "restore-db <pxc-cluster-name> <pxc-backup-name>",
 	Short: "Restore MySQL backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {

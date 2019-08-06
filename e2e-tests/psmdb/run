@@ -34,7 +34,7 @@ init() {
 create() {
     local LAST_OUT="$(mktemp)"
     desc psmdb cluster creation
-    percona-dbaas --demo psmdb create "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none > "${LAST_OUT}"
+    percona-dbaas --demo psmdb create-db "${CLUSTER}" rs0 --s3-skip-storage --anti-affinity-key none > "${LAST_OUT}"
     pass=$(grep 'UserAdmin Password:' "${LAST_OUT}" | cut -d' ' -f3)
 
     compare_kubectl statefulset/"${CLUSTER}"-rs0
@@ -48,10 +48,10 @@ create() {
 
 add_storage() {
     desc add storage to existing cluster
-    percona-dbaas --demo psmdb add-storage "${CLUSTER}" \
+    percona-dbaas --demo psmdb create-backup-storage "${CLUSTER}" 
                         --s3-bucket "${S3_BUCKET}" \
-                        --s3-key some-secret-key \
-						--s3-key-id some-access-key \
+                        --s3-secret-access-key some-secret-key \
+						--s3-access-key-id some-access-key \
                         --s3-endpoint-url "${S3_ENDPOINT}" \
                         --s3-region "${S3_REGION}"
 
@@ -68,18 +68,18 @@ add_storage() {
 edit() {
     desc increasing the number of replicas
     target_size=4
-    percona-dbaas --demo psmdb edit "${CLUSTER}" --replset-size ${target_size}
+    percona-dbaas --demo psmdb modify-db "${CLUSTER}" --replset-size ${target_size}
     if [[ $(kubectl_bin  get statefulset "${CLUSTER}-rs0" -o jsonpath='{.status.replicas}') -ne $((target_size+1)) ]]; then
         echo "Replica set has not been updated accordingly."
         exit 1
     fi
-    percona-dbaas --demo psmdb edit "${CLUSTER}" --replset-size 3
+    percona-dbaas --demo psmdb modify-db "${CLUSTER}" --replset-size 3
 }
 
 create_backup() {
     desc create backup
     BACKUP_NAME=$(percona-dbaas --demo psmdb create-backup "${CLUSTER}" | grep 'Name:' | cut -d' ' -f2)
-    if [[ $(kubectl_bin  get psmdb-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
+    if [[ $(kubectl_bin get psmdb-backup "${BACKUP_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
         echo "Backup creation has been failed."
         exit 1
     fi
@@ -93,7 +93,7 @@ restore_bakup() {
     run_mongo 'use myApp\n db.test.insert({ x: 100501 })' "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
     compare_mongo_cmd "find" "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}" "-2nd"
 
-    percona-dbaas --demo psmdb restore-backup "${CLUSTER}" "${backup_name}" > "${LAST_OUT}"
+    percona-dbaas --demo psmdb restore-db "${CLUSTER}" "${backup_name}" > "${LAST_OUT}"
     RESTORE_NAME=$(grep 'Name:' "${LAST_OUT}" | cut -d' ' -f2)
     if [[ $(kubectl_bin  get psmdb-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
         echo "Restore process has been failed."
@@ -107,7 +107,7 @@ restore_bakup() {
 list() {
     local LAST_OUT="$(mktemp)"
     desc listing psmdb clusters
-    percona-dbaas --demo psmdb list > "${LAST_OUT}"
+    percona-dbaas --demo psmdb describe-db > "${LAST_OUT}"
     cluster_name=$(grep -o "${CLUSTER}" "${LAST_OUT}")
     if [[ ${cluster_name} == '' ]]; then
         echo "Can't find ${CLUSTER} created"
@@ -117,7 +117,7 @@ list() {
 
 upgrade() {
     desc upgrading psmdb cluster
-    percona-dbaas --demo psmdb upgrade "${CLUSTER}" master \
+    percona-dbaas --demo psmdb upgrade-db "${CLUSTER}" master \
                   --operator-image "${OPERATOR_IMAGE_TO_UPDATE}" \
                   --psmdb-image "${PSMDB_IMAGE_TO_UPDATE}" \
                   --backup-image "${BACKUP_IMAGE_TO_UPDATE}"
@@ -136,9 +136,8 @@ upgrade() {
     sleep 10
     wait_cluster_consistency "${CLUSTER}" 3
 
-    current_mongod_image=$(kubectl_bin  get statefulset test-cluster-rs0 -o jsonpath='{.spec.template.spec.containers[?(@.name == "mongod")].image}')
-    current_backup_image=$(kubectl_bin  get statefulset test-cluster-rs0 -o jsonpath='{.spec.template.spec.containers[?(@.name == "backup-agent")].image}')
-
+    current_mongod_image=$(kubectl_bin get statefulset test-cluster-rs0 -o jsonpath='{.spec.template.spec.containers[?(@.name == "mongod")].image}')
+    current_backup_image=$(kubectl_bin get statefulset test-cluster-rs0 -o jsonpath='{.spec.template.spec.containers[?(@.name == "backup-agent")].image}')
 
     if [[ ${current_mongod_image} != "${PSMDB_IMAGE_TO_UPDATE}" || ${current_backup_image} != "${BACKUP_IMAGE_TO_UPDATE}" ]]; then
         echo "Cluster has not been updated"
@@ -148,8 +147,8 @@ upgrade() {
 
 delete() {
     desc deleting psmdb cluster
-    percona-dbaas --demo psmdb delete "${CLUSTER}" rs0
-    status=$(kubectl_bin  get psmdb "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
+    percona-dbaas --demo psmdb delete-db "${CLUSTER}" rs0
+    status=$(kubectl_bin get psmdb "${CLUSTER}" -o jsonpath='{.metadata.name}' || :)
 
     if [[ ${status} != '' ]]; then
         echo "Test has been failed. Cluster ${CLUSTER} still exists."

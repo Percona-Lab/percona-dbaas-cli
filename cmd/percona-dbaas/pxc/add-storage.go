@@ -31,7 +31,7 @@ const noS3backupOpts = `[Error] S3 backup storage options doesn't set properly: 
 
 // storageCmd represents the edit command
 var storageCmd = &cobra.Command{
-	Use:   "add-storage <pxc-cluster-name>",
+	Use:   "create-backup-storage <pxc-cluster-name>",
 	Short: "Add storage for MySQL backups",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -128,9 +128,9 @@ func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
 	storageCmd.Flags().String("s3-bucket", "", "Bucket of S3 compatible storage to store backup at")
 	storageCmd.Flags().String("s3-region", "", "Region of S3 compatible storage to store backup at")
-	storageCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-key-id and --s3-key instead.")
-	storageCmd.Flags().String("s3-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
-	storageCmd.Flags().String("s3-key", "", "Access Key for S3 compatible storage to store backup at")
+	storageCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-access-key-id and --s3-secret-access-key instead.")
+	storageCmd.Flags().String("s3-access-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
+	storageCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
 
 	storageCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	storageCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")

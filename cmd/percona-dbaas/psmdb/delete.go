@@ -33,7 +33,7 @@ var delePVC *bool
 
 // delCmd represents the list command
 var delCmd = &cobra.Command{
-	Use:   "delete <psmdb-cluster-name>",
+	Use: "delete-db	<psmdb-cluster-name>",
 	Short: "Delete MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
