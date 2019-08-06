@@ -25,10 +25,10 @@ init() {
 
     create_namespace "${NAMESPACE}"
 
-    kubectl apply -f "${TEST_DIR}/conf/client.yaml"
-
     deploy_helm "${NAMESPACE}"
     deploy_minio
+    kubectl apply -f "${TEST_DIR}/conf/client.yaml"
+
 }
 
 create() {
@@ -50,17 +50,16 @@ add_storage() {
     desc add storage to existing cluster
     percona-dbaas --demo psmdb add-storage "${CLUSTER}" \
                         --s3-bucket "${S3_BUCKET}" \
-                        --s3-credentials-secret "${S3_SECRET}" \
+                        --s3-key some-secret-key \
+						--s3-key-id some-access-key \
                         --s3-endpoint-url "${S3_ENDPOINT}" \
                         --s3-region "${S3_REGION}"
 
     bucket_name=$(kubectl_bin  get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.bucket}')
-    secret=$(kubectl_bin  get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.credentialsSecret}')
     endpoint=$(kubectl_bin  get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.endpointUrl}')
     region=$(kubectl_bin  get psmdb "${CLUSTER}" -o jsonpath='{.spec.backup.storages.defaultS3Storage.s3.region}')
 
-    if [[ ${bucket_name} != ${S3_BUCKET} || ${secret} != ${S3_SECRET} \
-          || ${endpoint} != ${S3_ENDPOINT} || ${region} != ${S3_REGION} ]]; then
+    if [[ ${bucket_name} != ${S3_BUCKET} || ${endpoint} != ${S3_ENDPOINT} || ${region} != ${S3_REGION} ]]; then
         echo "S3 bucket settings has not been provisioned"
         exit 1
     fi
