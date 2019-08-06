@@ -21,9 +21,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/gcloud"
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/pxc"
 	broker "github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/service-broker"
+	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/setdefaultenv"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -37,15 +39,19 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
+	rootCmd.PersistentFlags().String("environment", "", "Target kubernetes cluster")
 
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)
 	rootCmd.AddCommand(broker.PxcBrokerCmd)
+	rootCmd.AddCommand(gcloud.GCLOUDCmd)
+	rootCmd.AddCommand(setdefaultenv.SetDefaultEnvCmd)
 }
 
 func main() {
 	rewriteKubectlArgs("pxc")
 	rewriteKubectlArgs("psmdb")
+	rewriteKubectlArgs("gcloud")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
