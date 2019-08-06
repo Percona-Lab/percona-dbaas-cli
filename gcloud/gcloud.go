@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dbaas
+package gcloud
 
 import (
 	"fmt"
@@ -28,13 +28,32 @@ import (
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
+	execCommand = gcloudExec
+	if _, err := exec.LookPath(execCommand); err != nil {
+		fmt.Println("Can't find gcloud executable. Installing it according to https://cloud.google.com/sdk/docs/downloads-interactive.")
+		runEnvCmd([]string{"CLOUDSDK_CORE_DISABLE_PROMPTS=1"}, "bash", "-c", "curl https://sdk.cloud.google.com | bash")
+
+		if _, err := exec.LookPath(execCommand); err != nil {
+			panic(fmt.Sprintf("Something went wrong. Unable to find '%s' executable after installation.", gcloudExec))
+		}
+	}
+
 	execCommand = k8sExecDefault
 	if _, err := exec.LookPath(execCommand); err != nil {
 		execCommand = k8sExecCustom
 		if _, err := exec.LookPath(execCommand); err != nil {
-			panic(fmt.Sprintf("Unable to find neither '%s' nor '%s' exec files", k8sExecDefault, k8sExecCustom))
+
+			fmt.Println("Can't find kubectl executable. Installing it according to https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux.")
+			runCmd("curl", "-LO", "https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl")
+			runCmd("chmod", "+x", "./kubectl")
+			runCmd("mv", "./kubectl", "/usr/local/bin/kubectl")
+
+			if _, err := exec.LookPath(k8sExecDefault); err != nil {
+				panic(fmt.Sprintf("Something went wrong. Unable to find '%s' executable after installation.", k8sExecDefault))
+			}
 		}
 	}
+	runCmd("bash", "-c", "mkdir -vp ${HOME}/.percona")
 }
 
 type PlatformType string
@@ -54,33 +73,8 @@ type ErrCmdRun struct {
 	output []byte
 }
 
-type ClusterConfig struct {
-	PXC      Spec
-	ProxySQL Spec
-	PSMDB    Spec
-	S3       S3StorageConfig
-}
-
-type Spec struct {
-	StorageSize     string
-	StorageClass    string
-	Instances       int32
-	RequestCPU      string
-	RequestMem      string
-	AntiAffinityKey string
-}
-
 func (e ErrCmdRun) Error() string {
 	return fmt.Sprintf("failed to run `%s %s`, output: %s", e.cmd, strings.Join(e.args, " "), e.output)
-}
-
-func runCmd(cmd string, args ...string) ([]byte, error) {
-	o, err := exec.Command(cmd, args...).CombinedOutput()
-	if err != nil {
-		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
-	}
-
-	return o, nil
 }
 
 func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
@@ -91,6 +85,15 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 		cli.Env = append(cli.Env, envVar)
 	}
 	o, err := cli.CombinedOutput()
+	if err != nil {
+		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
+	}
+
+	return o, nil
+}
+
+func runCmd(cmd string, args ...string) ([]byte, error) {
+	o, err := exec.Command(cmd, args...).CombinedOutput()
 	if err != nil {
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
 	}
@@ -198,4 +201,18 @@ func checkOpenshift() bool {
 	}
 
 	return strings.Contains(string(output), "openshift")
+}
+
+func isFileExists(path string) bool {
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		return true
+	}
+	return false
+}
+
+func checkExecution(e error, tag string) (string, error) {
+	if e != nil {
+		return "", errors.Wrap(e, tag)
+	}
+	return "", errors.Wrap(nil, "empty")
 }
