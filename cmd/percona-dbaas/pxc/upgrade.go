@@ -31,7 +31,7 @@ import (
 
 // upgradeCmd represents the edit command
 var upgradeCmd = &cobra.Command{
-	Use:   "upgrade <pxc-cluster-name> <to-version>",
+	Use:   "upgrade-db <pxc-cluster-name> <to-version>",
 	Short: "Upgrade MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {

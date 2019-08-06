@@ -79,7 +79,7 @@ func S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStora
 		keyid := c.KeyID
 		key := c.Key
 		if key == "" || keyid == "" {
-			return nil, ErrNoS3Options("neither s3-credentials-secret nor s3-key-id and s3-key defined")
+			return nil, ErrNoS3Options("neither s3-credentials-secret nor s3-access-key-id and s3-secret-access-key defined")
 		}
 
 		secretName = "s3-" + app.Name() + "-" + GenRandString(5)

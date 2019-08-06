@@ -29,8 +29,8 @@ import (
 
 // editCmd represents the edit command
 var editCmd = &cobra.Command{
-	Use:   "edit <pxc-cluster-name>",
-	Short: "Edit MySQL cluster",
+	Use:   "modify-db <pxc-cluster-name>",
+	Short: "Modify MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify pxc-cluster-name")

@@ -73,13 +73,13 @@ func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err
 		if err != nil {
 			return config, errors.New("undefined `s3-credentials-secret`")
 		}
-		config.S3.KeyID, err = f.GetString("s3-key-id")
+		config.S3.KeyID, err = f.GetString("s3-access-key-id")
 		if err != nil {
-			return config, errors.New("undefined `s3-key-id`")
+			return config, errors.New("undefined `s3-access-key-id`")
 		}
-		config.S3.Key, err = f.GetString("s3-key")
+		config.S3.Key, err = f.GetString("s3-secret-access-key")
 		if err != nil {
-			return config, errors.New("undefined `s3-key`")
+			return config, errors.New("undefined `s3-secret-access-key`")
 		}
 	}
 
@@ -119,13 +119,13 @@ func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig,
 	if err != nil {
 		return config, errors.New("undefined `s3-credentials-secret`")
 	}
-	config.S3.KeyID, err = f.GetString("s3-key-id")
+	config.S3.KeyID, err = f.GetString("s3-access-key-id")
 	if err != nil {
-		return config, errors.New("undefined `s3-key-id`")
+		return config, errors.New("undefined `s3-access-key-id`")
 	}
-	config.S3.Key, err = f.GetString("s3-key")
+	config.S3.Key, err = f.GetString("s3-secret-access-key")
 	if err != nil {
-		return config, errors.New("undefined `s3-key`")
+		return config, errors.New("undefined `s3-secret-access-key`")
 	}
 
 	return

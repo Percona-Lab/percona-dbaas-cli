@@ -37,7 +37,7 @@ You can skip this step by using --s3-skip-storage flag add the storage later wit
 
 // createCmd represents the create command
 var createCmd = &cobra.Command{
-	Use:   "create <pxc-cluster-name>",
+	Use:   "create-db <pxc-cluster-name>",
 	Short: "Create MySQL cluster on current Kubernetes cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
@@ -144,9 +144,9 @@ func init() {
 	createCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
 	createCmd.Flags().String("s3-bucket", "", "Bucket of S3 compatible storage to store backup at")
 	createCmd.Flags().String("s3-region", "", "Region of S3 compatible storage to store backup at")
-	createCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-key-id and --s3-key instead.")
-	createCmd.Flags().String("s3-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
-	createCmd.Flags().String("s3-key", "", "Access Key for S3 compatible storage to store backup at")
+	createCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-access-key-id and --s3-secret-access-key instead.")
+	createCmd.Flags().String("s3-access-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
+	createCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 
 	PXCCmd.AddCommand(createCmd)
