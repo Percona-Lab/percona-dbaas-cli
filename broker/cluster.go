@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"encoding/json"
 	"log"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -13,7 +14,11 @@ const (
 )
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
+<<<<<<< HEAD
 	dbservice, err := dbaas.New("")
+=======
+	brokerInstance, err := json.Marshal(instance)
+>>>>>>> Add update method, add storing instance data in meta
 	if err != nil {
 		return err
 	}
@@ -31,6 +36,8 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		if len(instance.Parameters.TopologyKey) > 0 {
 			conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
 		}
+
+		conf.PXC.BrokerInstance = string(brokerInstance)
 
 		var s3stor *dbaas.BackupStorageSpec
 
@@ -134,6 +141,80 @@ func (p *Controller) listenDeleteChannels(ok chan string, cerr chan error) {
 			return
 		case err := <-cerr:
 			log.Printf("[ERROR] delete pxc: %v", err)
+			return
+		}
+	}
+}
+
+func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
+	created := make(chan string)
+	msg := make(chan dbaas.OutuputMsg)
+	cerr := make(chan error)
+	brokerInstance, err := json.Marshal(instance)
+	if err != nil {
+		return err
+	}
+	switch instance.ServiceID {
+	case pxcServiceID:
+		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
+		conf := dbaas.ClusterConfig{}
+		SetPXCDefaults(&conf)
+		if instance.Parameters.Replicas > int32(0) {
+			conf.PXC.Instances = instance.Parameters.Replicas
+		}
+		if len(instance.Parameters.Size) > 0 {
+			conf.PXC.StorageSize = instance.Parameters.Size
+		}
+		if len(instance.Parameters.TopologyKey) > 0 {
+			conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
+		}
+
+		conf.PXC.BrokerInstance = string(brokerInstance)
+		go dbaas.Edit("pxc", app, conf, nil, created, msg, cerr)
+		p.listenUpdateChannels(created, msg, cerr, instance.ID)
+	case psmdbServiceID:
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
+		conf := dbaas.ClusterConfig{}
+		SetPSMDBDefaults(&conf)
+		if instance.Parameters.Replicas > int32(0) {
+			conf.PSMDB.Instances = instance.Parameters.Replicas
+		}
+		if len(instance.Parameters.Size) > 0 {
+			conf.PSMDB.StorageSize = instance.Parameters.Size
+		}
+		if len(instance.Parameters.TopologyKey) > 0 {
+			conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
+		}
+
+		conf.PXC.BrokerInstance = string(brokerInstance)
+		go dbaas.Edit("psmdb", app, conf, nil, created, msg, cerr)
+		p.listenUpdateChannels(created, msg, cerr, instance.ID)
+	}
+	return nil
+}
+
+func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID string) {
+	for {
+		select {
+		case okmsg := <-created:
+			p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+			log.Printf("Starting...[done] %s", okmsg)
+			return
+		case omsg := <-msg:
+			switch omsg.(type) {
+			case dbaas.OutuputMsgDebug:
+				// fmt.Printf("\n[debug] %s\n", omsg)
+			case dbaas.OutuputMsgError:
+				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+				log.Printf("[operator log error] %s\n", omsg)
+			}
+			return
+		case err := <-cerr:
+			p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+			log.Println("Create error:", err)
 			return
 		}
 	}
