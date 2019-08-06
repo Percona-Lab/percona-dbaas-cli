@@ -379,6 +379,11 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c dbaas.ClusterConfig
 	cr.ObjectMeta.Name = clusterName
 	cr.SetDefaults()
 
+	if len(c.PXC.BrokerInstance) > 0 {
+		cr.ObjectMeta.Annotations = make(map[string]string)
+		cr.ObjectMeta.Annotations["broker-instance"] = c.PXC.BrokerInstance
+	}
+
 	if len(c.PXC.StorageSize) > 0 {
 		volSizeFlag := c.PXC.StorageSize
 		volSize, err := resource.ParseQuantity(volSizeFlag)

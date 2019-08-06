@@ -1,12 +1,14 @@
 package broker
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/alecthomas/jsonschema"
 	"github.com/gorilla/mux"
 )
@@ -58,11 +60,13 @@ type BindParameters struct {
 
 // New creates new controller
 func New() (Controller, error) {
-	var pxc Controller
-	pxc.instanceMap = make(map[string]*ServiceInstance)
-	pxc.bindingMap = make(map[string]*ServiceBinding)
+	var c Controller
+	c.instanceMap = make(map[string]*ServiceInstance)
+	c.bindingMap = make(map[string]*ServiceBinding)
+	c.getBrokerInstances("pxc")
+	c.getBrokerInstances("psmdb")
 
-	return pxc, nil
+	return c, nil
 }
 
 func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
@@ -197,6 +201,44 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	WriteResponse(w, http.StatusAccepted, response)
 }
 
+func (c *Controller) UpdateServiceInstance(w http.ResponseWriter, r *http.Request) {
+	log.Println("Update Service Instance...")
+
+	var instance ServiceInstance
+
+	err := ProvisionDataFromRequest(r, &instance)
+	if err != nil {
+		log.Println("Provision instatnce:", err)
+	}
+
+	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+
+	skipS3 := true
+
+	err = c.DeployCluster(instance, &skipS3, instanceID)
+	if err != nil {
+		log.Println("Update instatnce:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	instance.InternalID = instanceID
+	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
+	instance.LastOperation = &LastOperation{
+		State:                    InProgressOperationSate,
+		Description:              InProgressOperationDescription,
+		AsyncPollIntervalSeconds: defaultPolling,
+	}
+
+	c.instanceMap[instance.ID] = &instance
+
+	response := CreateServiceInstanceResponse{
+		LastOperation: instance.LastOperation,
+	}
+
+	WriteResponse(w, http.StatusAccepted, response)
+}
+
 func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) {
 	log.Println("Get Service Instance State....")
 
@@ -212,6 +254,46 @@ func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) 
 	}
 
 	WriteResponse(w, http.StatusOK, response)
+}
+
+func (c *Controller) getBrokerInstances(typ string) {
+	s, err := dbaas.GetServiceBrokerInstances(typ)
+	if err != nil {
+		log.Println("getBrokerInstances:", err)
+		return
+	}
+
+	s = s[1 : len(s)-1]
+
+	instances := bytes.Split(s, []byte("} {"))
+	for k, v := range instances {
+		var b ServiceInstance
+		switch k {
+		case 0:
+			v = append(v, []byte("}")...)
+			err = json.Unmarshal(v, &b)
+			if err != nil {
+				log.Println("getBrokerInstances:", err)
+				return
+			}
+		case len(instances) - 1:
+			v = append([]byte("{"), v...)
+			err = json.Unmarshal(v, &b)
+			if err != nil {
+				log.Println("getBrokerInstances:", err)
+				return
+			}
+		default:
+			v = append(v, []byte("}")...)
+			v = append([]byte("{"), s...)
+			err = json.Unmarshal(v, &b)
+			if err != nil {
+				log.Println("getBrokerInstances:", err)
+				return
+			}
+		}
+		c.instanceMap[b.ID] = &b
+	}
 }
 
 func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *http.Request) {
