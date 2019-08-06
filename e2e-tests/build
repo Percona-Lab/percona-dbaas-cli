@@ -1,0 +1,45 @@
+#!/bin/bash
+
+set -o errexit
+set -o xtrace
+
+TEST_DIR="$(dirname $0)"
+. $(dirname $0)/functions
+src_dir="$(realpath ${TEST_DIR}/..)"
+
+build_cli() {
+    package=github.com/Percona-Lab/percona-dbaas-cli
+    docker run --rm -v ${src_dir}:/go/src/${package} golang:1.12 sh -c "
+        set -o errexit
+        set -o xtrace
+        export GO_LDFLAGS='-w -s $GO_LDFLAGS'
+        export GIT_COMMIT='$GIT_COMMIT'
+        export GIT_BRANCH='$GIT_BRANCH'
+
+        cd /go/src/${package}
+        mkdir -p build/_output/bin
+        GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build \
+            -ldflags '-w -s -X main.GitCommit=${GIT_COMMIT} -X main.GitBranch=${GIT_BRANCH}' \
+            -o build/_output/bin/percona-dbaas \
+            cmd/percona-dbaas/main.go
+    "
+
+    dockerfile=build/Dockerfile
+
+    export IMAGE
+    pushd ${src_dir}
+        docker build \
+            --squash \
+            --no-cache \
+            -t "${IMAGE}" -f $dockerfile .
+    popd
+    if [ "$RHEL" != "1" ]; then
+        docker push ${IMAGE}
+    fi
+
+}
+
+until docker ps;
+    do sleep 1;
+done
+build_cli
