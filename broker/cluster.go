@@ -13,9 +13,13 @@ const (
 )
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
+	dbgeneric, err := dbaas.New("")
+	if err != nil {
+		return err
+	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
+		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, *dbgeneric)
 		conf := dbaas.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -41,10 +45,10 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-		go dbaas.Create("pxc", app, created, msg, cerr)
+		go dbgeneric.Create("pxc", app, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, *dbgeneric)
 		conf := dbaas.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -69,7 +73,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-		go dbaas.Create("psmdb", app, created, msg, cerr)
+		go dbgeneric.Create("psmdb", app, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	}
 	return nil
@@ -107,12 +111,16 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	cerr := make(chan error)
 	delePVC := false
 	name := instance.Parameters.ClusterName
+	dbgeneric, err := dbaas.New("")
+	if err != nil {
+		return err
+	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		go dbaas.Delete("pxc", pxc.New(name, defaultVersion), delePVC, ok, cerr)
+		go dbgeneric.Delete("pxc", pxc.New(name, defaultVersion, *dbgeneric), delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
-		go dbaas.Delete("psmdb", psmdb.New(name, name, defaultVersion), delePVC, ok, cerr)
+		go dbgeneric.Delete("psmdb", psmdb.New(name, name, defaultVersion, *dbgeneric), delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	}
 	return nil

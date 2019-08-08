@@ -16,6 +16,7 @@ package pxc
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -28,7 +29,12 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		list, err := dbaas.List("pxc")
+		dbgeneric, err := dbaas.New(*envLst)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		list, err := dbgeneric.List("pxc")
 		if err != nil {
 			fmt.Printf("\n[error] %s\n", err)
 			return
@@ -38,6 +44,9 @@ var listCmd = &cobra.Command{
 	},
 }
 
+var envLst *string
+
 func init() {
+	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
 	PXCCmd.AddCommand(listCmd)
 }

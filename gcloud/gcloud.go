@@ -21,12 +21,20 @@ import (
 	"os/exec"
 	"strings"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
+type gcloud struct {
+	envName   string
+	project   string
+	zone      string
+	cluster   string
+	keyfile   string
+	namespace string
+}
+
+// New gcloud object
+func New(name string, config map[string]string) (*gcloud, error) {
+	perconaHome := os.Getenv("HOME") + "/.percona"
 
 	execCommand = gcloudExec
 	if _, err := exec.LookPath(execCommand); err != nil {
@@ -34,7 +42,7 @@ func init() {
 		runEnvCmd([]string{"CLOUDSDK_CORE_DISABLE_PROMPTS=1"}, "bash", "-c", "curl https://sdk.cloud.google.com | bash")
 
 		if _, err := exec.LookPath(execCommand); err != nil {
-			panic(fmt.Sprintf("Something went wrong. Unable to find '%s' executable after installation.", gcloudExec))
+			return nil, fmt.Errorf("something went wrong. Unable to find '%s' executable after installation", gcloudExec)
 		}
 	}
 
@@ -44,26 +52,46 @@ func init() {
 		if _, err := exec.LookPath(execCommand); err != nil {
 
 			fmt.Println("Can't find kubectl executable. Installing it according to https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux.")
-			runCmd("curl", "-LO", "https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl")
-			runCmd("chmod", "+x", "./kubectl")
-			runCmd("mv", "./kubectl", "/usr/local/bin/kubectl")
+			_, err := exec.Command("curl", "-LO", "https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl").CombinedOutput()
+			if err != nil {
+				return nil, fmt.Errorf("Binary download has been failed. %v", err)
+			}
+
+			_, err = exec.Command("chmod", "+x", "./kubectl").CombinedOutput()
+			if err != nil {
+				return nil, fmt.Errorf("Setting exec attribute failed. %v", err)
+			}
+			_, err = exec.Command("mv", "./kubectl", "/usr/local/bin/kubectl").CombinedOutput()
+			if err != nil {
+				return nil, fmt.Errorf("Moving kubectl bin to $PATH has been failed. %v", err)
+			}
 
 			if _, err := exec.LookPath(k8sExecDefault); err != nil {
-				panic(fmt.Sprintf("Something went wrong. Unable to find '%s' executable after installation.", k8sExecDefault))
+				return nil, fmt.Errorf("something went wrong. Unable to find '%s' executable after installation", k8sExecDefault)
 			}
 		}
 	}
-	runCmd("bash", "-c", "mkdir -vp ${HOME}/.percona")
+
+	if _, err := os.Stat(perconaHome); os.IsNotExist(err) {
+		err := os.Mkdir(perconaHome, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to create base .percona dir %v", err)
+		}
+	}
+
+	return &gcloud{
+		envName:   name,
+		project:   config["project"],
+		zone:      config["zone"],
+		cluster:   config["cluster"],
+		keyfile:   config["keyfile"],
+		namespace: config["namespace"],
+	}, nil
 }
 
-type PlatformType string
-
-const (
-	PlatformKubernetes PlatformType = "kubernetes"
-	PlatformMinikube   PlatformType = "minikube"
-	PlatformOpenshift  PlatformType = "openshift"
-	PlatformMinishift  PlatformType = "minishift"
-)
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 var execCommand string
 
@@ -92,127 +120,9 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 	return o, nil
 }
 
-func runCmd(cmd string, args ...string) ([]byte, error) {
-	o, err := exec.Command(cmd, args...).CombinedOutput()
-	if err != nil {
-		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
-	}
-
-	return o, nil
-}
-
-func readOperatorLogs(operatorName string) ([]byte, error) {
-	return runCmd(execCommand, "logs", "-l", "name="+operatorName)
-}
-
-func GetObject(typ, name string) ([]byte, error) {
-	return runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
-}
-
-func apply(k8sObj string) error {
-	_, err := runCmd("sh", "-c", "cat <<-EOF | "+execCommand+" apply -f -\n"+k8sObj+"\nEOF")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func IsObjExists(typ, name string) (bool, error) {
-	switch typ {
-	case "pxc":
-		typ = "perconaxtradbcluster.pxc.percona.com"
-	case "psmdb":
-		typ = "perconaservermongodb.psmdb.percona.com"
-	case "pxc-backup":
-		typ = "perconaxtradbclusterbackup.pxc.percona.com"
-	case "psmdb-backup":
-		typ = "perconaservermongodbbackup.psmdb.percona.com"
-	}
-
-	out, err := runCmd(execCommand, "get", typ, name, "-o", "name")
-	if err != nil && !strings.Contains(err.Error(), "NotFound") {
-		return false, errors.Wrapf(err, "get cr: %s", out)
-	}
-
-	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
-}
-
-func Instances(typ string) ([]string, error) {
-	out, err := runCmd(execCommand, "get", typ, "-o", "name")
-	if err != nil && !strings.Contains(err.Error(), "NotFound") {
-		return nil, errors.Wrapf(err, "get objects: %s", out)
-	}
-
-	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
-}
-
-const genSymbols = "abcdefghijklmnopqrstuvwxyz1234567890"
-
-// GenRandString generates a k8s-name legitimate string of given length
-func GenRandString(ln int) string {
-	b := make([]byte, ln)
-	for i := range b {
-		b[i] = genSymbols[rand.Intn(len(genSymbols))]
-	}
-
-	return string(b)
-}
-
-// GetPlatformType is for determine and return platform type
-func GetPlatformType() PlatformType {
-	if checkMinikube() {
-		return PlatformMinikube
-	}
-
-	if checkMinishift() {
-		return PlatformMinishift
-	}
-
-	if checkOpenshift() {
-		return PlatformOpenshift
-	}
-
-	return PlatformKubernetes
-}
-
-func checkMinikube() bool {
-	output, err := runCmd(execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
-	if err != nil {
-		return false
-	}
-
-	return strings.Contains(string(output), "k8s.io/minikube-hostpath")
-}
-
-func checkMinishift() bool {
-	output, err := runCmd(execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
-	if err != nil {
-		return false
-	}
-
-	return strings.Contains(string(output), "minishift")
-}
-
-func checkOpenshift() bool {
-	output, err := runCmd(execCommand, "api-versions")
-	if err != nil {
-		return false
-	}
-
-	return strings.Contains(string(output), "openshift")
-}
-
 func isFileExists(path string) bool {
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		return true
 	}
 	return false
-}
-
-func checkExecution(e error, tag string) (string, error) {
-	if e != nil {
-		return "", errors.Wrap(e, tag)
-	}
-	return "", errors.Wrap(nil, "empty")
 }

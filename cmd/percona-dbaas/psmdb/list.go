@@ -16,6 +16,7 @@ package psmdb
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -28,7 +29,12 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MongoDB cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		list, err := dbaas.List("psmdb")
+		dbgeneric, err := dbaas.New(*envLst)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		list, err := dbgeneric.List("psmdb")
 		if err != nil {
 			fmt.Printf("\n[error] %s\n", err)
 			return
@@ -38,6 +44,10 @@ var listCmd = &cobra.Command{
 	},
 }
 
+var envLst *string
+
 func init() {
+	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
 	PSMDBCmd.AddCommand(listCmd)
 }

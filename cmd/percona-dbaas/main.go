@@ -39,7 +39,6 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
-	rootCmd.PersistentFlags().String("environment", "", "Target kubernetes cluster")
 
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)

@@ -44,7 +44,11 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
+		dbgeneric, err := dbaas.New(*envDlt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -56,7 +60,7 @@ var delCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbgeneric.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -66,7 +70,7 @@ var delCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			list, err := dbgeneric.List("pxc")
 			if err != nil {
 				return
 			}
@@ -95,7 +99,7 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbaas.Delete("pxc", pxc.New(name, defaultVersion), *delePVC, ok, cerr)
+		go dbgeneric.Delete("pxc", pxc.New(name, defaultVersion, *dbgeneric), *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
@@ -111,8 +115,11 @@ var delCmd = &cobra.Command{
 	},
 }
 
+var envDlt *string
+
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
+	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	PXCCmd.AddCommand(delCmd)
 }

@@ -41,6 +41,11 @@ var bcpCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
+		dbgeneric, err := dbaas.New(*envBckpCrt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		sp.Prefix = "Looking for the cluster..."
@@ -48,7 +53,7 @@ var bcpCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbgeneric.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -58,7 +63,7 @@ var bcpCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			list, err := dbgeneric.List("pxc")
 			if err != nil {
 				return
 			}
@@ -77,7 +82,7 @@ var bcpCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.ApplyCheck("pxc-backup", bcp, ok, msg, cerr)
+		go dbgeneric.ApplyCheck("pxc-backup", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
@@ -103,6 +108,10 @@ var bcpCmd = &cobra.Command{
 	},
 }
 
+var envBckpCrt *string
+
 func init() {
+	envBckpCrt = bcpCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
 	PXCCmd.AddCommand(bcpCmd)
 }

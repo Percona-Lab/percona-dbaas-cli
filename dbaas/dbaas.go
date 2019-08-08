@@ -16,6 +16,7 @@ package dbaas
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -48,6 +49,10 @@ const (
 
 var execCommand string
 
+type DBAAS struct {
+	environment string
+}
+
 type ErrCmdRun struct {
 	cmd    string
 	args   []string
@@ -74,22 +79,39 @@ func (e ErrCmdRun) Error() string {
 	return fmt.Sprintf("failed to run `%s %s`, output: %s", e.cmd, strings.Join(e.args, " "), e.output)
 }
 
-func runCmd(cmd string, args ...string) ([]byte, error) {
-	o, err := exec.Command(cmd, args...).CombinedOutput()
-	if err != nil {
-		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
-	}
+func New(environment string) (*DBAAS, error) {
+	targetKubeConfig := os.Getenv("HOME") + "/.percona/" + environment + "/kubeconfig"
+	if len(environment) > 0 {
+		if _, err := exec.LookPath(targetKubeConfig); err != nil {
+			return &DBAAS{
+				environment: targetKubeConfig,
+			}, nil
 
-	return o, nil
+		}
+		files, err := ioutil.ReadDir(os.Getenv("HOME") + "/.percona/")
+		if err != nil {
+			return nil, fmt.Errorf("can't read the content of ~/.percona: %v", err)
+		}
+		var dirs []string
+		for _, file := range files {
+			if _, err := exec.LookPath(os.Getenv("HOME") + "/.percona/" + file.Name() + "/kubeconfig"); err != nil && file.IsDir() {
+				dirs = append(dirs, file.Name())
+			}
+		}
+
+		return nil, fmt.Errorf("can't find the requested env. Please use one of ther following: %v", dirs)
+
+	}
+	return &DBAAS{
+		environment: os.Getenv("HOME") + "/.kube/" + "/config",
+	}, nil
 }
 
-func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
+func (p DBAAS) runCmd(cmd string, args ...string) ([]byte, error) {
 	cli := exec.Command(cmd, args...)
 	cli.Env = os.Environ()
+	cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
 
-	for _, envVar := range Env {
-		cli.Env = append(cli.Env, envVar)
-	}
 	o, err := cli.CombinedOutput()
 	if err != nil {
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
@@ -98,16 +120,16 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 	return o, nil
 }
 
-func readOperatorLogs(operatorName string) ([]byte, error) {
-	return runCmd(execCommand, "logs", "-l", "name="+operatorName)
+func (p DBAAS) readOperatorLogs(operatorName string) ([]byte, error) {
+	return p.runCmd(execCommand, "logs", "-l", "name="+operatorName)
 }
 
-func GetObject(typ, name string) ([]byte, error) {
-	return runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
+func (p DBAAS) GetObject(typ, name string) ([]byte, error) {
+	return p.runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
-func apply(k8sObj string) error {
-	_, err := runCmd("sh", "-c", "cat <<-EOF | "+execCommand+" apply -f -\n"+k8sObj+"\nEOF")
+func (p DBAAS) apply(k8sObj string) error {
+	_, err := p.runCmd("sh", "-c", "cat <<-EOF | "+execCommand+" apply -f -\n"+k8sObj+"\nEOF")
 	if err != nil {
 		return err
 	}
@@ -115,7 +137,7 @@ func apply(k8sObj string) error {
 	return nil
 }
 
-func IsObjExists(typ, name string) (bool, error) {
+func (p DBAAS) IsObjExists(typ, name string) (bool, error) {
 	switch typ {
 	case "pxc":
 		typ = "perconaxtradbcluster.pxc.percona.com"
@@ -127,7 +149,7 @@ func IsObjExists(typ, name string) (bool, error) {
 		typ = "perconaservermongodbbackup.psmdb.percona.com"
 	}
 
-	out, err := runCmd(execCommand, "get", typ, name, "-o", "name")
+	out, err := p.runCmd(execCommand, "get", typ, name, "-o", "name")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return false, errors.Wrapf(err, "get cr: %s", out)
 	}
@@ -135,8 +157,8 @@ func IsObjExists(typ, name string) (bool, error) {
 	return strings.TrimSpace(string(out)) == typ+"/"+name, nil
 }
 
-func Instances(typ string) ([]string, error) {
-	out, err := runCmd(execCommand, "get", typ, "-o", "name")
+func (p DBAAS) Instances(typ string) ([]string, error) {
+	out, err := p.runCmd(execCommand, "get", typ, "-o", "name")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return nil, errors.Wrapf(err, "get objects: %s", out)
 	}
@@ -157,24 +179,24 @@ func GenRandString(ln int) string {
 }
 
 // GetPlatformType is for determine and return platform type
-func GetPlatformType() PlatformType {
-	if checkMinikube() {
+func (p DBAAS) GetPlatformType() PlatformType {
+	if p.checkMinikube() {
 		return PlatformMinikube
 	}
 
-	if checkMinishift() {
+	if p.checkMinishift() {
 		return PlatformMinishift
 	}
 
-	if checkOpenshift() {
+	if p.checkOpenshift() {
 		return PlatformOpenshift
 	}
 
 	return PlatformKubernetes
 }
 
-func checkMinikube() bool {
-	output, err := runCmd(execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
+func (p DBAAS) checkMinikube() bool {
+	output, err := p.runCmd(execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
 	if err != nil {
 		return false
 	}
@@ -182,8 +204,8 @@ func checkMinikube() bool {
 	return strings.Contains(string(output), "k8s.io/minikube-hostpath")
 }
 
-func checkMinishift() bool {
-	output, err := runCmd(execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
+func (p DBAAS) checkMinishift() bool {
+	output, err := p.runCmd(execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
 	if err != nil {
 		return false
 	}
@@ -191,8 +213,8 @@ func checkMinishift() bool {
 	return strings.Contains(string(output), "minishift")
 }
 
-func checkOpenshift() bool {
-	output, err := runCmd(execCommand, "api-versions")
+func (p DBAAS) checkOpenshift() bool {
+	output, err := p.runCmd(execCommand, "api-versions")
 	if err != nil {
 		return false
 	}

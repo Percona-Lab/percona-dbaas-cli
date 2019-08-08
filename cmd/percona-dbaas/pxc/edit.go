@@ -40,8 +40,12 @@ var editCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
-		app := pxc.New(name, defaultVersion)
+		dbgeneric, err := dbaas.New(*envEdt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		app := pxc.New(name, defaultVersion, *dbgeneric)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -54,7 +58,7 @@ var editCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", name)
+		ext, err := dbgeneric.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -64,7 +68,7 @@ var editCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbaas.List("pxc")
+			list, err := dbgeneric.List("pxc")
 			if err != nil {
 				return
 			}
@@ -83,13 +87,13 @@ var editCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("pxc", app, config, nil, created, msg, cerr)
+		go dbgeneric.Edit("pxc", app, config, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbaas.ListName("pxc", name)
+				okmsg, _ := dbgeneric.ListName("pxc", name)
 				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
@@ -110,9 +114,12 @@ var editCmd = &cobra.Command{
 	},
 }
 
+var envEdt *string
+
 func init() {
 	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
+	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	PXCCmd.AddCommand(editCmd)
 }

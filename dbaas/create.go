@@ -91,20 +91,20 @@ oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
-func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+osUser())
+func (p DBAAS) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+	p.runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
-	err := applyBundles(app.Bundle(""))
+	err := p.applyBundles(app.Bundle(""))
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundles")
 		return
 	}
 
-	ext, err := IsObjExists(typ, app.Name())
+	ext, err := p.IsObjExists(typ, app.Name())
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			errc <- errors.Errorf(osRightsMsg, execCommand, osUser(), execCommand, osAdminBundle(app.Bundle("")), osUser())
+			errc <- errors.Errorf(osRightsMsg, execCommand, p.osUser(), execCommand, osAdminBundle(app.Bundle("")), p.osUser())
 		}
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return
@@ -120,7 +120,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 		errc <- errors.Wrap(err, "get cr")
 		return
 	}
-	err = apply(cr)
+	err = p.apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -133,12 +133,12 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		secrets, err := getSecrets(app)
+		secrets, err := p.getSecrets(app)
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster secrets")
 			return
 		}
-		status, err := GetObject(typ, app.Name())
+		status, err := p.GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
@@ -159,7 +159,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 		case ClusterStateInit:
 		}
 
-		opLogsStream, err := readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
 		if err != nil {
 			// waiting for the operator to start
 			if tries < getStatusMaxTries/2 {
@@ -189,7 +189,7 @@ func Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, err
 }
 
 // CreateSecret creates k8s secret object with the given name and data
-func CreateSecret(name string, data map[string][]byte) error {
+func (p DBAAS) CreateSecret(name string, data map[string][]byte) error {
 	s := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -207,7 +207,7 @@ func CreateSecret(name string, data map[string][]byte) error {
 		errors.Wrap(err, "json marshal")
 	}
 
-	return errors.WithMessage(apply(string(sj)), "apply")
+	return errors.WithMessage(p.apply(string(sj)), "apply")
 }
 
 func osAdminBundle(bs []BundleObject) string {
@@ -222,9 +222,9 @@ func osAdminBundle(bs []BundleObject) string {
 	return strings.Join(objs, "\n---\n")
 }
 
-func applyBundles(bs []BundleObject) error {
+func (p DBAAS) applyBundles(bs []BundleObject) error {
 	for _, b := range bs {
-		err := apply(b.Data)
+		err := p.apply(b.Data)
 		if err != nil {
 			switch b.Kind {
 			case "CustomResourceDefinition", "Role":
@@ -243,11 +243,11 @@ func applyBundles(bs []BundleObject) error {
 	return nil
 }
 
-func osUser() string {
+func (p DBAAS) osUser() string {
 	ret := "<Your Opeshift User>"
-	s, err := runCmd("oc", "whoami")
+	s, err := p.runCmd("oc", "whoami")
 	if err != nil {
-		u, err := gkeUser()
+		u, err := p.gkeUser()
 		if err != nil {
 			return ret
 		}
@@ -261,8 +261,8 @@ func osUser() string {
 	return ret
 }
 
-func gkeUser() (string, error) {
-	s, err := runCmd("gcloud", "config", "get-value", "core/account")
+func (p DBAAS) gkeUser() (string, error) {
+	s, err := p.runCmd("gcloud", "config", "get-value", "core/account")
 	if err != nil {
 		return "", err
 	}
@@ -270,8 +270,8 @@ func gkeUser() (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-func getSecrets(app Deploy) (map[string][]byte, error) {
-	data, err := GetObject("secrets", app.Name()+"-secrets")
+func (p DBAAS) getSecrets(app Deploy) (map[string][]byte, error) {
+	data, err := p.GetObject("secrets", app.Name()+"-secrets")
 	if err != nil {
 		return nil, errors.Wrap(err, "get object")
 	}
