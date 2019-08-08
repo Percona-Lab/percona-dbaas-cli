@@ -40,12 +40,14 @@ var upgradeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
+
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(name, defaultVersion)
+
+		app := pxc.New(name, defaultVersion, *upgradeAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -119,12 +121,15 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
+var upgradeAnswerInJSON *bool
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade pxc to")
 	upgradeCmd.Flags().String("proxysql-image", "", "Custom image to upgrade proxySQL to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	upgradeAnswerInJSON = upgradeCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(upgradeCmd)
 }

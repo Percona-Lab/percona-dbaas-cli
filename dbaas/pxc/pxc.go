@@ -41,13 +41,15 @@ type PXC struct {
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
+	answerInJSON bool
 }
 
-func New(name string, version Version) *PXC {
+func New(name string, version Version, answerInJSON bool) *PXC {
 	return &PXC{
-		name:   name,
-		obj:    Objects[version],
-		config: &PerconaXtraDBCluster{},
+		name:         name,
+		obj:          Objects[version],
+		config:       &PerconaXtraDBCluster{},
+		answerInJSON: answerInJSON,
 	}
 }
 
@@ -84,6 +86,13 @@ ProxySQL instances      | %v
 Storage                 | %v
 `
 
+type CreateMsg struct {
+	Message           string `json:"message"`
+	PXCInstances      int32  `json:"pxcInstances"`
+	ProxySQLInstances int32  `json:"proxySQLInstances"`
+	Storage           string `json:"storage"`
+}
+
 func (p *PXC) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
 	err := p.config.SetNew(p.Name(), c, s3, platform)
 	if err != nil {
@@ -95,6 +104,20 @@ func (p *PXC) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platform
 		return "", errors.Wrap(err, "marshal pxc volume requests")
 	}
 
+	if p.answerInJSON {
+		createJSONMsg := CreateMsg{
+			Message:           "Create MySQL cluster",
+			PXCInstances:      p.config.Spec.PXC.Size,
+			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
+			Storage:           string(storage),
+		}
+		answer, err := json.Marshal(createJSONMsg)
+		if err != nil {
+			return "", errors.Wrap(err, "marshal answer")
+		}
+		return string(answer), nil
+	}
+
 	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
 }
 
@@ -103,6 +126,12 @@ const updateMsg = `Update MySQL cluster.
 PXC instances           | %v
 ProxySQL instances      | %v
 `
+
+type UpdateMsg struct {
+	Message           string `json:"message"`
+	PXCInstances      int32  `json:"pxcInstances"`
+	ProxySQLInstances int32  `json:"proxySQLInstances"`
+}
 
 func (p *PXC) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaXtraDBCluster{}
@@ -121,6 +150,19 @@ func (p *PXC) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupSto
 	err = p.config.UpdateWith(c, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "applay changes to cr")
+	}
+
+	if p.answerInJSON {
+		updateJSONMsg := CreateMsg{
+			Message:           "Update MySQL cluster",
+			PXCInstances:      p.config.Spec.PXC.Size,
+			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
+		}
+		answer, err := json.Marshal(updateJSONMsg)
+		if err != nil {
+			return "", errors.Wrap(err, "marshal answer")
+		}
+		return string(answer), nil
 	}
 
 	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
@@ -200,6 +242,14 @@ Pass: %s
 
 Enjoy!`
 
+type OkMsg struct {
+	Message string `json:"message"`
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	User    string `json:"user"`
+	Pass    string `json:"pass"`
+}
+
 func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
@@ -210,6 +260,20 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 
 	switch st.Status.Status {
 	case AppStateReady:
+		if p.answerInJSON {
+			okJSONMsg := OkMsg{
+				Message: "MySQL cluster started successfully",
+				Host:    st.Status.Host,
+				Port:    3306,
+				User:    "root",
+				Pass:    string(pass["root"]),
+			}
+			answer, err := json.Marshal(okJSONMsg)
+			if err != nil {
+				return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
+			}
+			return dbaas.ClusterStateReady, []string{string(answer)}, nil
+		}
 		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil

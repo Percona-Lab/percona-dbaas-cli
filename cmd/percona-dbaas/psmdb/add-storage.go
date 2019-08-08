@@ -54,7 +54,7 @@ var storageCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *addStorageAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -134,6 +134,7 @@ var storageCmd = &cobra.Command{
 }
 
 var envStor *string
+var addStorageAnswerInJSON *bool
 
 func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
@@ -145,6 +146,8 @@ func init() {
 	envStor = storageCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	storageCmd.Flags().Int32("replset-size", 0, "Number of nodes in replset")
+
+	addStorageAnswerInJSON = storageCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(storageCmd)
 }

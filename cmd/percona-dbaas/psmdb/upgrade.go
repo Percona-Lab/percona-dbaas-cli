@@ -46,7 +46,8 @@ var upgradeCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := psmdb.New(name, "doesnotMatter", defaultVersion)
+
+		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -120,11 +121,14 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
+var upgradeAnswerInJSON *bool
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade psmdb to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	upgradeAnswerInJSON = upgradeCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(upgradeCmd)
 }

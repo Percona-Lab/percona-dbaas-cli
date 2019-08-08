@@ -40,12 +40,14 @@ var editCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
+
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(name, defaultVersion)
+
+		app := pxc.New(name, defaultVersion, *editAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -115,11 +117,14 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
+var editAnswerInJSON *bool
 
 func init() {
 	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(editCmd)
 }

@@ -47,12 +47,15 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(args[0], defaultVersion)
+
+		app := pxc.New(args[0], defaultVersion, *createAnswerInJSON)
+
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
 			fmt.Println("[Error] parse flags to config:", err)
@@ -133,6 +136,7 @@ var createCmd = &cobra.Command{
 }
 var skipS3Storage *bool
 var envCrt *string
+var createAnswerInJSON *bool
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -155,6 +159,8 @@ func init() {
 	createCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(createCmd)
 }

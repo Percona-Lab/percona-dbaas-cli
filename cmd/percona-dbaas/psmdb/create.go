@@ -65,7 +65,7 @@ var createCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *createAnswerInJSON)
 
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
@@ -147,6 +147,7 @@ var createCmd = &cobra.Command{
 
 var skipS3Storage *bool
 var envCrt *string
+var createAnswerInJSON *bool
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "Node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -166,6 +167,8 @@ func init() {
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
+
+	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(createCmd)
 }

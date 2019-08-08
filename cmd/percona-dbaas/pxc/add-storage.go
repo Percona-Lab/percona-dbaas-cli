@@ -48,7 +48,8 @@ var storageCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(clusterName, defaultVersion)
+
+		app := pxc.New(clusterName, defaultVersion, *addStorageAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -129,6 +130,7 @@ var storageCmd = &cobra.Command{
 }
 
 var envStor *string
+var addStorageAnswerInJSON *bool
 
 func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
@@ -141,6 +143,8 @@ func init() {
 	storageCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	storageCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
 	envStor = storageCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	addStorageAnswerInJSON = storageCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(storageCmd)
 }

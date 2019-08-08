@@ -100,7 +100,7 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbservice.Delete("psmdb", psmdb.New(name, "", defaultVersion), *delePVC, ok, cerr)
+		go dbservice.Delete("psmdb", psmdb.New(name, "", defaultVersion, *deleteAnswerInJSON), *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
@@ -117,10 +117,13 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
+var deleteAnswerInJSON *bool
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	deleteAnswerInJSON = delCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(delCmd)
 }
