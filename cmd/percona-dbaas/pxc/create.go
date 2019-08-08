@@ -47,12 +47,12 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		dbgeneric, err := dbaas.New(*envCrt)
+		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(args[0], defaultVersion, *dbgeneric)
+		app := pxc.New(args[0], defaultVersion)
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
 			fmt.Println("[Error] parse flags to config:", err)
@@ -62,7 +62,7 @@ var createCmd = &cobra.Command{
 		var s3stor *dbaas.BackupStorageSpec
 		if !*skipS3Storage {
 			var err error
-			s3stor, err = dbgeneric.S3Storage(app, config.S3)
+			s3stor, err = dbservice.S3Storage(app, config.S3)
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
@@ -74,7 +74,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		setupmsg, err := app.Setup(config, s3stor)
+		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
 		if err != nil {
 			fmt.Println("[Error] set configuration:", err)
 			return
@@ -86,7 +86,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbgeneric.Create("pxc", app, created, msg, cerr)
+		go dbservice.Create("pxc", app, created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -116,7 +116,7 @@ var createCmd = &cobra.Command{
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
-					list, err := dbgeneric.List("pxc")
+					list, err := dbservice.List("pxc")
 					if err != nil {
 						return
 					}

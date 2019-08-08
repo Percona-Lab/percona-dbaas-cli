@@ -13,13 +13,13 @@ const (
 )
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
-	dbgeneric, err := dbaas.New("")
+	dbservice, err := dbaas.New("")
 	if err != nil {
 		return err
 	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, *dbgeneric)
+		app := pxc.New(instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -34,7 +34,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 
 		var s3stor *dbaas.BackupStorageSpec
 
-		setupmsg, err := app.Setup(conf, s3stor)
+		setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
 		if err != nil {
 			log.Println("[Error] set configuration:", err)
 			return nil
@@ -45,10 +45,10 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-		go dbgeneric.Create("pxc", app, created, msg, cerr)
+		go dbservice.Create("pxc", app, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, *dbgeneric)
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion)
 		conf := dbaas.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -62,7 +62,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		}
 		var s3stor *dbaas.BackupStorageSpec
 
-		setupmsg, err := app.Setup(conf, s3stor)
+		setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
 		if err != nil {
 			log.Println("[Error] set configuration:", err)
 			return nil
@@ -73,7 +73,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-		go dbgeneric.Create("psmdb", app, created, msg, cerr)
+		go dbservice.Create("psmdb", app, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	}
 	return nil
@@ -111,16 +111,16 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	cerr := make(chan error)
 	delePVC := false
 	name := instance.Parameters.ClusterName
-	dbgeneric, err := dbaas.New("")
+	dbservice, err := dbaas.New("")
 	if err != nil {
 		return err
 	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		go dbgeneric.Delete("pxc", pxc.New(name, defaultVersion, *dbgeneric), delePVC, ok, cerr)
+		go dbservice.Delete("pxc", pxc.New(name, defaultVersion), delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
-		go dbgeneric.Delete("psmdb", psmdb.New(name, name, defaultVersion, *dbgeneric), delePVC, ok, cerr)
+		go dbservice.Delete("psmdb", psmdb.New(name, name, defaultVersion), delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	}
 	return nil

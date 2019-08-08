@@ -29,12 +29,12 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		dbgeneric, err := dbaas.New(*envLst)
+		dbservice, err := dbaas.New(*envLst)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		list, err := dbgeneric.List("pxc")
+		list, err := dbservice.List("pxc")
 		if err != nil {
 			fmt.Printf("\n[error] %s\n", err)
 			return

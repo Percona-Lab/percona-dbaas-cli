@@ -44,7 +44,7 @@ var storageCmd = &cobra.Command{
 		args = parseArgs(args)
 
 		clusterName := args[0]
-		dbgeneric, err := dbaas.New(*envStor)
+		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
@@ -54,7 +54,7 @@ var storageCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *dbgeneric)
+		app := psmdb.New(clusterName, rsName, defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -67,7 +67,7 @@ var storageCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("psmdb", clusterName)
+		ext, err := dbservice.IsObjExists("psmdb", clusterName)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -77,7 +77,7 @@ var storageCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
-			list, err := dbgeneric.List("psmdb")
+			list, err := dbservice.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -91,7 +91,7 @@ var storageCmd = &cobra.Command{
 			fmt.Println("Parsing flags", err)
 		}
 
-		s3stor, err := dbgeneric.S3Storage(app, config.S3)
+		s3stor, err := dbservice.S3Storage(app, config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
@@ -106,13 +106,13 @@ var storageCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbgeneric.Edit("psmdb", app, config, s3stor, created, msg, cerr)
+		go dbservice.Edit("psmdb", app, config, s3stor, created, msg, cerr)
 		sp.Prefix = "Adding the storage..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbgeneric.ListName("psmdb", clusterName)
+				okmsg, _ := dbservice.ListName("psmdb", clusterName)
 				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:

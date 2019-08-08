@@ -48,7 +48,7 @@ var restoreCmd = &cobra.Command{
 		}
 		bcpName := args[1]
 
-		dbgeneric, err := dbaas.New(*envBckpRstr)
+		dbservice, err := dbaas.New(*envBckpRstr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
@@ -60,7 +60,7 @@ var restoreCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("pxc", name)
+		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -70,7 +70,7 @@ var restoreCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbgeneric.List("pxc")
+			list, err := dbservice.List("pxc")
 			if err != nil {
 				return
 			}
@@ -80,7 +80,7 @@ var restoreCmd = &cobra.Command{
 		}
 
 		sp.Prefix = "Looking for the backup..."
-		ext, err = dbgeneric.IsObjExists("pxc-backup", bcpName)
+		ext, err = dbservice.IsObjExists("pxc-backup", bcpName)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
@@ -90,7 +90,7 @@ var restoreCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "pxc-backup", bcpName)
-			list, err := dbgeneric.List("pxc-backup")
+			list, err := dbservice.List("pxc-backup")
 			if err != nil {
 				return
 			}
@@ -109,7 +109,7 @@ var restoreCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbgeneric.ApplyCheck("pxc-restore", bcp, ok, msg, cerr)
+		go dbservice.ApplyCheck("pxc-restore", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
