@@ -15,8 +15,6 @@
 package gcloud
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 )
 
@@ -24,16 +22,4 @@ import (
 var GCLOUDCmd = &cobra.Command{
 	Use:   "gcloud",
 	Short: "Manage your kubernetes/openshift environments",
-}
-
-func parseArgs(args []string) []string {
-	if len(args) == 0 {
-		return args
-	}
-
-	if a := strings.Split(args[0], "/"); len(a) == 2 {
-		args = a
-	}
-
-	return args
 }

@@ -44,7 +44,12 @@ var storageCmd = &cobra.Command{
 
 		clusterName := args[0]
 
-		app := pxc.New(clusterName, defaultVersion)
+		dbgeneric, err := dbaas.New(*envStor)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		app := pxc.New(clusterName, defaultVersion, *dbgeneric)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -57,7 +62,7 @@ var storageCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("pxc", clusterName)
+		ext, err := dbgeneric.IsObjExists("pxc", clusterName)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -67,7 +72,7 @@ var storageCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", clusterName)
-			list, err := dbaas.List("pxc")
+			list, err := dbgeneric.List("pxc")
 			if err != nil {
 				return
 			}
@@ -82,7 +87,7 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		s3stor, err := dbaas.S3Storage(app, config.S3)
+		s3stor, err := dbgeneric.S3Storage(app, config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
@@ -97,13 +102,13 @@ var storageCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Edit("pxc", app, config, s3stor, created, msg, cerr)
+		go dbgeneric.Edit("pxc", app, config, s3stor, created, msg, cerr)
 		sp.Prefix = "Adding the storage..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbaas.ListName("pxc", clusterName)
+				okmsg, _ := dbgeneric.ListName("pxc", clusterName)
 				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
@@ -124,6 +129,8 @@ var storageCmd = &cobra.Command{
 	},
 }
 
+var envStor *string
+
 func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
 	storageCmd.Flags().String("s3-bucket", "", "Bucket of S3 compatible storage to store backup at")
@@ -134,6 +141,7 @@ func init() {
 
 	storageCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	storageCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
+	envStor = storageCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	PXCCmd.AddCommand(storageCmd)
 }

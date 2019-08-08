@@ -23,16 +23,16 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p DBAAS) Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	if operator != "" {
-		err := upgradeOperator(app, operator)
+		err := p.upgradeOperator(app, operator)
 		if err != nil {
 			errc <- errors.Wrap(err, "upgrade operator")
 			return
 		}
 	}
 
-	acr, err := GetObject(typ, app.Name())
+	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
 		return
@@ -49,7 +49,7 @@ func Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok
 		errc <- errors.Wrap(err, "get cr")
 		return
 	}
-	err = apply(cr)
+	err = p.apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -60,7 +60,7 @@ func Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := GetObject(typ, app.Name())
+		status, err := p.GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
@@ -81,7 +81,7 @@ func Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok
 		case ClusterStateInit:
 		}
 
-		opLogsStream, err := readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get operator logs")
 			return
@@ -106,14 +106,14 @@ func Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok
 	}
 }
 
-func upgradeOperator(app Deploy, newImage string) error {
+func (p DBAAS) upgradeOperator(app Deploy, newImage string) error {
 	if newImage == "" {
 		return nil
 	}
 
 	for _, o := range app.Bundle(newImage) {
 		if o.Kind == "Deployment" && o.Name == app.OperatorName() {
-			err := apply(o.Data)
+			err := p.apply(o.Data)
 			if err != nil {
 				return errors.Wrap(err, "apply cr")
 			}
@@ -123,7 +123,7 @@ func upgradeOperator(app Deploy, newImage string) error {
 			tckr := time.NewTicker(500 * time.Millisecond)
 			defer tckr.Stop()
 			for range tckr.C {
-				status, err := runCmd(execCommand, "get", "pod", "-l", "name="+app.OperatorName(), "-o", "json")
+				status, err := p.runCmd(execCommand, "get", "pod", "-l", "name="+app.OperatorName(), "-o", "json")
 				if err != nil {
 					return errors.Wrap(err, "get status")
 				}

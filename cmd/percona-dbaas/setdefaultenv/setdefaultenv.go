@@ -41,7 +41,7 @@ var SetDefaultEnvCmd = &cobra.Command{
 		args = parseArgs(args)
 
 		envName := args[0]
-		_, err := gcloud.SetDefaultEnv(envName, os.Getenv("HOME"))
+		err := gcloud.SetDefaultEnv(envName, os.Getenv("HOME"))
 		if err != nil {
 			fmt.Printf("\n[error] %s\n", err)
 			return

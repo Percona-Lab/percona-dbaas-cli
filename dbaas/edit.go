@@ -21,8 +21,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	acr, err := GetObject(typ, app.Name())
+func (p DBAAS) Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
 		return
@@ -39,7 +39,7 @@ func Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, o
 		errc <- errors.Wrap(err, "get cr")
 		return
 	}
-	err = apply(cr)
+	err = p.apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -50,7 +50,7 @@ func Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, o
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := GetObject(typ, app.Name())
+		status, err := p.GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
@@ -71,7 +71,7 @@ func Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, o
 		case ClusterStateInit:
 		}
 
-		opLogsStream, err := readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get operator logs")
 			return

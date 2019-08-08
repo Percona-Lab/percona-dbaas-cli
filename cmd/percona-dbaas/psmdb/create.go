@@ -53,6 +53,11 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
 
+		dbgeneric, err := dbaas.New(*envCrt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 		clusterName := args[0]
 
 		rsName := ""
@@ -60,7 +65,7 @@ var createCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *dbgeneric)
 
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
@@ -70,7 +75,7 @@ var createCmd = &cobra.Command{
 		var s3stor *dbaas.BackupStorageSpec
 		if !*skipS3Storage {
 			var err error
-			s3stor, err = dbaas.S3Storage(app, config.S3)
+			s3stor, err = dbgeneric.S3Storage(app, config.S3)
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
@@ -94,7 +99,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.Create("psmdb", app, created, msg, cerr)
+		go dbgeneric.Create("psmdb", app, created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -124,7 +129,7 @@ var createCmd = &cobra.Command{
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
-					list, err := dbaas.List("psmdb")
+					list, err := dbgeneric.List("psmdb")
 					if err != nil {
 						return
 					}
@@ -141,6 +146,7 @@ var createCmd = &cobra.Command{
 }
 
 var skipS3Storage *bool
+var envCrt *string
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "Node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -156,6 +162,9 @@ func init() {
 	createCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-access-key-id and --s3-secret-access-key instead.")
 	createCmd.Flags().String("s3-access-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
 	createCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
+
+	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 
 	PSMDBCmd.AddCommand(createCmd)

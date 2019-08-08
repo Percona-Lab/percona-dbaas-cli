@@ -40,7 +40,11 @@ var restoreCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-
+		dbgeneric, err := dbaas.New(*envBckpRstr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 		name := args[0]
 		if len(args) < 2 || args[1] == "" {
 			fmt.Fprint(os.Stderr, "[ERROR] you have to specify psmdb-cluster-name and psmdb-backup-name\n")
@@ -55,7 +59,7 @@ var restoreCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("psmdb", name)
+		ext, err := dbgeneric.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -65,7 +69,7 @@ var restoreCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbaas.List("psmdb")
+			list, err := dbgeneric.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -75,7 +79,7 @@ var restoreCmd = &cobra.Command{
 		}
 
 		sp.Prefix = "Looking for the backup..."
-		ext, err = dbaas.IsObjExists("psmdb-backup", bcpName)
+		ext, err = dbgeneric.IsObjExists("psmdb-backup", bcpName)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
@@ -85,7 +89,7 @@ var restoreCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "psmdb-backup", bcpName)
-			list, err := dbaas.List("psmdb-backup")
+			list, err := dbgeneric.List("psmdb-backup")
 			if err != nil {
 				return
 			}
@@ -104,7 +108,7 @@ var restoreCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbaas.ApplyCheck("psmdb-restore", bcp, ok, msg, cerr)
+		go dbgeneric.ApplyCheck("psmdb-restore", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
@@ -129,7 +133,10 @@ var restoreCmd = &cobra.Command{
 		}
 	},
 }
+var envBckpRstr *string
 
 func init() {
+	envBckpRstr = restoreCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
 	PSMDBCmd.AddCommand(restoreCmd)
 }

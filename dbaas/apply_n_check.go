@@ -31,14 +31,14 @@ type ApplyChecker interface {
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 }
 
-func ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p DBAAS) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	cr, err := app.CR()
 	if err != nil {
 		errc <- errors.Wrap(err, "create cr")
 		return
 	}
 
-	err = apply(cr)
+	err = p.apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -49,7 +49,7 @@ func ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- Outup
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := GetObject(typ, app.Name())
+		status, err := p.GetObject(typ, app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
@@ -70,7 +70,7 @@ func ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- Outup
 		case ClusterStateInit:
 		}
 
-		opLogsStream, err := readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get operator logs")
 			return

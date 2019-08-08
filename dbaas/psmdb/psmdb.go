@@ -43,18 +43,20 @@ type PSMDB struct {
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
+	dbgeneric    *dbaas.DBAAS
 }
 
-func New(clusterName, replsetName string, version Version) *PSMDB {
+func New(clusterName, replsetName string, version Version, genericobj dbaas.DBAAS) *PSMDB {
 	if replsetName == "" {
 		replsetName = defaultRSname
 	}
 
 	return &PSMDB{
-		name:   clusterName,
-		rsName: replsetName,
-		obj:    objects[version],
-		config: &PerconaServerMongoDB{},
+		name:      clusterName,
+		rsName:    replsetName,
+		obj:       objects[version],
+		config:    &PerconaServerMongoDB{},
+		dbgeneric: &genericobj,
 	}
 }
 
@@ -92,7 +94,7 @@ Storage                 | %v
 `
 
 func (p *PSMDB) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), p.rsName, c, s3, dbaas.GetPlatformType())
+	err := p.config.SetNew(p.Name(), p.rsName, c, s3, p.dbgeneric.GetPlatformType())
 
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")

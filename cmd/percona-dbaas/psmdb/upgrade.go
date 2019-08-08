@@ -43,7 +43,12 @@ var upgradeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app := psmdb.New(name, "doesnotMatter", defaultVersion)
+		dbgeneric, err := dbaas.New(*envUpgrd)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		app := psmdb.New(name, "doesnotMatter", defaultVersion, *dbgeneric)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -56,7 +61,7 @@ var upgradeCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("psmdb", name)
+		ext, err := dbgeneric.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -66,7 +71,7 @@ var upgradeCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbaas.List("psmdb")
+			list, err := dbgeneric.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -90,7 +95,7 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		if operator != "" {
-			num, err := dbaas.Instances("psmdb")
+			num, err := dbgeneric.Instances("psmdb")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] unable to get psmdb instances: %v\n", err)
 				return
@@ -111,13 +116,13 @@ var upgradeCmd = &cobra.Command{
 			}
 		}
 
-		go dbaas.Upgrade("psmdb", app, operator, appsImg, created, msg, cerr)
+		go dbgeneric.Upgrade("psmdb", app, operator, appsImg, created, msg, cerr)
 		sp.Prefix = "Upgrading cluster..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbaas.ListName("psmdb", name)
+				okmsg, _ := dbgeneric.ListName("psmdb", name)
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
@@ -138,10 +143,13 @@ var upgradeCmd = &cobra.Command{
 	},
 }
 
+var envUpgrd *string
+
 func init() {
 	upgradeCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	upgradeCmd.Flags().String("psmdb-image", "", "Custom image to upgrade psmdb to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
+	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	PSMDBCmd.AddCommand(upgradeCmd)
 }

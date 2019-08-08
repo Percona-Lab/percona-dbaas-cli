@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func List(typ string) (string, error) {
+func (p DBAAS) List(typ string) (string, error) {
 	out, err := exec.Command("kubectl", "get", typ).CombinedOutput()
 	if err != nil {
 		return "", errors.Wrapf(err, "get cr: %s", out)
@@ -29,7 +29,7 @@ func List(typ string) (string, error) {
 	return string(out), nil
 }
 
-func ListName(typ, name string) (string, error) {
+func (p DBAAS) ListName(typ, name string) (string, error) {
 	out, err := exec.Command("kubectl", "get", typ, name).CombinedOutput()
 	if err != nil {
 		return "", errors.Wrapf(err, "get cr: %s", out)

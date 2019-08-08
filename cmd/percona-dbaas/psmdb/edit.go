@@ -43,12 +43,17 @@ var editCmd = &cobra.Command{
 
 		clusterName := args[0]
 
+		dbgeneric, err := dbaas.New(*envEdt)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 		rsName := ""
 		if len(args) >= 2 {
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *dbgeneric)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -61,7 +66,7 @@ var editCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbaas.IsObjExists("psmdb", clusterName)
+		ext, err := dbgeneric.IsObjExists("psmdb", clusterName)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -71,7 +76,7 @@ var editCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
-			list, err := dbaas.List("psmdb")
+			list, err := dbgeneric.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -87,13 +92,13 @@ var editCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println("Parsing flags", err)
 		}
-		go dbaas.Edit("psmdb", app, config, nil, created, msg, cerr)
+		go dbgeneric.Edit("psmdb", app, config, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbaas.ListName("psmdb", clusterName)
+				okmsg, _ := dbgeneric.ListName("psmdb", clusterName)
 				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
@@ -114,8 +119,11 @@ var editCmd = &cobra.Command{
 	},
 }
 
+var envEdt *string
+
 func init() {
 	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
+	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	PSMDBCmd.AddCommand(editCmd)
 }

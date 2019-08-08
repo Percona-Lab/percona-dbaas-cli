@@ -15,7 +15,7 @@
 package gcloud
 
 import (
-	b64 "encoding/base64"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -31,13 +31,6 @@ func isJSON(s string) bool {
 
 }
 
-func checkExecution(e error) {
-	if e != nil {
-		fmt.Printf("\n[error] %s\n", e)
-		return
-	}
-}
-
 // setupCmd represents the list command
 var setupCmd = &cobra.Command{
 	Use:   "setup <environment-name>",
@@ -51,32 +44,46 @@ var setupCmd = &cobra.Command{
 	},
 
 	Run: func(cmd *cobra.Command, args []string) {
-		args = parseArgs(args)
-
 		envName := args[0]
-		keyFlag, err := cmd.Flags().GetString("gcloud-key-file")
-		checkExecution(err)
-		if keyFlag != "" {
-			if isJSON(keyFlag) {
-				cmd.Flags().Set("gcloud-key-file", b64.StdEncoding.EncodeToString([]byte(keyFlag)))
+		if len(*keyfile) > 0 {
+			if isJSON(*keyfile) {
+				*keyfile = base64.StdEncoding.EncodeToString([]byte(*keyfile))
 			} else {
-				dat, err := ioutil.ReadFile(keyFlag)
-				checkExecution(err)
-				cmd.Flags().Set("gcloud-key-file", b64.StdEncoding.EncodeToString([]byte(dat)))
+				dat, err := ioutil.ReadFile(*keyfile)
+				if err != nil {
+					fmt.Printf("\n[error] %s\n", err)
+					return
+				}
+				*keyfile = base64.StdEncoding.EncodeToString([]byte(dat))
 			}
 
 		}
-		_, err = gcloud.Setup(envName, cmd.Flags())
-		checkExecution(err)
+
+		cloudEnv, err := gcloud.New(envName, map[string]string{"project": *project, "zone": *zone, "cluster": *cluster, "keyfile": *keyfile, "namespace": *namespace})
+		if err != nil {
+			fmt.Printf("\n[error] %s\n", err)
+			return
+		}
+		err = cloudEnv.Setup()
+		if err != nil {
+			fmt.Printf("\n[error] %s\n", err)
+			return
+		}
 	},
 }
 
+var project *string
+var zone *string
+var cluster *string
+var keyfile *string
+var namespace *string
+
 func init() {
-	setupCmd.Flags().String("gcloud-project", "", "Google Cloud organization unit")
-	setupCmd.Flags().String("gcloud-zone", "", "Compute zone (us-central1-a, europe-west3-b ...)")
-	setupCmd.Flags().String("gcloud-cluster", "", "Google Kubernetes Engine cluster name")
-	setupCmd.Flags().String("gcloud-key-file", "", "Google Cloud credentials file path or the contents.")
-	setupCmd.Flags().String("kube-namespace", "default", "Default kubernetes namespace")
+	project = setupCmd.Flags().String("gcloud-project", "", "Google Cloud organization unit")
+	zone = setupCmd.Flags().String("gcloud-zone", "", "Compute zone (us-central1-a, europe-west3-b ...)")
+	cluster = setupCmd.Flags().String("gcloud-cluster", "", "Google Kubernetes Engine cluster name")
+	keyfile = setupCmd.Flags().String("gcloud-key-file", "", "Google Cloud credentials file path or the contents.")
+	namespace = setupCmd.Flags().String("kube-namespace", "default", "Default kubernetes namespace")
 
 	setupCmd.MarkFlagRequired("gcloud-project")
 	setupCmd.MarkFlagRequired("gcloud-zone")

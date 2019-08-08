@@ -65,7 +65,7 @@ func (e ErrNoS3Options) Error() string {
 	return "not enough options to set S3 backup storage: " + string(e)
 }
 
-func S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStorageSpec, error) {
+func (p DBAAS) S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStorageSpec, error) {
 	bucket := c.Bucket
 	if bucket == "" {
 		return nil, ErrNoS3Options("no buket defined")
@@ -87,7 +87,7 @@ func S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStora
 			"AWS_ACCESS_KEY_ID":     []byte(keyid),
 			"AWS_SECRET_ACCESS_KEY": []byte(key),
 		}
-		err := CreateSecret(secretName, secretData)
+		err := p.CreateSecret(secretName, secretData)
 		if err != nil {
 			return nil, errors.Wrap(err, "create secret")
 		}
