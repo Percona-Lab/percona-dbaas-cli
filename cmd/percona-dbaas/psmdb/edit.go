@@ -53,7 +53,7 @@ var editCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -120,10 +120,13 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
+var editAnswerInJSON *bool
 
 func init() {
 	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(editCmd)
 }

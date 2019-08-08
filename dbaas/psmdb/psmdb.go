@@ -43,18 +43,20 @@ type PSMDB struct {
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
+	answerInJSON bool
 }
 
-func New(clusterName, replsetName string, version Version) *PSMDB {
+func New(clusterName, replsetName string, version Version, answerInJSON bool) *PSMDB {
 	if replsetName == "" {
 		replsetName = defaultRSname
 	}
 
 	return &PSMDB{
-		name:   clusterName,
-		rsName: replsetName,
-		obj:    objects[version],
-		config: &PerconaServerMongoDB{},
+		name:         clusterName,
+		rsName:       replsetName,
+		obj:          objects[version],
+		config:       &PerconaServerMongoDB{},
+		answerInJSON: answerInJSON,
 	}
 }
 
@@ -91,6 +93,13 @@ Replica Set Size        | %v
 Storage                 | %v
 `
 
+type CreateMsg struct {
+	Message        string `json:"message"`
+	ReplicaSetName string `json:"replicaSetName"`
+	ReplicaSetSize int32  `json:"replicaSetSize"`
+	Storage        string `json:"storage"`
+}
+
 func (p *PSMDB) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
 	err := p.config.SetNew(p.Name(), p.rsName, c, s3, platform)
 
@@ -103,6 +112,20 @@ func (p *PSMDB) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platfo
 		return "", errors.Wrap(err, "marshal psmdb volume requests")
 	}
 
+	if p.answerInJSON {
+		createJSONMsg := CreateMsg{
+			Message:        "Create MongoDB cluster",
+			ReplicaSetName: p.config.Spec.Replsets[0].Name,
+			ReplicaSetSize: p.config.Spec.Replsets[0].Size,
+			Storage:        string(storage),
+		}
+		answer, err := json.Marshal(createJSONMsg)
+		if err != nil {
+			return "", errors.Wrap(err, "marshal answer")
+		}
+		return string(answer), nil
+	}
+
 	return fmt.Sprintf(createMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size, string(storage)), nil
 }
 
@@ -111,6 +134,12 @@ const updateMsg = `Update MongoDB cluster.
 Replica Set Name        | %v
 Replica Set Size        | %v
 `
+
+type UpdateMsg struct {
+	Message        string `json:"message"`
+	ReplicaSetName string `json:"replicaSetName"`
+	ReplicaSetSize int32  `json:"replicaSetSize"`
+}
 
 func (p *PSMDB) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaServerMongoDB{}
@@ -128,6 +157,19 @@ func (p *PSMDB) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupS
 	err = p.config.UpdateWith(p.rsName, c, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "apply changes to cr")
+	}
+
+	if p.answerInJSON {
+		updateJSONMsg := UpdateMsg{
+			Message:        "Update MongoDB cluster",
+			ReplicaSetName: p.config.Spec.Replsets[0].Name,
+			ReplicaSetSize: p.config.Spec.Replsets[0].Size,
+		}
+		answer, err := json.Marshal(updateJSONMsg)
+		if err != nil {
+			return "", errors.Wrap(err, "marshal answer")
+		}
+		return string(answer), nil
 	}
 
 	return fmt.Sprintf(updateMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size), nil
@@ -198,6 +240,16 @@ UserAdmin Password: %s
 
 Enjoy!`
 
+type OkMsg struct {
+	Message          string `json:"message"`
+	Host             string `json:"host"`
+	Port             int    `json:"port"`
+	ClusterAdminUser string `json:"clusterAdminUser"`
+	ClusterAdminPass string `json:"clusterAdminPass"`
+	UserAdminUser    string `json:"userAdminUser"`
+	UserAdminPass    string `json:"userAdminPass"`
+}
+
 func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
 	st := &k8sStatus{}
 
@@ -211,6 +263,24 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 		switch st.Status.Status {
 		case AppStateReady:
 			host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
+
+			if p.answerInJSON {
+				okJSONMsg := OkMsg{
+					Message:          "MySQL cluster started successfully",
+					Host:             host,
+					Port:             27017,
+					ClusterAdminUser: string(pass["MONGODB_CLUSTER_ADMIN_USER"]),
+					ClusterAdminPass: string(pass["MONGODB_CLUSTER_MONITOR_PASSWORD"]),
+					UserAdminUser:    string(pass["MONGODB_USER_ADMIN_USER"]),
+					UserAdminPass:    string(pass["MONGODB_USER_ADMIN_PASSWORD"]),
+				}
+				answer, err := json.Marshal(okJSONMsg)
+				if err != nil {
+					return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
+				}
+				return dbaas.ClusterStateReady, []string{string(answer)}, nil
+			}
+
 			msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
 			return dbaas.ClusterStateReady, []string{msg}, nil
 		case AppStateError:

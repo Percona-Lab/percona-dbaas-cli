@@ -623,7 +623,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, c dbaas.Clust
 	}
 
 	if len(c.PSMDB.BrokerInstance) > 0 {
-		cr.ObjectMeta.Annotations["broker-instance"] = c.PXC.BrokerInstance
+		cr.ObjectMeta.Annotations["broker-instance"] = c.PSMDB.BrokerInstance
 	}
 
 	cr.Spec.Backup, err = cr.createBackup()
