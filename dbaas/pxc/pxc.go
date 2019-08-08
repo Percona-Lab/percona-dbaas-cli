@@ -147,27 +147,18 @@ func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
 
 const operatorImage = "percona/percona-xtradb-cluster-operator:"
 
-func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[string]string, err error) {
+func (p *PXC) Images(ver string, f *pflag.FlagSet) (apps map[string]string, err error) {
 	apps = make(map[string]string)
 
 	if ver != "" {
-		operator = operatorImage + ver
 		apps["pxc"] = operatorImage + ver + "-pxc"
 		apps["proxysql"] = operatorImage + ver + "-proxysql"
 		apps["backup"] = operatorImage + ver + "-backup"
 	}
 
-	op, err := f.GetString("operator-image")
+	pxc, err := f.GetString("database-image")
 	if err != nil {
-		return operator, apps, errors.New("undefined `operator-image`")
-	}
-	if op != "" {
-		operator = op
-	}
-
-	pxc, err := f.GetString("pxc-image")
-	if err != nil {
-		return operator, apps, errors.New("undefined `pxc-image`")
+		return apps, errors.New("undefined `database-image`")
 	}
 	if pxc != "" {
 		apps["pxc"] = pxc
@@ -175,7 +166,7 @@ func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[st
 
 	proxysql, err := f.GetString("proxysql-image")
 	if err != nil {
-		return operator, apps, errors.New("undefined `proxysql-image`")
+		return apps, errors.New("undefined `proxysql-image`")
 	}
 	if proxysql != "" {
 		apps["proxysql"] = proxysql
@@ -183,13 +174,13 @@ func (p *PXC) Images(ver string, f *pflag.FlagSet) (operator string, apps map[st
 
 	backup, err := f.GetString("backup-image")
 	if err != nil {
-		return operator, apps, errors.New("undefined `backup-image`")
+		return apps, errors.New("undefined `backup-image`")
 	}
 	if backup != "" {
 		apps["backup"] = backup
 	}
 
-	return operator, apps, nil
+	return apps, nil
 }
 
 func (p *PXC) OperatorName() string {

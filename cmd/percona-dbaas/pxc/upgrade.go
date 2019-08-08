@@ -15,10 +15,8 @@
 package pxc
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -87,34 +85,13 @@ var upgradeCmd = &cobra.Command{
 		if len(args) > 1 {
 			oparg = args[1]
 		}
-		operator, appsImg, err := app.Images(oparg, cmd.Flags())
+		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
 			return
 		}
 
-		if operator != "" {
-			num, err := dbservice.Instances("pxc")
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] unable to get pxc instances: %v\n", err)
-			}
-			if len(num) > 1 {
-				sp.Stop()
-				var yn string
-				fmt.Printf("\nFound more than one pxc cluster: %s.\nOperator upgrade may affect other clusters.\nContinue? [y/N] ", num)
-				scanner := bufio.NewScanner(os.Stdin)
-				for scanner.Scan() {
-					yn = strings.TrimSpace(scanner.Text())
-					break
-				}
-				if yn != "y" && yn != "Y" {
-					return
-				}
-				sp.Start()
-			}
-		}
-
-		go dbservice.Upgrade("pxc", app, operator, appsImg, created, msg, cerr)
+		go dbservice.Upgrade("pxc", app, appsImg, created, msg, cerr)
 		sp.Prefix = "Upgrading cluster..."
 
 		for {
@@ -144,8 +121,7 @@ var upgradeCmd = &cobra.Command{
 var envUpgrd *string
 
 func init() {
-	upgradeCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
-	upgradeCmd.Flags().String("pxc-image", "", "Custom image to upgrade pxc to")
+	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade pxc to")
 	upgradeCmd.Flags().String("proxysql-image", "", "Custom image to upgrade proxySQL to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")

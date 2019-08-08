@@ -15,8 +15,10 @@
 package psmdb
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -27,10 +29,10 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
-// upgradeCmd represents the edit command
-var upgradeCmd = &cobra.Command{
-	Use:   "upgrade-db <psmdb-cluster-name> <to-version>",
-	Short: "Upgrade Percona Server for MongoDB",
+// upgradeOperatorCmd represents the edit command
+var upgradeOperatorCmd = &cobra.Command{
+	Use:   "upgrade-operator <psmdb-cluster-name> <to-version>",
+	Short: "Upgrade PSMDB operator",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify psmdb-cluster-name")
@@ -41,7 +43,7 @@ var upgradeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		dbservice, err := dbaas.New(*envUpgrd)
+		dbservice, err := dbaas.New(*envUpgrdOprtr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
@@ -79,39 +81,41 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		oparg := ""
-		if len(args) > 1 {
-			oparg = args[1]
-		}
-		appsImg, err := app.Images(oparg, cmd.Flags())
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
-			return
+		if *oprtrImage != "" {
+			num, err := dbservice.Instances("psmdb")
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] unable to get psmdb instances: %v\n", err)
+				return
+			}
+			if len(num) > 1 {
+				sp.Stop()
+				var yn string
+				fmt.Printf("\nFound more than one psmdb cluster: %v.\nOperator upgrade may affect other clusters.\nContinue? [y/N] ", num)
+				scanner := bufio.NewScanner(os.Stdin)
+				for scanner.Scan() {
+					yn = strings.TrimSpace(scanner.Text())
+					break
+				}
+				if yn != "y" && yn != "Y" {
+					return
+				}
+				sp.Start()
+			}
 		}
 
-		go dbservice.Upgrade("psmdb", app, appsImg, created, msg, cerr)
-		sp.Prefix = "Upgrading cluster..."
+		go dbservice.UpgradeOperator(app, *oprtrImage, created, cerr)
+		sp.Prefix = "Upgrading cluster operator..."
 
 		for {
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("psmdb", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
+				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
 				return
-			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
-					sp.Start()
-				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade psmdb: %v\n", err)
+				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade psmdb operator: %v\n", err)
 				sp.HideCursor = true
 				return
 			}
@@ -119,12 +123,12 @@ var upgradeCmd = &cobra.Command{
 	},
 }
 
-var envUpgrd *string
+var envUpgrdOprtr *string
+var oprtrImage *string
 
 func init() {
-	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade psmdb to")
-	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
-	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
+	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
+	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
-	PSMDBCmd.AddCommand(upgradeCmd)
+	PSMDBCmd.AddCommand(upgradeOperatorCmd)
 }
