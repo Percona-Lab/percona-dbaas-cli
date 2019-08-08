@@ -20,7 +20,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p DBAAS) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc chan<- error) {
+func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc chan<- error) {
 	err := p.delete(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "delete cluster")
@@ -37,7 +37,7 @@ func (p DBAAS) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, err
 	ok <- ""
 }
 
-func (p DBAAS) delete(typ, name string) error {
+func (p Cmd) delete(typ, name string) error {
 	out, err := exec.Command("kubectl", "delete", typ, name).CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "get cr: %s", out)
@@ -46,7 +46,7 @@ func (p DBAAS) delete(typ, name string) error {
 	return nil
 }
 
-func (p DBAAS) deletePVC(app Deploy) error {
+func (p Cmd) deletePVC(app Deploy) error {
 	out, err := exec.Command("kubectl", "delete", "pvc",
 		"-l", "app.kubernetes.io/part-of="+app.OperatorName(),
 		"-l", "app.kubernetes.io/instance="+app.Name(),

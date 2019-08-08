@@ -31,7 +31,7 @@ type ApplyChecker interface {
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 }
 
-func (p DBAAS) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	cr, err := app.CR()
 	if err != nil {
 		errc <- errors.Wrap(err, "create cr")

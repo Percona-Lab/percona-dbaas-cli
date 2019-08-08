@@ -59,7 +59,6 @@ func (p *Gcloud) Setup() error {
 		if err != nil {
 			return errors.Wrap(err, "gcloud authentication")
 		}
-
 	}
 	_, err = runEnvCmd([]string{kubeConfigEnv}, "bash", "-c", fmt.Sprintf("gcloud container clusters get-credentials --project %s --zone %s %s", p.project, p.zone, p.cluster))
 	if err != nil {
@@ -69,7 +68,6 @@ func (p *Gcloud) Setup() error {
 	if err != nil {
 		return errors.Wrap(err, "setting kube context")
 	}
-
 	return SetDefaultEnv(p.envName, homePath)
 }
 
@@ -88,7 +86,7 @@ func SetDefaultEnv(envName string, homePath string) error {
 		return errors.Wrap(err, "access file")
 	}
 	if !fileExists {
-		err := os.Rename(fmt.Sprintf("%s/.kube/config", homePath), fmt.Sprintf("%s/.kube/config-%s-old", homePath, getRandomString(randomStringLength)))
+		err := os.Rename(fmt.Sprintf("%s/.kube/config", homePath), fmt.Sprintf("%s/.kube/config-sdc33s-old", homePath))
 		if err != nil {
 			return errors.Wrap(err, "moving kube config")
 		}

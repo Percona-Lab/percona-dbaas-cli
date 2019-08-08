@@ -41,7 +41,6 @@ var storageCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 		clusterName := args[0]
 
 		dbservice, err := dbaas.New(*envStor)
