@@ -18,7 +18,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/gcloud"
 	"github.com/spf13/cobra"
@@ -38,7 +37,6 @@ var SetDefaultEnvCmd = &cobra.Command{
 	},
 
 	Run: func(cmd *cobra.Command, args []string) {
-		args = parseArgs(args)
 
 		envName := args[0]
 		err := gcloud.SetDefaultEnv(envName, os.Getenv("HOME"))
@@ -47,16 +45,4 @@ var SetDefaultEnvCmd = &cobra.Command{
 			return
 		}
 	},
-}
-
-func parseArgs(args []string) []string {
-	if len(args) == 0 {
-		return args
-	}
-
-	if a := strings.Split(args[0], "/"); len(a) == 2 {
-		args = a
-	}
-
-	return args
 }
