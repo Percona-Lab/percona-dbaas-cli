@@ -153,25 +153,16 @@ func (p *PSMDB) Upgrade(crRaw []byte, newImages map[string]string) error {
 
 const operatorImage = "percona/percona-server-mongodb-operator:"
 
-func (p *PSMDB) Images(ver string, f *pflag.FlagSet) (operator string, apps map[string]string, err error) {
+func (p *PSMDB) Images(ver string, f *pflag.FlagSet) (apps map[string]string, err error) {
 	apps = make(map[string]string)
 	if ver != "" {
-		operator = operatorImage + ver
 		apps["psmdb"] = operatorImage + ver + "-mongod4.0"
 		apps["backup"] = operatorImage + ver + "-backup"
 	}
 
-	op, err := f.GetString("operator-image")
+	psmdb, err := f.GetString("database-image")
 	if err != nil {
-		return operator, apps, errors.New("undefined `operator-image`")
-	}
-	if op != "" {
-		operator = op
-	}
-
-	psmdb, err := f.GetString("psmdb-image")
-	if err != nil {
-		return operator, apps, errors.New("undefined `psmdb-image`")
+		return apps, errors.New("undefined `database-image`")
 	}
 	if psmdb != "" {
 		apps["psmdb"] = psmdb
@@ -179,13 +170,13 @@ func (p *PSMDB) Images(ver string, f *pflag.FlagSet) (operator string, apps map[
 
 	backup, err := f.GetString("backup-image")
 	if err != nil {
-		return operator, apps, errors.New("undefined `backup-image`")
+		return apps, errors.New("undefined `backup-image`")
 	}
 	if backup != "" {
 		apps["backup"] = backup
 	}
 
-	return operator, apps, nil
+	return apps, nil
 }
 
 func (p *PSMDB) OperatorName() string {

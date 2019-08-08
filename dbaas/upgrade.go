@@ -23,15 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (p Cmd) Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	if operator != "" {
-		err := p.upgradeOperator(app, operator)
-		if err != nil {
-			errc <- errors.Wrap(err, "upgrade operator")
-			return
-		}
-	}
-
+func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -106,16 +98,17 @@ func (p Cmd) Upgrade(typ string, app Deploy, operator string, apps map[string]st
 	}
 }
 
-func (p Cmd) upgradeOperator(app Deploy, newImage string) error {
+func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc chan<- error) {
 	if newImage == "" {
-		return nil
+		return
 	}
 
 	for _, o := range app.Bundle(newImage) {
 		if o.Kind == "Deployment" && o.Name == app.OperatorName() {
 			err := p.apply(o.Data)
 			if err != nil {
-				return errors.Wrap(err, "apply cr")
+				errc <- errors.Wrap(err, "apply cr")
+				return
 			}
 
 			time.Sleep(15 * time.Second)
@@ -125,34 +118,40 @@ func (p Cmd) upgradeOperator(app Deploy, newImage string) error {
 			for range tckr.C {
 				status, err := p.runCmd(execCommand, "get", "pod", "-l", "name="+app.OperatorName(), "-o", "json")
 				if err != nil {
-					return errors.Wrap(err, "get status")
+					errc <- errors.Wrap(err, "get status")
+					return
 				}
 				pods := corev1.PodList{}
 				err = json.Unmarshal(status, &pods)
 				if err != nil {
-					return errors.Wrap(err, "marshal status")
+					errc <- errors.Wrap(err, "marshal status")
+					return
 				}
 
 				if len(pods.Items) < 1 {
-					return errors.Wrapf(err, "unable to find operator pod for %s", app.OperatorName())
+					errc <- errors.Wrapf(err, "unable to find operator pod for %s", app.OperatorName())
+					return
 				}
 
 				pod := pods.Items[0]
 				switch pod.Status.Phase {
 				case corev1.PodRunning:
-					return nil
+					ok <- "Operator has been updated"
+					return
 				case corev1.PodFailed:
-					return errors.Errorf("failed to run: %s: %s", pod.Status.Message, pod.Status.Reason)
+					errc <- errors.Errorf("failed to run: %s: %s", pod.Status.Message, pod.Status.Reason)
+					return
 				default:
 				}
 
 				if tries >= getStatusMaxTries {
-					return errors.Wrap(err, "response limit has reached, unable get the success status from pod")
+					errc <- errors.Wrap(err, "response limit has reached, unable get the success status from pod")
+					return
 				}
 
 				tries++
 			}
 		}
 	}
-	return nil
+	return
 }
