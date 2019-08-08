@@ -135,9 +135,13 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 	return o, nil
 }
 
-func isFileExists(path string) bool {
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		return true
+func isFileExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return true, nil
+		}
+		return false, err
 	}
-	return false
+	return false, nil
 }
