@@ -24,11 +24,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-func checkExecution(e error, tag string) (string, error) {
-
-	return "", errors.Wrap(nil, "empty")
-}
-
 // Setup new gcloud cluster environment
 func (p *gcloud) Setup() error {
 	homePath := os.Getenv("HOME")
