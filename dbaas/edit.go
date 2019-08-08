@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p DBAAS) Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")

@@ -91,7 +91,7 @@ oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
-func (p DBAAS) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	p.runCmd(execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
 	err := p.applyBundles(app.Bundle(""))
@@ -189,7 +189,7 @@ func (p DBAAS) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outup
 }
 
 // CreateSecret creates k8s secret object with the given name and data
-func (p DBAAS) CreateSecret(name string, data map[string][]byte) error {
+func (p Cmd) CreateSecret(name string, data map[string][]byte) error {
 	s := corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
@@ -222,7 +222,7 @@ func osAdminBundle(bs []BundleObject) string {
 	return strings.Join(objs, "\n---\n")
 }
 
-func (p DBAAS) applyBundles(bs []BundleObject) error {
+func (p Cmd) applyBundles(bs []BundleObject) error {
 	for _, b := range bs {
 		err := p.apply(b.Data)
 		if err != nil {
@@ -243,7 +243,7 @@ func (p DBAAS) applyBundles(bs []BundleObject) error {
 	return nil
 }
 
-func (p DBAAS) osUser() string {
+func (p Cmd) osUser() string {
 	ret := "<Your Opeshift User>"
 	s, err := p.runCmd("oc", "whoami")
 	if err != nil {
@@ -261,7 +261,7 @@ func (p DBAAS) osUser() string {
 	return ret
 }
 
-func (p DBAAS) gkeUser() (string, error) {
+func (p Cmd) gkeUser() (string, error) {
 	s, err := p.runCmd("gcloud", "config", "get-value", "core/account")
 	if err != nil {
 		return "", err
@@ -270,7 +270,7 @@ func (p DBAAS) gkeUser() (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-func (p DBAAS) getSecrets(app Deploy) (map[string][]byte, error) {
+func (p Cmd) getSecrets(app Deploy) (map[string][]byte, error) {
 	data, err := p.GetObject("secrets", app.Name()+"-secrets")
 	if err != nil {
 		return nil, errors.Wrap(err, "get object")

@@ -23,7 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (p DBAAS) Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Upgrade(typ string, app Deploy, operator string, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	if operator != "" {
 		err := p.upgradeOperator(app, operator)
 		if err != nil {
@@ -106,7 +106,7 @@ func (p DBAAS) Upgrade(typ string, app Deploy, operator string, apps map[string]
 	}
 }
 
-func (p DBAAS) upgradeOperator(app Deploy, newImage string) error {
+func (p Cmd) upgradeOperator(app Deploy, newImage string) error {
 	if newImage == "" {
 		return nil
 	}

@@ -25,7 +25,7 @@ import (
 
 // SetDefaultEnvCmd represents the gcloud command
 var SetDefaultEnvCmd = &cobra.Command{
-	Use:   "set-default-environment",
+	Use:   "set-default-environment <environment>",
 	Short: "Set your kubernetes/openshift environment as default",
 
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -37,7 +37,6 @@ var SetDefaultEnvCmd = &cobra.Command{
 	},
 
 	Run: func(cmd *cobra.Command, args []string) {
-
 		envName := args[0]
 		err := gcloud.SetDefaultEnv(envName, os.Getenv("HOME"))
 		if err != nil {

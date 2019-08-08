@@ -56,7 +56,6 @@ var setupCmd = &cobra.Command{
 				}
 				*keyfile = base64.StdEncoding.EncodeToString([]byte(dat))
 			}
-
 		}
 
 		cloudEnv, err := gcloud.New(envName, *project, *zone, *cluster, *keyfile, *namespace)

@@ -23,11 +23,6 @@ import (
 	"time"
 )
 
-const charset = "abcdefghijklmnopqrstuvwxyz" +
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
-
 // Gcloud env structure for GKE
 type Gcloud struct {
 	envName     string
@@ -50,18 +45,14 @@ func New(name string, project string, zone string, cluster string, keyfile strin
 		if _, err := exec.LookPath(gcloudobj.execCommand); err != nil {
 
 			fmt.Println("Can't find kubectl executable. Installing it according to https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux.")
-			_, err := exec.Command("curl", "-LO", "https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl").CombinedOutput()
+			_, err := exec.Command("curl", "-L", "-o", "/usr/local/bin/kubectl", "https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl").CombinedOutput()
 			if err != nil {
 				return nil, fmt.Errorf("binary download has been failed. %v", err)
 			}
 
-			_, err = exec.Command("chmod", "+x", "./kubectl").CombinedOutput()
+			err = os.Chmod("/usr/local/bin/kubectl", 0755)
 			if err != nil {
 				return nil, fmt.Errorf("setting exec attribute failed. %v", err)
-			}
-			_, err = exec.Command("mv", "./kubectl", "/usr/local/bin/kubectl").CombinedOutput()
-			if err != nil {
-				return nil, fmt.Errorf("moving kubectl bin to $PATH has been failed. %v", err)
 			}
 
 			if _, err := exec.LookPath(k8sExecDefault); err != nil {
@@ -98,18 +89,6 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func getRandomString(len int) string {
-	return StringWithCharset(len, charset)
-}
-
-func StringWithCharset(length int, charset string) string {
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[seededRand.Intn(len(charset))]
-	}
-	return string(b)
-}
-
 type ErrCmdRun struct {
 	cmd    string
 	args   []string
@@ -131,7 +110,6 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 	if err != nil {
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
 	}
-
 	return o, nil
 }
 
