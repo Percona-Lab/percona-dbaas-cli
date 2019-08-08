@@ -41,15 +41,13 @@ type PXC struct {
 	obj          dbaas.Objects
 	dbpass       []byte
 	opLogsLastTS float64
-	dbgeneric    *dbaas.DBAAS
 }
 
-func New(name string, version Version, genericobj dbaas.DBAAS) *PXC {
+func New(name string, version Version) *PXC {
 	return &PXC{
-		name:      name,
-		obj:       Objects[version],
-		config:    &PerconaXtraDBCluster{},
-		dbgeneric: &genericobj,
+		name:   name,
+		obj:    Objects[version],
+		config: &PerconaXtraDBCluster{},
 	}
 }
 
@@ -86,8 +84,8 @@ ProxySQL instances      | %v
 Storage                 | %v
 `
 
-func (p *PXC) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (string, error) {
-	err := p.config.SetNew(p.Name(), c, s3, p.dbgeneric.GetPlatformType())
+func (p *PXC) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
+	err := p.config.SetNew(p.Name(), c, s3, platform)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}

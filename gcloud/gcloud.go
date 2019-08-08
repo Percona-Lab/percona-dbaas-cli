@@ -23,47 +23,45 @@ import (
 	"time"
 )
 
-type gcloud struct {
-	envName   string
-	project   string
-	zone      string
-	cluster   string
-	keyfile   string
-	namespace string
+const charset = "abcdefghijklmnopqrstuvwxyz" +
+	"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+var seededRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+// Gcloud env structure for GKE
+type Gcloud struct {
+	envName     string
+	project     string
+	zone        string
+	cluster     string
+	keyfile     string
+	namespace   string
+	execCommand string
 }
 
 // New gcloud object
-func New(name string, config map[string]string) (*gcloud, error) {
+func New(name string, project string, zone string, cluster string, keyfile string, namespace string) (*Gcloud, error) {
 	perconaHome := os.Getenv("HOME") + "/.percona"
+	gcloudobj := &Gcloud{}
 
-	execCommand = gcloudExec
-	if _, err := exec.LookPath(execCommand); err != nil {
-		fmt.Println("Can't find gcloud executable. Installing it according to https://cloud.google.com/sdk/docs/downloads-interactive.")
-		runEnvCmd([]string{"CLOUDSDK_CORE_DISABLE_PROMPTS=1"}, "bash", "-c", "curl https://sdk.cloud.google.com | bash")
-
-		if _, err := exec.LookPath(execCommand); err != nil {
-			return nil, fmt.Errorf("something went wrong. Unable to find '%s' executable after installation", gcloudExec)
-		}
-	}
-
-	execCommand = k8sExecDefault
-	if _, err := exec.LookPath(execCommand); err != nil {
-		execCommand = k8sExecCustom
-		if _, err := exec.LookPath(execCommand); err != nil {
+	gcloudobj.execCommand = k8sExecDefault
+	if _, err := exec.LookPath(gcloudobj.execCommand); err != nil {
+		gcloudobj.execCommand = k8sExecCustom
+		if _, err := exec.LookPath(gcloudobj.execCommand); err != nil {
 
 			fmt.Println("Can't find kubectl executable. Installing it according to https://kubernetes.io/docs/tasks/tools/install-kubectl/#install-kubectl-on-linux.")
 			_, err := exec.Command("curl", "-LO", "https://storage.googleapis.com/kubernetes-release/release/v1.15.0/bin/linux/amd64/kubectl").CombinedOutput()
 			if err != nil {
-				return nil, fmt.Errorf("Binary download has been failed. %v", err)
+				return nil, fmt.Errorf("binary download has been failed. %v", err)
 			}
 
 			_, err = exec.Command("chmod", "+x", "./kubectl").CombinedOutput()
 			if err != nil {
-				return nil, fmt.Errorf("Setting exec attribute failed. %v", err)
+				return nil, fmt.Errorf("setting exec attribute failed. %v", err)
 			}
 			_, err = exec.Command("mv", "./kubectl", "/usr/local/bin/kubectl").CombinedOutput()
 			if err != nil {
-				return nil, fmt.Errorf("Moving kubectl bin to $PATH has been failed. %v", err)
+				return nil, fmt.Errorf("moving kubectl bin to $PATH has been failed. %v", err)
 			}
 
 			if _, err := exec.LookPath(k8sExecDefault); err != nil {
@@ -71,29 +69,46 @@ func New(name string, config map[string]string) (*gcloud, error) {
 			}
 		}
 	}
+	gcloudobj.execCommand = gcloudExec
+	if _, err := exec.LookPath(gcloudobj.execCommand); err != nil {
+		fmt.Println("Can't find gcloud executable. Installing it according to https://cloud.google.com/sdk/docs/downloads-interactive.")
+		runEnvCmd([]string{"CLOUDSDK_CORE_DISABLE_PROMPTS=1"}, "bash", "-c", "curl https://sdk.cloud.google.com | bash")
+
+		if _, err := exec.LookPath(gcloudobj.execCommand); err != nil {
+			return nil, fmt.Errorf("something went wrong. Unable to find '%s' executable after installation", gcloudExec)
+		}
+	}
 
 	if _, err := os.Stat(perconaHome); os.IsNotExist(err) {
 		err := os.Mkdir(perconaHome, 0755)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to create base .percona dir %v", err)
+			return nil, fmt.Errorf("unable to create base .percona dir %v", err)
 		}
 	}
-
-	return &gcloud{
-		envName:   name,
-		project:   config["project"],
-		zone:      config["zone"],
-		cluster:   config["cluster"],
-		keyfile:   config["keyfile"],
-		namespace: config["namespace"],
-	}, nil
+	gcloudobj.envName = name
+	gcloudobj.project = project
+	gcloudobj.zone = zone
+	gcloudobj.cluster = cluster
+	gcloudobj.keyfile = name
+	gcloudobj.namespace = keyfile
+	return gcloudobj, nil
 }
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-var execCommand string
+func getRandomString(len int) string {
+	return StringWithCharset(len, charset)
+}
+
+func StringWithCharset(length int, charset string) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
+}
 
 type ErrCmdRun struct {
 	cmd    string

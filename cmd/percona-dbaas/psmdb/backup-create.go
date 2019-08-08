@@ -40,7 +40,7 @@ var bcpCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbgeneric, err := dbaas.New(*envBckpCrt)
+		dbservice, err := dbaas.New(*envBckpCrt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
@@ -52,7 +52,7 @@ var bcpCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("psmdb", name)
+		ext, err := dbservice.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -62,7 +62,7 @@ var bcpCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbgeneric.List("psmdb")
+			list, err := dbservice.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -81,7 +81,7 @@ var bcpCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbgeneric.ApplyCheck("psmdb-backup", bcp, ok, msg, cerr)
+		go dbservice.ApplyCheck("psmdb-backup", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

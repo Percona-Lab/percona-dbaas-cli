@@ -45,7 +45,7 @@ var delCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		dbgeneric, err := dbaas.New(*envDlt)
+		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
@@ -61,7 +61,7 @@ var delCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("psmdb", name)
+		ext, err := dbservice.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -71,7 +71,7 @@ var delCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbgeneric.List("psmdb")
+			list, err := dbservice.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -100,7 +100,7 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbgeneric.Delete("psmdb", psmdb.New(name, "", defaultVersion, *dbgeneric), *delePVC, ok, cerr)
+		go dbservice.Delete("psmdb", psmdb.New(name, "", defaultVersion), *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

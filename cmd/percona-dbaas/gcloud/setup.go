@@ -59,7 +59,7 @@ var setupCmd = &cobra.Command{
 
 		}
 
-		cloudEnv, err := gcloud.New(envName, map[string]string{"project": *project, "zone": *zone, "cluster": *cluster, "keyfile": *keyfile, "namespace": *namespace})
+		cloudEnv, err := gcloud.New(envName, *project, *zone, *cluster, *keyfile, *namespace)
 		if err != nil {
 			fmt.Printf("\n[error] %s\n", err)
 			return

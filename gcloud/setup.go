@@ -24,8 +24,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+const randomStringLength = 5
+
 // Setup new gcloud cluster environment
-func (p *gcloud) Setup() error {
+func (p *Gcloud) Setup() error {
 	homePath := os.Getenv("HOME")
 	envPath, err := filepath.Abs(homePath + "/.percona/" + p.envName)
 	if err != nil {
@@ -64,21 +66,17 @@ func (p *gcloud) Setup() error {
 		return errors.Wrap(err, "setting kube context")
 	}
 
-	err = SetDefaultEnv(p.envName, homePath)
-	if err != nil {
-		return err
-	}
-	return nil
+	return SetDefaultEnv(p.envName, homePath)
 }
 
 // SetDefaultEnv sets default kubernetes environment
 func SetDefaultEnv(envName string, homePath string) error {
 	if !isFileExists(fmt.Sprintf("%s/.percona/%s", homePath, envName)) {
-		return fmt.Errorf(fmt.Sprintf("Environment %s does not exist", envName))
+		return fmt.Errorf("environment %s does not exist", envName)
 	}
 
-	if isFileExists(fmt.Sprintf("%s/.kube/config", homePath)) && !isFileExists(fmt.Sprintf("%s/.kube/config-old", homePath)) {
-		err := os.Rename(fmt.Sprintf("%s/.kube/config", homePath), fmt.Sprintf("%s/.kube/config-old", homePath))
+	if isFileExists(fmt.Sprintf("%s/.kube/config", homePath)) {
+		err := os.Rename(fmt.Sprintf("%s/.kube/config", homePath), fmt.Sprintf("%s/.kube/config-%s-old", homePath, getRandomString(randomStringLength)))
 		if err != nil {
 			return errors.Wrap(err, "moving kube config")
 		}

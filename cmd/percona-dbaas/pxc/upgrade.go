@@ -42,12 +42,12 @@ var upgradeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbgeneric, err := dbaas.New(*envUpgrd)
+		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(name, defaultVersion, *dbgeneric)
+		app := pxc.New(name, defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -60,7 +60,7 @@ var upgradeCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("pxc", name)
+		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -70,7 +70,7 @@ var upgradeCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbgeneric.List("pxc")
+			list, err := dbservice.List("pxc")
 			if err != nil {
 				return
 			}
@@ -94,7 +94,7 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		if operator != "" {
-			num, err := dbgeneric.Instances("pxc")
+			num, err := dbservice.Instances("pxc")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] unable to get pxc instances: %v\n", err)
 			}
@@ -114,13 +114,13 @@ var upgradeCmd = &cobra.Command{
 			}
 		}
 
-		go dbgeneric.Upgrade("pxc", app, operator, appsImg, created, msg, cerr)
+		go dbservice.Upgrade("pxc", app, operator, appsImg, created, msg, cerr)
 		sp.Prefix = "Upgrading cluster..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbgeneric.ListName("pxc", name)
+				okmsg, _ := dbservice.ListName("pxc", name)
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:

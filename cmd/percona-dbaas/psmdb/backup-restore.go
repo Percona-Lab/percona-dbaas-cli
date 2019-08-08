@@ -40,7 +40,7 @@ var restoreCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-		dbgeneric, err := dbaas.New(*envBckpRstr)
+		dbservice, err := dbaas.New(*envBckpRstr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
@@ -59,7 +59,7 @@ var restoreCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("psmdb", name)
+		ext, err := dbservice.IsObjExists("psmdb", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -69,7 +69,7 @@ var restoreCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbgeneric.List("psmdb")
+			list, err := dbservice.List("psmdb")
 			if err != nil {
 				return
 			}
@@ -79,7 +79,7 @@ var restoreCmd = &cobra.Command{
 		}
 
 		sp.Prefix = "Looking for the backup..."
-		ext, err = dbgeneric.IsObjExists("psmdb-backup", bcpName)
+		ext, err = dbservice.IsObjExists("psmdb-backup", bcpName)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
@@ -89,7 +89,7 @@ var restoreCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "psmdb-backup", bcpName)
-			list, err := dbgeneric.List("psmdb-backup")
+			list, err := dbservice.List("psmdb-backup")
 			if err != nil {
 				return
 			}
@@ -108,7 +108,7 @@ var restoreCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbgeneric.ApplyCheck("psmdb-restore", bcp, ok, msg, cerr)
+		go dbservice.ApplyCheck("psmdb-restore", bcp, ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

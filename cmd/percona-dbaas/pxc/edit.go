@@ -40,12 +40,12 @@ var editCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbgeneric, err := dbaas.New(*envEdt)
+		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(name, defaultVersion, *dbgeneric)
+		app := pxc.New(name, defaultVersion)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -58,7 +58,7 @@ var editCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbgeneric.IsObjExists("pxc", name)
+		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -68,7 +68,7 @@ var editCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbgeneric.List("pxc")
+			list, err := dbservice.List("pxc")
 			if err != nil {
 				return
 			}
@@ -87,13 +87,13 @@ var editCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbgeneric.Edit("pxc", app, config, nil, created, msg, cerr)
+		go dbservice.Edit("pxc", app, config, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbgeneric.ListName("pxc", name)
+				okmsg, _ := dbservice.ListName("pxc", name)
 				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
