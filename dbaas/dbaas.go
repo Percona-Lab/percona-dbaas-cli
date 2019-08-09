@@ -167,8 +167,8 @@ func (p Cmd) Instances(typ string) ([]string, error) {
 	return strings.Split(strings.TrimSpace(string(out)), "\n"), nil
 }
 
-func GetServiceBrokerInstances(typ string) ([]byte, error) {
-	out, err := runCmd(execCommand, "get", typ, "-o", "jsonpath='{.items..metadata.annotations.broker-instance}'")
+func (p Cmd) GetServiceBrokerInstances(typ string) ([]byte, error) {
+	out, err := p.runCmd(execCommand, "get", typ, "-o", "jsonpath='{.items..metadata.annotations.broker-instance}'")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return nil, errors.Wrapf(err, "get objects: %s", out)
 	}

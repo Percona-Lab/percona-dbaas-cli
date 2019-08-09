@@ -119,6 +119,7 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	if err != nil {
 		return err
 	}
+
 	switch instance.ServiceID {
 	case pxcServiceID:
 		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, false), delePVC, ok, cerr)
@@ -167,7 +168,7 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		}
 
 		conf.PXC.BrokerInstance = string(brokerInstance)
-		go dbaas.Edit("pxc", app, conf, nil, created, msg, cerr)
+		go p.dbaas.Edit("pxc", app, conf, nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false)
@@ -184,7 +185,7 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		}
 
 		conf.PXC.BrokerInstance = string(brokerInstance)
-		go dbaas.Edit("psmdb", app, conf, nil, created, msg, cerr)
+		go p.dbaas.Edit("psmdb", app, conf, nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID)
 	}
 	return nil

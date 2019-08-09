@@ -18,6 +18,7 @@ import (
 type Controller struct {
 	instanceMap map[string]*ServiceInstance
 	bindingMap  map[string]*ServiceBinding
+	dbaas       *dbaas.Cmd
 }
 
 // ProvisionParameters represents the parameters that can be tuned on a cluster
@@ -62,9 +63,14 @@ type BindParameters struct {
 // New creates new controller
 func New() (Controller, error) {
 	var c Controller
+	dbservice, err := dbaas.New("")
+	if err != nil {
+		return c, errors.Wrap(err, "create dbaas")
+	}
+	c.dbaas = dbservice
 	c.instanceMap = make(map[string]*ServiceInstance)
 	c.bindingMap = make(map[string]*ServiceBinding)
-	err := c.getBrokerInstances("pxc")
+	err = c.getBrokerInstances("pxc")
 	if err != nil {
 		log.Println(errors.Wrap(err, "get pxc instances"))
 	}
@@ -266,7 +272,7 @@ func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) 
 }
 
 func (c *Controller) getBrokerInstances(typ string) error {
-	s, err := dbaas.GetServiceBrokerInstances(typ)
+	s, err := c.dbaas.GetServiceBrokerInstances(typ)
 	if err != nil {
 		return errors.Wrap(err, "getBrokerInstances")
 	}
