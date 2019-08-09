@@ -105,8 +105,9 @@ var storageCmd = &cobra.Command{
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
+		app.ClusterConfig = config
+		go dbservice.Edit("psmdb", app, s3stor, created, msg, cerr)
 
-		go dbservice.Edit("psmdb", app, config, s3stor, created, msg, cerr)
 		sp.Prefix = "Adding the storage..."
 
 		for {

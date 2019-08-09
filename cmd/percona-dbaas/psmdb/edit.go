@@ -92,7 +92,8 @@ var editCmd = &cobra.Command{
 		if err != nil {
 			fmt.Println("Parsing flags", err)
 		}
-		go dbservice.Edit("psmdb", app, config, nil, created, msg, cerr)
+		app.ClusterConfig = config
+		go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {

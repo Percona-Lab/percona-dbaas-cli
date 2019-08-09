@@ -26,7 +26,23 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+type ClusterConfig struct {
+	PXC      Spec
+	ProxySQL Spec
+	S3       dbaas.S3StorageConfig
+}
+
+type Spec struct {
+	StorageSize     string
+	StorageClass    string
+	Instances       int32
+	RequestCPU      string
+	RequestMem      string
+	AntiAffinityKey string
+	BrokerInstance  string
+}
+
+func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error) {
 	config.PXC.StorageSize, err = f.GetString("storage-size")
 	if err != nil {
 		return config, errors.New("undefined `storage size`")
@@ -106,7 +122,7 @@ func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err
 	return
 }
 
-func ParseEditFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+func ParseEditFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error) {
 	config.PXC.Instances, err = f.GetInt32("pxc-instances")
 	if err != nil {
 		return config, errors.New("undefined `pxc-instances`")
@@ -120,7 +136,7 @@ func ParseEditFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err e
 	return
 }
 
-func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error) {
 	config.PXC.Instances, err = f.GetInt32("pxc-instances")
 	if err != nil {
 		return config, errors.New("undefined `pxc-instances`")
@@ -337,7 +353,7 @@ var AffinityValidTopologyKeys = map[string]struct{}{
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
 
-func (cr *PerconaXtraDBCluster) UpdateWith(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaXtraDBCluster) UpdateWith(c ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
 	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
 		if cr.Spec.Backup.Storages == nil {
 			cr.Spec.Backup.Storages = make(map[string]*dbaas.BackupStorageSpec)
@@ -375,7 +391,7 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
+func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	cr.SetDefaults()
 
@@ -463,7 +479,7 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c dbaas.ClusterConfig
 	return nil
 }
 
-func (cr *PerconaXtraDBCluster) setProxySQL(c dbaas.ClusterConfig) error {
+func (cr *PerconaXtraDBCluster) setProxySQL(c ClusterConfig) error {
 	proxyCPU := c.ProxySQL.RequestCPU
 	_, err := resource.ParseQuantity(proxyCPU)
 	if err != nil {

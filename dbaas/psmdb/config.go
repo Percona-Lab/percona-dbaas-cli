@@ -26,7 +26,22 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 )
 
-func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+type ClusterConfig struct {
+	PSMDB Spec
+	S3    dbaas.S3StorageConfig
+}
+
+type Spec struct {
+	StorageSize     string
+	StorageClass    string
+	Instances       int32
+	RequestCPU      string
+	RequestMem      string
+	AntiAffinityKey string
+	BrokerInstance  string
+}
+
+func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error) {
 	config.PSMDB.StorageSize, err = f.GetString("storage-size")
 	if err != nil {
 		return config, errors.New("undefined `storage-size`")
@@ -87,7 +102,7 @@ func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err
 
 }
 
-func ParseEditFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+func ParseEditFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error) {
 	config.PSMDB.Instances, err = f.GetInt32("replset-size")
 	if err != nil {
 		return config, errors.New("undefined `replset-size`")
@@ -97,7 +112,7 @@ func ParseEditFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err e
 
 }
 
-func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config dbaas.ClusterConfig, err error) {
+func ParseAddStorageFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error) {
 	config.PSMDB.Instances, err = f.GetInt32("replset-size")
 	if err != nil {
 		return config, errors.New("undefined `replset-size`")
@@ -509,7 +524,7 @@ type ServerVersion struct {
 	Info     k8sversion.Info
 }
 
-func (cr *PerconaServerMongoDB) UpdateWith(rsName string, c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
+func (cr *PerconaServerMongoDB) UpdateWith(rsName string, c ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
 	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
 		if cr.Spec.Backup.Storages == nil {
 			cr.Spec.Backup.Storages = make(map[string]dbaas.BackupStorageSpec)
@@ -535,7 +550,7 @@ func (cr *PerconaServerMongoDB) UpdateWith(rsName string, c dbaas.ClusterConfig,
 	return errors.Errorf("unknown replica set '%s'", rsName)
 }
 
-func (cr *PerconaServerMongoDB) NewReplSet(name string, c dbaas.ClusterConfig) error {
+func (cr *PerconaServerMongoDB) NewReplSet(name string, c ClusterConfig) error {
 	if len(cr.Spec.Replsets) == 0 {
 		return errors.New("no replsets")
 	}
@@ -611,7 +626,7 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
+func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, c ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
 	cr.ObjectMeta.Name = clusterName
 	err = cr.setDefaults(rsName)
 	if err != nil {

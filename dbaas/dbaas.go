@@ -51,23 +51,6 @@ type ErrCmdRun struct {
 	output []byte
 }
 
-type ClusterConfig struct {
-	PXC      Spec
-	ProxySQL Spec
-	PSMDB    Spec
-	S3       S3StorageConfig
-}
-
-type Spec struct {
-	StorageSize     string
-	StorageClass    string
-	Instances       int32
-	RequestCPU      string
-	RequestMem      string
-	AntiAffinityKey string
-	BrokerInstance  string
-}
-
 func (e ErrCmdRun) Error() string {
 	return fmt.Sprintf("failed to run `%s %s`, output: %s", e.cmd, strings.Join(e.args, " "), e.output)
 }

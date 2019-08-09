@@ -86,6 +86,7 @@ var storageCmd = &cobra.Command{
 			fmt.Println("[Error] parse flags to config:", err)
 			return
 		}
+		app.ClusterConfig = config
 
 		s3stor, err := dbservice.S3Storage(app, config.S3)
 		if err != nil {
@@ -102,7 +103,7 @@ var storageCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.Edit("pxc", app, config, s3stor, created, msg, cerr)
+		go dbservice.Edit("pxc", app, s3stor, created, msg, cerr)
 		sp.Prefix = "Adding the storage..."
 
 		for {

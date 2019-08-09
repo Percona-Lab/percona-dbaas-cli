@@ -22,7 +22,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	switch instance.ServiceID {
 	case pxcServiceID:
 		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, false)
-		conf := dbaas.ClusterConfig{}
+		conf := pxc.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PXC.Instances = instance.Parameters.Replicas
@@ -33,8 +33,9 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		if len(instance.Parameters.TopologyKey) > 0 {
 			conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
 		}
-
 		conf.PXC.BrokerInstance = string(brokerInstance)
+
+		app.ClusterConfig = conf
 
 		var s3stor *dbaas.BackupStorageSpec
 
@@ -53,7 +54,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		go p.listenCreateChannels(created, msg, cerr, instanceID)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false)
-		conf := dbaas.ClusterConfig{}
+		conf := psmdb.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PSMDB.Instances = instance.Parameters.Replicas
@@ -64,9 +65,12 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		if len(instance.Parameters.TopologyKey) > 0 {
 			conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
 		}
+		conf.PSMDB.BrokerInstance = string(brokerInstance)
+		app.ClusterConfig = conf
+
 		var s3stor *dbaas.BackupStorageSpec
 
-		setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
+		setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
 		if err != nil {
 			log.Println("[Error] set configuration:", err)
 			return nil
@@ -155,7 +159,7 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 	switch instance.ServiceID {
 	case pxcServiceID:
 		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, false)
-		conf := dbaas.ClusterConfig{}
+		conf := pxc.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PXC.Instances = instance.Parameters.Replicas
@@ -168,11 +172,13 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		}
 
 		conf.PXC.BrokerInstance = string(brokerInstance)
-		go p.dbaas.Edit("pxc", app, conf, nil, created, msg, cerr)
+		app.ClusterConfig = conf
+
+		go p.dbaas.Edit("pxc", app, nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false)
-		conf := dbaas.ClusterConfig{}
+		conf := psmdb.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PSMDB.Instances = instance.Parameters.Replicas
@@ -183,9 +189,10 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		if len(instance.Parameters.TopologyKey) > 0 {
 			conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
 		}
+		conf.PSMDB.BrokerInstance = string(brokerInstance)
+		app.ClusterConfig = conf
 
-		conf.PXC.BrokerInstance = string(brokerInstance)
-		go p.dbaas.Edit("psmdb", app, conf, nil, created, msg, cerr)
+		go p.dbaas.Edit("psmdb", app, nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID)
 	}
 	return nil
