@@ -229,6 +229,10 @@ func (p *PXC) OperatorName() string {
 	return "percona-xtradb-cluster-operator"
 }
 
+func (p *PXC) OperatorType() string {
+	return "pxc"
+}
+
 type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
@@ -282,6 +286,127 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
+}
+
+const describeMsg = `
+Name:                                %v
+Status:                              %v
+Multi-AZ:                            %v
+Labels:                              %v
+ 
+PXC Count:                           %v
+PXC Image:                           %v
+PXC CPU Requests:                    %v
+PXC Memory Requests:                 %v
+PXC PodDisruptionBudget:             %v
+PXC AntiAffinityTopologyKey:         %v
+PXC StorageType:                     %v
+PXC Allocated Storage:               %v
+ 
+ProxySQL Count:                      %v
+ProxySQL Image:                      %v
+ProxySQL CPU Requests:               %v
+ProxySQL Memory Requests:            %v
+ProxySQL PodDisruptionBudget:        %v
+ProxySQL AntiAffinityTopologyKey:    %v
+ProxySQL StorageType:                %v
+ProxySQL Allocated Storage:          %v
+ 
+Backup Image:                        %v
+Backup StorageType:                  %v
+Backup Allocated Storage:            %v
+Backup Schedule:                     %v
+`
+
+func (p *PXC) Describe(kubeInput []byte) (string, error) {
+	cr := &PerconaXtraDBCluster{}
+	err := json.Unmarshal([]byte(kubeInput), &cr)
+	if err != nil {
+		return "", errors.Wrapf(err, "json prase")
+	}
+
+	multiAz := "yes"
+	noAzAffinityList := []string{"none", "hostname"}
+	for _, arg := range noAzAffinityList {
+		if *cr.Spec.PXC.Affinity.TopologyKey == arg {
+			multiAz = "no"
+		}
+	}
+	budgetPXC := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
+
+	if cr.Spec.PXC.PodDisruptionBudget != nil && cr.Spec.PXC.PodDisruptionBudget.MinAvailable != nil {
+		budgetPXC["MinAvailable"] = cr.Spec.PXC.PodDisruptionBudget.MinAvailable.String()
+	}
+	if cr.Spec.PXC.PodDisruptionBudget != nil && cr.Spec.PXC.PodDisruptionBudget.MaxUnavailable != nil {
+		budgetPXC["MaxUnavailable"] = cr.Spec.PXC.PodDisruptionBudget.MaxUnavailable.String()
+	}
+	budgetSQL := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
+	if cr.Spec.ProxySQL.PodDisruptionBudget != nil && cr.Spec.ProxySQL.PodDisruptionBudget.MinAvailable != nil {
+		budgetSQL["MinAvailable"] = cr.Spec.ProxySQL.PodDisruptionBudget.MinAvailable.String()
+	}
+	if cr.Spec.ProxySQL.PodDisruptionBudget != nil && cr.Spec.ProxySQL.PodDisruptionBudget.MaxUnavailable != nil {
+		budgetSQL["MaxUnavailable"] = cr.Spec.ProxySQL.PodDisruptionBudget.MaxUnavailable.String()
+	}
+
+	backupImage := "not set"
+	backupSize := "not set"
+	backupStorageClassName := "not set"
+	backupSchedule := "not set"
+	if cr.Spec.Backup != nil {
+		backupImage = cr.Spec.Backup.Image
+
+		backupSchedule = ""
+		for schedule := range cr.Spec.Backup.Schedule {
+			backupSchedule = backupSchedule + cr.Spec.Backup.Schedule[schedule].Name + ", "
+		}
+		backupSchedule = strings.TrimRight(backupSchedule, ", ")
+		for item := range cr.Spec.Backup.Storages {
+			if cr.Spec.Backup.Storages[item].Type == "filesystem" {
+				volume := cr.Spec.Backup.Storages[item]
+				backupSizeBytes, err := volume.Volume.PersistentVolumeClaim.Resources.Requests["storage"].MarshalJSON()
+				if err != nil {
+					return "", err
+				}
+				backupSize = string(backupSizeBytes)
+				backupStorageClassName = string(*volume.Volume.PersistentVolumeClaim.StorageClassName)
+			}
+
+		}
+	}
+
+	return fmt.Sprintf(describeMsg,
+		cr.ObjectMeta.Name,
+		cr.Status.Status,
+		multiAz,
+		dbaas.GetStringFromMap(cr.ObjectMeta.Labels),
+		cr.Spec.PXC.Size,
+		cr.Spec.PXC.Image,
+		cr.Spec.PXC.Resources.Requests.CPU,
+		cr.Spec.PXC.Resources.Requests.Memory,
+		dbaas.GetStringFromMap(budgetPXC),
+		*cr.Spec.PXC.Affinity.TopologyKey,
+		cr.StorageClassesAllocated.PXC,
+		cr.StorageSizeAllocated.PXC,
+		cr.Spec.ProxySQL.Size,
+		cr.Spec.ProxySQL.Image,
+		cr.Spec.ProxySQL.Resources.Requests.CPU,
+		cr.Spec.ProxySQL.Resources.Requests.Memory,
+		dbaas.GetStringFromMap(budgetSQL),
+		*cr.Spec.ProxySQL.Affinity.TopologyKey,
+		cr.StorageClassesAllocated.ProxySQL,
+		cr.StorageSizeAllocated.ProxySQL,
+		backupImage,
+		backupSize,
+		backupStorageClassName,
+		backupSchedule), nil
+}
+
+func (p *PXC) PodTypes() []string {
+	return []string{"pxc", "proxysql"}
+}
+
+func (p *PXC) DataPodName(index int) string {
+	return fmt.Sprintf("%s-pxc-%s", p.name, index)
 }
 
 type operatorLog struct {

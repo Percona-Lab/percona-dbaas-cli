@@ -230,6 +230,21 @@ type PerconaXtraDBCluster struct {
 
 	Spec   PerconaXtraDBClusterSpec   `json:"spec,omitempty"`
 	Status PerconaXtraDBClusterStatus `json:"status,omitempty"`
+
+	StorageClassesAllocated PerconaXtraDBClusterStorageClasses
+	StorageSizeAllocated    PerconaXtraDBStorageSizes
+}
+
+type PerconaXtraDBClusterStorageClasses struct {
+	PXC      string
+	ProxySQL string
+	Backup   string
+}
+
+type PerconaXtraDBStorageSizes struct {
+	PXC      string
+	ProxySQL string
+	Backup   string
 }
 
 // PerconaXtraDBClusterList contains a list of PerconaXtraDBCluster

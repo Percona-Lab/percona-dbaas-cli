@@ -15,8 +15,6 @@
 package dbaas
 
 import (
-	"os/exec"
-
 	"github.com/pkg/errors"
 )
 
@@ -38,7 +36,7 @@ func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc 
 }
 
 func (p Cmd) delete(typ, name string) error {
-	out, err := exec.Command("kubectl", "delete", typ, name).CombinedOutput()
+	out, err := p.runCmd("kubectl", "delete", typ, name)
 	if err != nil {
 		return errors.Wrapf(err, "get cr: %s", out)
 	}
@@ -47,10 +45,10 @@ func (p Cmd) delete(typ, name string) error {
 }
 
 func (p Cmd) deletePVC(app Deploy) error {
-	out, err := exec.Command("kubectl", "delete", "pvc",
+	out, err := p.runCmd("kubectl", "delete", "pvc",
 		"-l", "app.kubernetes.io/part-of="+app.OperatorName(),
 		"-l", "app.kubernetes.io/instance="+app.Name(),
-	).CombinedOutput()
+	)
 	if err != nil {
 		return errors.Wrapf(err, "get cr: %s", out)
 	}

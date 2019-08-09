@@ -26,7 +26,7 @@ import (
 
 // listCmd represents the list command
 var listCmd = &cobra.Command{
-	Use:   "describe-db",
+	Use:   "describe-db <db-cluster-name>",
 	Short: "Show either specific MongoDB cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
@@ -37,6 +37,16 @@ var listCmd = &cobra.Command{
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		if len(args) > 0 {
+			app := psmdb.New(args[0], "", defaultVersion)
+			info, err := dbservice.Describe(app)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				return
+			}
+			fmt.Print(info)
 			return
 		}
 		list, err := dbservice.List("psmdb")

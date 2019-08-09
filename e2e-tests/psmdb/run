@@ -48,7 +48,7 @@ create() {
 
 add_storage() {
     desc add storage to existing cluster
-    percona-dbaas --demo psmdb create-backup-storage "${CLUSTER}" 
+    percona-dbaas --demo psmdb create-backup-storage "${CLUSTER}" \
                         --s3-bucket "${S3_BUCKET}" \
                         --s3-secret-access-key some-secret-key \
 						--s3-access-key-id some-access-key \
@@ -93,7 +93,7 @@ restore_bakup() {
     run_mongo 'use myApp\n db.test.insert({ x: 100501 })' "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}"
     compare_mongo_cmd "find" "myApp:myPass@${CLUSTER}-rs0.${NAMESPACE}" "-2nd"
 
-    percona-dbaas --demo psmdb restore-db "${CLUSTER}" "${backup_name}" > "${LAST_OUT}"
+    percona-dbaas --demo psmdb restore-backup "${CLUSTER}" "${backup_name}" > "${LAST_OUT}"
     RESTORE_NAME=$(grep 'Name:' "${LAST_OUT}" | cut -d' ' -f2)
     if [[ $(kubectl_bin  get psmdb-restore "${RESTORE_NAME}" -o jsonpath='{.status.state}') != "ready" ]]; then
         echo "Restore process has been failed."
