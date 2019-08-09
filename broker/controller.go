@@ -11,6 +11,7 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/alecthomas/jsonschema"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 // Controller represents controller for broker API
@@ -63,8 +64,14 @@ func New() (Controller, error) {
 	var c Controller
 	c.instanceMap = make(map[string]*ServiceInstance)
 	c.bindingMap = make(map[string]*ServiceBinding)
-	c.getBrokerInstances("pxc")
-	c.getBrokerInstances("psmdb")
+	err := c.getBrokerInstances("pxc")
+	if err != nil {
+		log.Println(errors.Wrap(err, "get pxc instances"))
+	}
+	err = c.getBrokerInstances("psmdb")
+	if err != nil {
+		log.Println(errors.Wrap(err, "get psmdb instances"))
+	}
 
 	return c, nil
 }
@@ -176,6 +183,8 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	err := ProvisionDataFromRequest(r, &instance)
 	if err != nil {
 		log.Println("Provision instatnce:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
@@ -209,13 +218,13 @@ func (c *Controller) UpdateServiceInstance(w http.ResponseWriter, r *http.Reques
 	err := ProvisionDataFromRequest(r, &instance)
 	if err != nil {
 		log.Println("Provision instatnce:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
 
-	skipS3 := true
-
-	err = c.DeployCluster(instance, &skipS3, instanceID)
+	err = c.UpdateCluster(&instance)
 	if err != nil {
 		log.Println("Update instatnce:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -256,11 +265,10 @@ func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) 
 	WriteResponse(w, http.StatusOK, response)
 }
 
-func (c *Controller) getBrokerInstances(typ string) {
+func (c *Controller) getBrokerInstances(typ string) error {
 	s, err := dbaas.GetServiceBrokerInstances(typ)
 	if err != nil {
-		log.Println("getBrokerInstances:", err)
-		return
+		return errors.Wrap(err, "getBrokerInstances")
 	}
 
 	s = s[1 : len(s)-1]
@@ -273,27 +281,25 @@ func (c *Controller) getBrokerInstances(typ string) {
 			v = append(v, []byte("}")...)
 			err = json.Unmarshal(v, &b)
 			if err != nil {
-				log.Println("getBrokerInstances:", err)
-				return
+				return errors.Wrap(err, "instance unmarshal")
 			}
 		case len(instances) - 1:
 			v = append([]byte("{"), v...)
 			err = json.Unmarshal(v, &b)
 			if err != nil {
-				log.Println("getBrokerInstances:", err)
-				return
+				return errors.Wrap(err, "instance unmarshal")
 			}
 		default:
 			v = append(v, []byte("}")...)
 			v = append([]byte("{"), s...)
 			err = json.Unmarshal(v, &b)
 			if err != nil {
-				log.Println("getBrokerInstances:", err)
-				return
+				return errors.Wrap(err, "instance unmarshal")
 			}
 		}
 		c.instanceMap[b.ID] = &b
 	}
+	return nil
 }
 
 func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *http.Request) {
@@ -410,7 +416,7 @@ func WriteResponse(w http.ResponseWriter, code int, object interface{}) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//w.Header().Add("X-Broker-API-Version", "2.13")
+
 	w.WriteHeader(code)
 	fmt.Fprintf(w, string(data))
 }
