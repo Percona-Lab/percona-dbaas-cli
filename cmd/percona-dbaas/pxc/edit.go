@@ -84,12 +84,12 @@ var editCmd = &cobra.Command{
 			fmt.Println("[Error] parse flags to config:", err)
 			return
 		}
+		app.ClusterConfig = config
 
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-
-		go dbservice.Edit("pxc", app, config, nil, created, msg, cerr)
+		go dbservice.Edit("pxc", app, nil, created, msg, cerr)
 		sp.Prefix = "Applying changes..."
 
 		for {

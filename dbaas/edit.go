@@ -21,14 +21,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p Cmd) Edit(typ string, app Deploy, c ClusterConfig, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Edit(typ string, app Deploy, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
 		return
 	}
 
-	_, err = app.Edit(acr, c, storage)
+	_, err = app.Edit(acr, storage)
 	if err != nil {
 		errc <- errors.Wrap(err, "update config")
 		return

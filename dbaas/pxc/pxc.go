@@ -36,12 +36,13 @@ const (
 )
 
 type PXC struct {
-	name         string
-	config       *PerconaXtraDBCluster
-	obj          dbaas.Objects
-	dbpass       []byte
-	opLogsLastTS float64
-	answerInJSON bool
+	name          string
+	config        *PerconaXtraDBCluster
+	obj           dbaas.Objects
+	dbpass        []byte
+	opLogsLastTS  float64
+	answerInJSON  bool
+	ClusterConfig ClusterConfig
 }
 
 func New(name string, version Version, answerInJSON bool) *PXC {
@@ -93,7 +94,7 @@ type CreateMsg struct {
 	Storage           string `json:"storage"`
 }
 
-func (p *PXC) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
+func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
 	err := p.config.SetNew(p.Name(), c, s3, platform)
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
@@ -133,7 +134,7 @@ type UpdateMsg struct {
 	ProxySQLInstances int32  `json:"proxySQLInstances"`
 }
 
-func (p *PXC) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupStorageSpec) (string, error) {
+func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
@@ -147,7 +148,7 @@ func (p *PXC) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupSto
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(c, storage)
+	err = p.config.UpdateWith(p.ClusterConfig, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "applay changes to cr")
 	}

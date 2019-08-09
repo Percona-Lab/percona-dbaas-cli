@@ -1,7 +1,8 @@
 package broker
 
 import (
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 const (
@@ -11,7 +12,7 @@ const (
 	psmdbServiceName = "percona-server-for-mongodb"
 )
 
-func SetPXCDefaults(c *dbaas.ClusterConfig) {
+func SetPXCDefaults(c *pxc.ClusterConfig) {
 	c.PXC.StorageSize = "6G"
 	c.PXC.Instances = int32(3)
 	c.PXC.RequestCPU = "600m"
@@ -26,7 +27,7 @@ func SetPXCDefaults(c *dbaas.ClusterConfig) {
 	c.S3.SkipStorage = true
 }
 
-func SetPSMDBDefaults(c *dbaas.ClusterConfig) {
+func SetPSMDBDefaults(c *psmdb.ClusterConfig) {
 	c.PSMDB.StorageSize = "6G"
 	c.PSMDB.Instances = int32(3)
 	c.PSMDB.RequestCPU = "600m"

@@ -87,7 +87,8 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
+		app.ClusterConfig = config
+		setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
 		if err != nil {
 			fmt.Println("[Error] set configuration:", err)
 			return

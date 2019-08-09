@@ -37,13 +37,14 @@ const (
 )
 
 type PSMDB struct {
-	name         string
-	rsName       string
-	config       *PerconaServerMongoDB
-	obj          dbaas.Objects
-	dbpass       []byte
-	opLogsLastTS float64
-	answerInJSON bool
+	name          string
+	rsName        string
+	config        *PerconaServerMongoDB
+	obj           dbaas.Objects
+	dbpass        []byte
+	opLogsLastTS  float64
+	answerInJSON  bool
+	ClusterConfig ClusterConfig
 }
 
 func New(clusterName, replsetName string, version Version, answerInJSON bool) *PSMDB {
@@ -100,8 +101,8 @@ type CreateMsg struct {
 	Storage        string `json:"storage"`
 }
 
-func (p *PSMDB) Setup(c dbaas.ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
-	err := p.config.SetNew(p.Name(), p.rsName, c, s3, platform)
+func (p *PSMDB) Setup(s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
+	err := p.config.SetNew(p.Name(), p.rsName, p.ClusterConfig, s3, platform)
 
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
@@ -141,7 +142,7 @@ type UpdateMsg struct {
 	ReplicaSetSize int32  `json:"replicaSetSize"`
 }
 
-func (p *PSMDB) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupStorageSpec) (string, error) {
+func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
@@ -154,7 +155,7 @@ func (p *PSMDB) Edit(crRaw []byte, c dbaas.ClusterConfig, storage *dbaas.BackupS
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
-	err = p.config.UpdateWith(p.rsName, c, storage)
+	err = p.config.UpdateWith(p.rsName, p.ClusterConfig, storage)
 	if err != nil {
 		return "", errors.Wrap(err, "apply changes to cr")
 	}
