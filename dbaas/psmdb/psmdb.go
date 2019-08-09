@@ -225,6 +225,10 @@ func (p *PSMDB) OperatorName() string {
 	return "percona-server-mongodb-operator"
 }
 
+func (p *PSMDB) OperatorType() string {
+	return "psmdb"
+}
+
 type k8sStatus struct {
 	Status PerconaServerMongoDBStatus
 }
@@ -315,6 +319,112 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	default:
 		return dbaas.ClusterStateInit, nil, nil
 	}
+}
+
+const describeMsg = `
+Name:                                          %v
+Status:                                        %v
+Multi-AZ:                                      %v
+Labels:                                        %v
+ 
+PSMDB Count:                                   %v
+PSMDB Image:                                   %v
+PSMDB CPU Requests:                            %v
+PSMDB Memory Requests:                         %v
+PSMDB PodDisruptionBudget:                     %v
+PSMDB AntiAffinityTopologyKey:                 %v
+PSMDB StorageType:                             %v
+PSMDB Allocated Storage:                       %v
+ 
+Backup coordinator Image:                      %v
+Backup coordinator CPU Requests:               %v
+Backup coordinator Memory Requests:            %v
+Backup coordinator AntiAffinityTopologyKey:    %v
+Backup coordinator StorageType:                %v
+Backup coordinator Allocated Storage:          %v
+ 
+Backup Schedule:                               %v
+`
+
+func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
+	cr := &PerconaServerMongoDB{}
+	err := json.Unmarshal([]byte(kubeInput), &cr)
+	if err != nil {
+		return "", errors.Wrapf(err, "json prase")
+	}
+
+	multiAz := "yes"
+	noAzAffinityList := []string{"none", "hostname"}
+	for _, arg := range noAzAffinityList {
+		if *cr.Spec.Replsets[0].Affinity.TopologyKey == arg {
+			multiAz = "no"
+		}
+	}
+	budgetPSMDB := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
+
+	if cr.Spec.Replsets[0].PodDisruptionBudget != nil && cr.Spec.Replsets[0].PodDisruptionBudget.MinAvailable != nil {
+		budgetPSMDB["MinAvailable"] = cr.Spec.Replsets[0].PodDisruptionBudget.MinAvailable.String()
+	}
+	if cr.Spec.Replsets[0].PodDisruptionBudget != nil && cr.Spec.Replsets[0].PodDisruptionBudget.MaxUnavailable != nil {
+		budgetPSMDB["MaxUnavailable"] = cr.Spec.Replsets[0].PodDisruptionBudget.MaxUnavailable.String()
+	}
+	budgetCoordinator := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
+	if cr.Spec.Backup.Coordinator.PodDisruptionBudget != nil && cr.Spec.Backup.Coordinator.PodDisruptionBudget.MinAvailable != nil {
+		budgetCoordinator["MinAvailable"] = cr.Spec.Backup.Coordinator.PodDisruptionBudget.MinAvailable.String()
+	}
+	if cr.Spec.Backup.Coordinator.PodDisruptionBudget != nil && cr.Spec.Backup.Coordinator.PodDisruptionBudget.MaxUnavailable != nil {
+		budgetCoordinator["MaxUnavailable"] = cr.Spec.Backup.Coordinator.PodDisruptionBudget.MaxUnavailable.String()
+	}
+
+	cpuSizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["cpu"].MarshalJSON()
+	if err != nil {
+		return "", err
+	}
+	memorySizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["memory"].MarshalJSON()
+	if err != nil {
+		return "", err
+	}
+
+	backupAffinity := "not set"
+	backupSchedule := "not set"
+	if cr.Spec.Backup.Coordinator.Affinity != nil && cr.Spec.Backup.Coordinator.Affinity.TopologyKey != nil {
+		backupAffinity = *cr.Spec.Backup.Coordinator.Affinity.TopologyKey
+	}
+	if cr.Spec.Backup.Tasks != nil {
+		for index := range cr.Spec.Backup.Tasks {
+			backupSchedule = backupSchedule + cr.Spec.Backup.Tasks[index].Name + ", "
+		}
+		backupSchedule = strings.TrimSuffix(backupSchedule, ", ")
+	}
+
+	return fmt.Sprintf(describeMsg,
+		cr.ObjectMeta.Name,
+		cr.Status.Status,
+		multiAz,
+		dbaas.GetStringFromMap(cr.ObjectMeta.Labels),
+		cr.Spec.Replsets[0].Size,
+		cr.Spec.Image,
+		cr.Spec.Replsets[0].Resources.Requests.CPU,
+		cr.Spec.Replsets[0].Resources.Requests.Memory,
+		dbaas.GetStringFromMap(budgetPSMDB),
+		*cr.Spec.Replsets[0].Affinity.TopologyKey,
+		cr.StorageClassesAllocated.replicaSet,
+		cr.StorageSizeAllocated.replicaSet,
+		cr.Spec.Backup.Image,
+		string(cpuSizeBytes),
+		string(memorySizeBytes),
+		backupAffinity,
+		nil,
+		nil,
+		backupSchedule), nil
+}
+
+func (p *PSMDB) PodTypes() []string {
+	return []string{p.rsName, "backup-coordinator"}
+}
+
+func (p *PSMDB) DataPodName(index int) string {
+	return fmt.Sprintf("%s-%s-%d", p.name, p.rsName, index)
 }
 
 type operatorLog struct {

@@ -154,6 +154,19 @@ type PerconaServerMongoDB struct {
 
 	Spec   PerconaServerMongoDBSpec   `json:"spec,omitempty"`
 	Status PerconaServerMongoDBStatus `json:"status,omitempty"`
+
+	StorageClassesAllocated PerconaServerMongoDBStorageClasses
+	StorageSizeAllocated    PerconaServerMongoDBStorageSizes
+}
+
+type PerconaServerMongoDBStorageClasses struct {
+	backupCoordinator string
+	replicaSet        string
+}
+
+type PerconaServerMongoDBStorageSizes struct {
+	backupCoordinator string
+	replicaSet        string
 }
 
 // PerconaServerMongoDBList contains a list of PerconaServerMongoDB
