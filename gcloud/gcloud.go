@@ -80,8 +80,8 @@ func New(name string, project string, zone string, cluster string, keyfile strin
 	gcloudobj.project = project
 	gcloudobj.zone = zone
 	gcloudobj.cluster = cluster
-	gcloudobj.keyfile = name
-	gcloudobj.namespace = keyfile
+	gcloudobj.keyfile = keyfile
+	gcloudobj.namespace = namespace
 	return gcloudobj, nil
 }
 
@@ -116,10 +116,13 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 func isFileExists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
 		if !os.IsNotExist(err) {
 			return true, nil
 		}
 		return false, err
 	}
-	return false, nil
+	return true, nil
 }
