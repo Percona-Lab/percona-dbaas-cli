@@ -89,10 +89,12 @@ list() {
 
 upgrade() {
 	desc upgrading pxc cluster
+
+	percona-dbaas --demo pxc upgrade-operator "${CLUSTER}" --operator-image "${OPERATOR_IMAGE_TO_UPDATE}"
+
 	percona-dbaas --demo pxc upgrade-db "${CLUSTER}" master \
-				  --operator-image "${OPERATOR_IMAGE_TO_UPDATE}" \
 				  --proxysql-image "${PROXYSQL_IMAGE_TO_UPDATE}" \
-				  --pxc-image "${PXC_IMAGE_TO_UPDATE}"
+				  --database-image "${PXC_IMAGE_TO_UPDATE}"
 
 
 	sleep 10
