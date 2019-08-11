@@ -46,6 +46,10 @@ var delCmd = &cobra.Command{
 		name := args[0]
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
+			if *deleteAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -61,17 +65,28 @@ var delCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := dbservice.IsObjExists("pxc", name)
-
 		if err != nil {
+			if *deleteAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			if *deleteAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
+			} else {
+				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			}
 			list, err := dbservice.List("pxc")
 			if err != nil {
+				if *deleteAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc cluster list", err))
+					return
+				}
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -109,6 +124,10 @@ var delCmd = &cobra.Command{
 				sp.FinalMSG = "Deleting...[done]\n"
 				return
 			case err := <-cerr:
+				if *deleteAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("delete pxc", err))
+					return
+				}
 				fmt.Fprintf(os.Stderr, "\n[ERROR] delete pxc: %v\n", err)
 				return
 			}

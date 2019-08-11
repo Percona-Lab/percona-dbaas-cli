@@ -43,6 +43,10 @@ var upgradeCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -61,17 +65,28 @@ var upgradeCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := dbservice.IsObjExists("pxc", name)
-
 		if err != nil {
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
+			} else {
+				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			}
 			list, err := dbservice.List("pxc")
 			if err != nil {
+				if *upgradeAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
+					return
+				}
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -89,11 +104,16 @@ var upgradeCmd = &cobra.Command{
 		}
 		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("setup images for upgrade", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
 			return
 		}
 
 		go dbservice.Upgrade("pxc", app, appsImg, created, msg, cerr)
+
 		sp.Prefix = "Upgrading cluster..."
 
 		for {
@@ -108,10 +128,18 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
+					if *upgradeAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
+					} else {
+						fmt.Printf("[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
+				if *upgradeAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("upgrade pxc", err))
+					return
+				}
 				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade pxc: %v\n", err)
 				sp.HideCursor = true
 				return

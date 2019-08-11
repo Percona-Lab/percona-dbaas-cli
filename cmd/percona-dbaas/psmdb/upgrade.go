@@ -43,6 +43,10 @@ var upgradeCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -61,8 +65,11 @@ var upgradeCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
-
 		if err != nil {
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
 			return
 		}
@@ -72,6 +79,10 @@ var upgradeCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
+				if *upgradeAnswerInJSON {
+					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
+					return
+				}
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -89,11 +100,16 @@ var upgradeCmd = &cobra.Command{
 		}
 		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
+			if *upgradeAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("setup images for upgrade", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
 			return
 		}
 
 		go dbservice.Upgrade("psmdb", app, appsImg, created, msg, cerr)
+
 		sp.Prefix = "Upgrading cluster..."
 
 		for {
@@ -108,10 +124,18 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
+					if *upgradeAnswerInJSON {
+						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
+					} else {
+						fmt.Printf("[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
+				if *upgradeAnswerInJSON {
+					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("upgrade psmdb", err))
+					return
+				}
 				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade psmdb: %v\n", err)
 				sp.HideCursor = true
 				return

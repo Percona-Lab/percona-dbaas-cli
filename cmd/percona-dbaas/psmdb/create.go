@@ -55,6 +55,10 @@ var createCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
+			if *createAnswerInJSON {
+				fmt.Println(psmdb.JSONErrorMsg("new db service", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -69,7 +73,11 @@ var createCmd = &cobra.Command{
 
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			fmt.Println("Parsing flags", err)
+			if *createAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("parsing flags", err))
+				return
+			}
+			fmt.Fprint(os.Stderr, "Parsing flags", err)
 			return
 		}
 		var s3stor *dbaas.BackupStorageSpec
@@ -81,7 +89,11 @@ var createCmd = &cobra.Command{
 				case dbaas.ErrNoS3Options:
 					fmt.Printf(noS3backupWarn, err)
 				default:
-					fmt.Println("[Error] create S3 backup storage:", err)
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create S3 backup storage", err))
+						return
+					}
+					fmt.Fprint(os.Stderr, "[Error] create S3 backup storage:", err)
 				}
 				return
 			}
@@ -90,7 +102,11 @@ var createCmd = &cobra.Command{
 		app.ClusterConfig = config
 		setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
 		if err != nil {
-			fmt.Println("[Error] set configuration:", err)
+			if *createAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("set configuration", err))
+				return
+			}
+			fmt.Fprint(os.Stderr, "[Error] set configuration:", err)
 			return
 		}
 
@@ -121,8 +137,11 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
-
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
+					} else {
+						fmt.Fprintf(os.Stderr, "[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
@@ -132,11 +151,19 @@ var createCmd = &cobra.Command{
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
 					list, err := dbservice.List("psmdb")
 					if err != nil {
+						if *createAnswerInJSON {
+							fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("list services", err))
+							return
+						}
 						return
 					}
 					fmt.Println("Avaliable clusters:")
 					fmt.Print(list)
 				default:
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create psmdb", err))
+						return
+					}
 					fmt.Fprintf(os.Stderr, "\n[ERROR] create psmdb: %v\n", err)
 				}
 

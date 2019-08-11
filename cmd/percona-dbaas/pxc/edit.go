@@ -43,6 +43,10 @@ var editCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -61,27 +65,42 @@ var editCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := dbservice.IsObjExists("pxc", name)
-
 		if err != nil {
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
+			} else {
+				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			}
 			list, err := dbservice.List("pxc")
 			if err != nil {
+				if *editAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc clusters list", err))
+					return
+				}
 				return
 			}
-			fmt.Println("Avaliable clusters:")
+			fmt.Fprint(os.Stderr, "Avaliable clusters:")
 			fmt.Print(list)
 			return
 		}
 
 		config, err := pxc.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			fmt.Println("[Error] parse flags to config:", err)
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
+				return
+			}
+			fmt.Fprint(os.Stderr, "[Error] parse flags to config:", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -104,10 +123,18 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
+					if *editAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
+					} else {
+						fmt.Printf("[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
+				if *editAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("edit pxc", err))
+					return
+				}
 				fmt.Fprintf(os.Stderr, "\n[ERROR] edit pxc: %v\n", err)
 				sp.HideCursor = true
 				return
@@ -123,7 +150,6 @@ func init() {
 	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
 	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(editCmd)

@@ -45,6 +45,10 @@ var editCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -67,17 +71,28 @@ var editCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := dbservice.IsObjExists("psmdb", clusterName)
-
 		if err != nil {
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("Unable to find cluster psmdb/"+clusterName, nil))
+			} else {
+				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
+			}
 			list, err := dbservice.List("psmdb")
 			if err != nil {
+				if *editAnswerInJSON {
+					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster", err))
+					return
+				}
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -90,7 +105,12 @@ var editCmd = &cobra.Command{
 		cerr := make(chan error)
 		config, err := psmdb.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("parsing flags", err))
+				return
+			}
 			fmt.Println("Parsing flags", err)
+			return
 		}
 		app.ClusterConfig = config
 		go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
@@ -108,10 +128,18 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
+					if *editAnswerInJSON {
+						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
+					} else {
+						fmt.Printf("[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
+				if *editAnswerInJSON {
+					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("edit psmdb", err))
+					return
+				}
 				fmt.Fprintf(os.Stderr, "\n[ERROR] edit psmdb: %v\n", err)
 				sp.HideCursor = true
 				return
@@ -126,7 +154,6 @@ var editAnswerInJSON *bool
 func init() {
 	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
 	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(editCmd)

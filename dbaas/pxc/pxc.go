@@ -41,7 +41,7 @@ type PXC struct {
 	obj           dbaas.Objects
 	dbpass        []byte
 	opLogsLastTS  float64
-	answerInJSON  bool
+	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
 }
 
@@ -50,7 +50,7 @@ func New(name string, version Version, answerInJSON bool) *PXC {
 		name:         name,
 		obj:          Objects[version],
 		config:       &PerconaXtraDBCluster{},
-		answerInJSON: answerInJSON,
+		AnswerInJSON: answerInJSON,
 	}
 }
 
@@ -105,7 +105,7 @@ func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas
 		return "", errors.Wrap(err, "marshal pxc volume requests")
 	}
 
-	if p.answerInJSON {
+	if p.AnswerInJSON {
 		createJSONMsg := CreateMsg{
 			Message:           "Create MySQL cluster",
 			PXCInstances:      p.config.Spec.PXC.Size,
@@ -153,7 +153,7 @@ func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, erro
 		return "", errors.Wrap(err, "applay changes to cr")
 	}
 
-	if p.answerInJSON {
+	if p.AnswerInJSON {
 		updateJSONMsg := CreateMsg{
 			Message:           "Update MySQL cluster",
 			PXCInstances:      p.config.Spec.PXC.Size,
@@ -261,7 +261,7 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 
 	switch st.Status.Status {
 	case AppStateReady:
-		if p.answerInJSON {
+		if p.AnswerInJSON {
 			okJSONMsg := OkMsg{
 				Message: "MySQL cluster started successfully",
 				Host:    st.Status.Host,
@@ -398,4 +398,12 @@ func alterMessage(msg string) string {
 	}
 
 	return msg
+}
+
+// JSONErrorMsg creates error messages in JSON format
+func JSONErrorMsg(message string, err error) string {
+	if err == nil {
+		return fmt.Sprintf("\n{\"error\": \"%s\"}\n", message)
+	}
+	return fmt.Sprintf("\n{\"error\": \"%s: %v\"}\n", message, err)
 }
