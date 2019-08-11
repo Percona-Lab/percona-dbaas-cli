@@ -50,6 +50,10 @@ var createCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
+			if *createAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -58,7 +62,11 @@ var createCmd = &cobra.Command{
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			fmt.Println("[Error] parse flags to config:", err)
+			if *createAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
+				return
+			}
+			fmt.Fprint(os.Stderr, "[Error] parse flags to config:", err)
 			return
 		}
 
@@ -69,9 +77,17 @@ var createCmd = &cobra.Command{
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
-					fmt.Printf(noS3backupWarn, err)
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg(noS3backupWarn, err))
+						return
+					}
+					fmt.Fprint(os.Stderr, noS3backupWarn, err)
 				default:
-					fmt.Println("[Error] create S3 backup storage:", err)
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create S3 backup storage", err))
+						return
+					}
+					fmt.Fprint(os.Stderr, "[Error] create S3 backup storage:", err)
 				}
 				return
 			}
@@ -79,6 +95,10 @@ var createCmd = &cobra.Command{
 
 		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
 		if err != nil {
+			if *createAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("set configuration", err))
+				return
+			}
 			fmt.Println("[Error] set configuration:", err)
 			return
 		}
@@ -110,22 +130,36 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
-
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
+					} else {
+						fmt.Printf("[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create pxc cluster", err))
+					}
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
 					list, err := dbservice.List("pxc")
 					if err != nil {
+						if *createAnswerInJSON {
+							fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
+							return
+						}
 						return
 					}
 					fmt.Println("Avaliable clusters:")
 					fmt.Print(list)
 				default:
+					if *createAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservices", err))
+						return
+					}
 					fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
 				}
 

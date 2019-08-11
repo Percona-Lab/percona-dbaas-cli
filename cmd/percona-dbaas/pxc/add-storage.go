@@ -45,6 +45,10 @@ var storageCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
@@ -63,8 +67,11 @@ var storageCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := dbservice.IsObjExists("pxc", clusterName)
-
 		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
 			return
 		}
@@ -74,6 +81,10 @@ var storageCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", clusterName)
 			list, err := dbservice.List("pxc")
 			if err != nil {
+				if *addStorageAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
+					return
+				}
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -83,6 +94,10 @@ var storageCmd = &cobra.Command{
 
 		config, err := pxc.ParseAddStorageFlagsToConfig(cmd.Flags())
 		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
+				return
+			}
 			fmt.Println("[Error] parse flags to config:", err)
 			return
 		}
@@ -92,8 +107,16 @@ var storageCmd = &cobra.Command{
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
+				if *addStorageAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("S3 backup storage options doesn't set properly", err))
+					return
+				}
 				fmt.Printf(noS3backupOpts, err)
 			default:
+				if *addStorageAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create S3 backup storage", err))
+					return
+				}
 				fmt.Println("[Error] create S3 backup storage:", err)
 			}
 			return
@@ -118,10 +141,18 @@ var storageCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					fmt.Printf("[operator log error] %s\n", omsg)
+					if *addStorageAnswerInJSON {
+						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
+					} else {
+						fmt.Printf("[operator log error] %s\n", omsg)
+					}
 					sp.Start()
 				}
 			case err := <-cerr:
+				if *addStorageAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("add storage to pxc", err))
+					return
+				}
 				fmt.Fprintf(os.Stderr, "\n[ERROR] add storage to pxc: %v\n", err)
 				sp.HideCursor = true
 				return

@@ -21,6 +21,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 // listCmd represents the list command
@@ -31,12 +32,20 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		dbservice, err := dbaas.New(*envLst)
 		if err != nil {
+			if *listAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+				return
+			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
 		list, err := dbservice.List("pxc")
 		if err != nil {
-			fmt.Printf("\n[error] %s\n", err)
+			if *listAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc list", err))
+				return
+			}
+			fmt.Fprintf(os.Stderr, "\n[error] %s\n", err)
 			return
 		}
 
@@ -45,8 +54,11 @@ var listCmd = &cobra.Command{
 }
 
 var envLst *string
+var listAnswerInJSON *bool
 
 func init() {
 	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
+	listAnswerInJSON = listCmd.Flags().Bool("json", false, "Answers in JSON format")
+
 	PXCCmd.AddCommand(listCmd)
 }

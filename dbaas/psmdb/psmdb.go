@@ -36,6 +36,14 @@ const (
 	defaultOperatorVersion = "percona/percona-server-mongodb-operator:1.1.0"
 )
 
+type Message struct {
+	Error Error `json:"error,omitempty"`
+}
+
+type Error struct {
+	Message string `json:"message"`
+}
+
 type PSMDB struct {
 	name          string
 	rsName        string
@@ -43,7 +51,7 @@ type PSMDB struct {
 	obj           dbaas.Objects
 	dbpass        []byte
 	opLogsLastTS  float64
-	answerInJSON  bool
+	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
 }
 
@@ -57,7 +65,7 @@ func New(clusterName, replsetName string, version Version, answerInJSON bool) *P
 		rsName:       replsetName,
 		obj:          objects[version],
 		config:       &PerconaServerMongoDB{},
-		answerInJSON: answerInJSON,
+		AnswerInJSON: answerInJSON,
 	}
 }
 
@@ -113,7 +121,7 @@ func (p *PSMDB) Setup(s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) 
 		return "", errors.Wrap(err, "marshal psmdb volume requests")
 	}
 
-	if p.answerInJSON {
+	if p.AnswerInJSON {
 		createJSONMsg := CreateMsg{
 			Message:        "Create MongoDB cluster",
 			ReplicaSetName: p.config.Spec.Replsets[0].Name,
@@ -160,7 +168,7 @@ func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, er
 		return "", errors.Wrap(err, "apply changes to cr")
 	}
 
-	if p.answerInJSON {
+	if p.AnswerInJSON {
 		updateJSONMsg := UpdateMsg{
 			Message:        "Update MongoDB cluster",
 			ReplicaSetName: p.config.Spec.Replsets[0].Name,
@@ -264,10 +272,9 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 		switch st.Status.Status {
 		case AppStateReady:
 			host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
-
-			if p.answerInJSON {
+			if p.AnswerInJSON {
 				okJSONMsg := OkMsg{
-					Message:          "MySQL cluster started successfully",
+					Message:          "MomgoDB cluster started successfully",
 					Host:             host,
 					Port:             27017,
 					ClusterAdminUser: string(pass["MONGODB_CLUSTER_ADMIN_USER"]),
@@ -294,6 +301,22 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	switch status.Status {
 	case AppStateReady:
 		host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
+		if p.AnswerInJSON {
+			okJSONMsg := OkMsg{
+				Message:          "MomgoDB cluster started successfully",
+				Host:             host,
+				Port:             27017,
+				ClusterAdminUser: string(pass["MONGODB_CLUSTER_ADMIN_USER"]),
+				ClusterAdminPass: string(pass["MONGODB_CLUSTER_MONITOR_PASSWORD"]),
+				UserAdminUser:    string(pass["MONGODB_USER_ADMIN_USER"]),
+				UserAdminPass:    string(pass["MONGODB_USER_ADMIN_PASSWORD"]),
+			}
+			answer, err := json.Marshal(okJSONMsg)
+			if err != nil {
+				return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
+			}
+			return dbaas.ClusterStateReady, []string{string(answer)}, nil
+		}
 		msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
 		return dbaas.ClusterStateReady, []string{msg}, nil
 	case AppStateError:
@@ -392,4 +415,12 @@ func alterMessage(msg string) string {
 	}
 
 	return msg
+}
+
+// JSONErrorMsg creates error messages in JSON format
+func JSONErrorMsg(message string, err error) string {
+	if err == nil {
+		return fmt.Sprintf("\n{\"error\": \"%s\"}\n", message)
+	}
+	return fmt.Sprintf("\n{\"error\": \"%s: %v\"}\n", message, err)
 }
