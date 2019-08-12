@@ -345,10 +345,10 @@ type ServerVersion struct {
 const AffinityTopologyKeyOff = "none"
 
 var AffinityValidTopologyKeys = map[string]struct{}{
-	AffinityTopologyKeyOff:                     struct{}{},
-	"kubernetes.io/hostname":                   struct{}{},
-	"failure-domain.beta.kubernetes.io/zone":   struct{}{},
-	"failure-domain.beta.kubernetes.io/region": struct{}{},
+	AffinityTopologyKeyOff:                     {},
+	"kubernetes.io/hostname":                   {},
+	"failure-domain.beta.kubernetes.io/zone":   {},
+	"failure-domain.beta.kubernetes.io/region": {},
 }
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"

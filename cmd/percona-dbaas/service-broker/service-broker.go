@@ -22,8 +22,6 @@ var PxcBrokerCmd = &cobra.Command{
 	},
 }
 
-var skipS3Storage *bool
-
 func init() {
 	PxcBrokerCmd.Flags().String("port", "8081", "Broker API port")
 }

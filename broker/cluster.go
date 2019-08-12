@@ -15,6 +15,9 @@ const (
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
 	dbservice, err := dbaas.New("")
+	if err != nil {
+		return err
+	}
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
 		return err

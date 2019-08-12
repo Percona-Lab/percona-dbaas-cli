@@ -39,7 +39,6 @@ type PXC struct {
 	name          string
 	config        *PerconaXtraDBCluster
 	obj           dbaas.Objects
-	dbpass        []byte
 	opLogsLastTS  float64
 	AnswerInJSON  bool
 	ClusterConfig ClusterConfig

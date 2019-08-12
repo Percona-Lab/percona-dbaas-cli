@@ -86,7 +86,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	log.Println("Get Service Broker Catalog...")
 
 	PXCPlanList := []ServicePlan{
-		ServicePlan{
+		{
 			Name:        "percona-xtradb-cluster",
 			ID:          "percona-xtradb-id",
 			Description: "percona xtradb cluster",
@@ -107,7 +107,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	PSMDBPlanList := []ServicePlan{
-		ServicePlan{
+		{
 			Name:        "percona-server-for-mongodb",
 			ID:          "percona-server-for-mongodb-id",
 			Description: "percona server for mongodbr",
@@ -129,7 +129,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 
 	var catalog = Catalog{
 		Services: []Service{
-			Service{
+			{
 				ID:          pxcServiceID,
 				Name:        pxcServiceName,
 				Description: "database",
@@ -148,7 +148,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 				},
 				PlanUpdateable: true,
 			},
-			Service{
+			{
 				ID:          psmdbServiceID,
 				Name:        psmdbServiceName,
 				Description: "database",
@@ -296,8 +296,8 @@ func (c *Controller) getBrokerInstances(typ string) error {
 				return errors.Wrap(err, "instance unmarshal")
 			}
 		default:
-			v = append(v, []byte("}")...)
 			v = append([]byte("{"), s...)
+			v = append(v, []byte("}")...)
 			err = json.Unmarshal(v, &b)
 			if err != nil {
 				return errors.Wrap(err, "instance unmarshal")
@@ -390,16 +390,6 @@ func (c *Controller) UnBind(w http.ResponseWriter, r *http.Request) {
 	delete(c.bindingMap, bindingID)
 
 	WriteResponse(w, http.StatusOK, "{}")
-}
-
-func (c *Controller) deleteAssociatedBindings(instanceID string) error {
-	for id, binding := range c.bindingMap {
-		if binding.ServiceInstanceID == instanceID {
-			delete(c.bindingMap, id)
-		}
-	}
-
-	return nil
 }
 
 func ProvisionDataFromRequest(r *http.Request, object interface{}) error {

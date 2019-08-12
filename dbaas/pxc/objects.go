@@ -29,7 +29,7 @@ func init() {
 }
 
 var bundle100 = []dbaas.BundleObject{
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaxtradbclusters.pxc.percona.com",
 		Data: `
@@ -77,7 +77,7 @@ spec:
     status: {}
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaxtradbclusterbackups.pxc.percona.com",
 		Data: `
@@ -128,7 +128,7 @@ spec:
     status: {}
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaxtradbclusterrestores.pxc.percona.com",
 		Data: `
@@ -171,7 +171,7 @@ spec:
     status: {}
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaxtradbbackups.pxc.percona.com",
 		Data: `
@@ -218,7 +218,7 @@ spec:
       JSONPath: .metadata.creationTimestamp
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "Role",
 		Name: "percona-xtradb-cluster-operator",
 		Data: `
@@ -316,7 +316,7 @@ rules:
   - deletecollection
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "RoleBinding",
 		Name: "default-account-percona-xtradb-cluster-operator",
 		Data: `
@@ -333,7 +333,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "Deployment",
 		Name: "percona-xtradb-cluster-operator",
 		Data: `

@@ -24,8 +24,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const randomStringLength = 5
-
 // Setup new gcloud cluster environment
 func (p *Gcloud) Setup() error {
 	homePath := os.Getenv("HOME")
