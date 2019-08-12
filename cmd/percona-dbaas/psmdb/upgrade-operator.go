@@ -48,7 +48,7 @@ var upgradeOperatorCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := psmdb.New(name, "doesnotMatter", defaultVersion)
+		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeOperatorAnswerInJSON)
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -125,10 +125,12 @@ var upgradeOperatorCmd = &cobra.Command{
 
 var envUpgrdOprtr *string
 var oprtrImage *string
+var upgradeOperatorAnswerInJSON *bool
 
 func init() {
 	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
+	upgradeOperatorAnswerInJSON = upgradeOperatorCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(upgradeOperatorCmd)
 }
