@@ -36,14 +36,6 @@ const (
 	defaultOperatorVersion = "percona/percona-server-mongodb-operator:1.1.0"
 )
 
-type Message struct {
-	Error Error `json:"error,omitempty"`
-}
-
-type Error struct {
-	Message string `json:"message"`
-}
-
 type PSMDB struct {
 	name          string
 	rsName        string
