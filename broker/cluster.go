@@ -164,12 +164,6 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PXC.Instances = instance.Parameters.Replicas
 		}
-		if len(instance.Parameters.Size) > 0 {
-			conf.PXC.StorageSize = instance.Parameters.Size
-		}
-		if len(instance.Parameters.TopologyKey) > 0 {
-			conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
-		}
 
 		conf.PXC.BrokerInstance = string(brokerInstance)
 		app.ClusterConfig = conf
@@ -182,12 +176,6 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
 			conf.PSMDB.Instances = instance.Parameters.Replicas
-		}
-		if len(instance.Parameters.Size) > 0 {
-			conf.PSMDB.StorageSize = instance.Parameters.Size
-		}
-		if len(instance.Parameters.TopologyKey) > 0 {
-			conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
 		}
 		conf.PSMDB.BrokerInstance = string(brokerInstance)
 		app.ClusterConfig = conf
