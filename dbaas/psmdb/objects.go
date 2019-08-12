@@ -29,7 +29,7 @@ func init() {
 }
 
 var bundle100 = []dbaas.BundleObject{
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaservermongodbs.psmdb.percona.com",
 		Data: `
@@ -65,7 +65,7 @@ spec:
     status: {}
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaservermongodbbackups.psmdb.percona.com",
 		Data: `
@@ -115,7 +115,7 @@ spec:
     status: {}
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaservermongodbrestores.psmdb.percona.com",
 		Data: `
@@ -153,7 +153,7 @@ spec:
     status: {}
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "Role",
 		Name: "percona-server-mongodb-operator",
 		Data: `
@@ -247,7 +247,7 @@ rules:
     - deletecollection
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "RoleBinding",
 		Name: "default-account-percona-server-mongodb-operator",
 		Data: `
@@ -264,7 +264,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 `,
 	},
-	dbaas.BundleObject{
+	{
 		Kind: "Deployment",
 		Name: "percona-server-mongodb-operator",
 		Data: `

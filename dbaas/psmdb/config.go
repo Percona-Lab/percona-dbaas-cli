@@ -510,13 +510,11 @@ const (
 const AffinityTopologyKeyOff = "none"
 
 var affinityValidTopologyKeys = map[string]struct{}{
-	AffinityTopologyKeyOff:                     struct{}{},
-	"kubernetes.io/hostname":                   struct{}{},
-	"failure-domain.beta.kubernetes.io/zone":   struct{}{},
-	"failure-domain.beta.kubernetes.io/region": struct{}{},
+	AffinityTopologyKeyOff:                     {},
+	"kubernetes.io/hostname":                   {},
+	"failure-domain.beta.kubernetes.io/zone":   {},
+	"failure-domain.beta.kubernetes.io/region": {},
 }
-
-var defaultAffinityTopologyKey = "kubernetes.io/hostname"
 
 // ServerVersion represents info about k8s / openshift server version
 type ServerVersion struct {
@@ -655,7 +653,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, c ClusterConf
 	switch p {
 	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
 		none := AffinityTopologyKeyOff
-		for i, _ := range cr.Spec.Replsets {
+		for i := range cr.Spec.Replsets {
 			cr.Spec.Replsets[i].Resources = nil
 			cr.Spec.Replsets[i].MultiAZ.Affinity.TopologyKey = &none
 		}

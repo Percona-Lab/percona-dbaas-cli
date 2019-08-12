@@ -129,6 +129,4 @@ func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error)
 	default:
 		return dbaas.ClusterStateInit, nil, nil
 	}
-
-	return dbaas.ClusterStateInit, nil, nil
 }

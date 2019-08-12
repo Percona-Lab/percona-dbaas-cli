@@ -41,7 +41,6 @@ type PSMDB struct {
 	rsName        string
 	config        *PerconaServerMongoDB
 	obj           dbaas.Objects
-	dbpass        []byte
 	opLogsLastTS  float64
 	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
@@ -316,8 +315,6 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	default:
 		return dbaas.ClusterStateInit, nil, nil
 	}
-
-	return dbaas.ClusterStateInit, nil, nil
 }
 
 type operatorLog struct {

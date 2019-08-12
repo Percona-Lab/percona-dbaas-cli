@@ -26,7 +26,9 @@ const (
 	BackupRunning               = "Running"
 	BackupFailed                = "Failed"
 	BackupSucceeded             = "Succeeded"
+)
 
+const (
 	DefaultBcpStorageName = "defaultS3Storage"
 )
 
@@ -68,7 +70,7 @@ func (e ErrNoS3Options) Error() string {
 func (p Cmd) S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStorageSpec, error) {
 	bucket := c.Bucket
 	if bucket == "" {
-		return nil, ErrNoS3Options("no buket defined")
+		return nil, ErrNoS3Options("no bucket defined")
 	}
 
 	region := c.Region

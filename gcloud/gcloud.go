@@ -103,9 +103,7 @@ func runEnvCmd(Env []string, cmd string, args ...string) ([]byte, error) {
 	cli := exec.Command(cmd, args...)
 	cli.Env = os.Environ()
 
-	for _, envVar := range Env {
-		cli.Env = append(cli.Env, envVar)
-	}
+	cli.Env = append(cli.Env, Env...)
 	o, err := cli.CombinedOutput()
 	if err != nil {
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}

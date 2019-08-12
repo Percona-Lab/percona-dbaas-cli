@@ -153,5 +153,4 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 			}
 		}
 	}
-	return
 }
