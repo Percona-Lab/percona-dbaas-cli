@@ -16,7 +16,6 @@ package dbaas
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 )
@@ -76,7 +75,6 @@ func (p Cmd) Describe(app Deploy) (string, error) {
 		}
 
 	}
-	fmt.Print(AllocatedStorage)
 	mergedData["StorageClassesAllocated"] = PVCs
 	mergedData["StorageSizeAllocated"] = AllocatedStorage
 
