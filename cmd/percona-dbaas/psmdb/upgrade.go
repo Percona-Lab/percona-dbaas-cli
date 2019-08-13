@@ -51,7 +51,7 @@ var upgradeCmd = &cobra.Command{
 			return
 		}
 
-		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeAnswerInJSON)
+		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeAnswerInJSON, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

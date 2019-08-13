@@ -46,7 +46,17 @@ type PSMDB struct {
 	ClusterConfig ClusterConfig
 }
 
-func New(clusterName, replsetName string, version Version, answerInJSON bool) *PSMDB {
+func New(clusterName, replsetName string, version Version, answerInJSON bool, labels string) *PSMDB {
+	config := &PerconaServerMongoDB{}
+	if len(labels) > 0 {
+		config.ObjectMeta.Labels = make(map[string]string)
+		keyValues := strings.Split(labels, ",")
+		for index := range keyValues {
+			itemSlice := strings.Split(keyValues[index], "=")
+			config.ObjectMeta.Labels[itemSlice[0]] = itemSlice[1]
+		}
+	}
+
 	if replsetName == "" {
 		replsetName = defaultRSname
 	}
@@ -55,7 +65,7 @@ func New(clusterName, replsetName string, version Version, answerInJSON bool) *P
 		name:         clusterName,
 		rsName:       replsetName,
 		obj:          objects[version],
-		config:       &PerconaServerMongoDB{},
+		config:       config,
 		AnswerInJSON: answerInJSON,
 	}
 }

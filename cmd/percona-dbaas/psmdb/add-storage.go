@@ -58,7 +58,7 @@ var storageCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *addStorageAnswerInJSON)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *addStorageAnswerInJSON, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

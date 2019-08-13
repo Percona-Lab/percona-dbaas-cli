@@ -114,7 +114,7 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, *deleteAnswerInJSON), *delePVC, ok, cerr)
+		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, *deleteAnswerInJSON, ""), *delePVC, ok, cerr)
 
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()

@@ -57,7 +57,7 @@ var editCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
