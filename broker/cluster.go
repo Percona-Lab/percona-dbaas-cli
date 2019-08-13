@@ -14,7 +14,7 @@ const (
 )
 
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
-	dbservice, err := dbaas.New("")
+	dbservice, err := dbaas.New(p.EnvName)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	cerr := make(chan error)
 	delePVC := false
 	name := instance.Parameters.ClusterName
-	dbservice, err := dbaas.New("")
+	dbservice, err := dbaas.New(p.EnvName)
 	if err != nil {
 		return err
 	}
