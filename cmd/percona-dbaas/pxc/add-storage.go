@@ -53,7 +53,7 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		app := pxc.New(clusterName, defaultVersion, *addStorageAnswerInJSON)
+		app := pxc.New(clusterName, defaultVersion, *addStorageAnswerInJSON, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

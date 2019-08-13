@@ -44,11 +44,20 @@ type PXC struct {
 	ClusterConfig ClusterConfig
 }
 
-func New(name string, version Version, answerInJSON bool) *PXC {
+func New(name string, version Version, answerInJSON bool, labels string) *PXC {
+	config := &PerconaXtraDBCluster{}
+	if len(labels) > 0 {
+		config.ObjectMeta.Labels = make(map[string]string)
+		keyValues := strings.Split(labels, ",")
+		for index := range keyValues {
+			itemSlice := strings.Split(keyValues[index], "=")
+			config.ObjectMeta.Labels[itemSlice[0]] = itemSlice[1]
+		}
+	}
 	return &PXC{
 		name:         name,
 		obj:          Objects[version],
-		config:       &PerconaXtraDBCluster{},
+		config:       config,
 		AnswerInJSON: answerInJSON,
 	}
 }

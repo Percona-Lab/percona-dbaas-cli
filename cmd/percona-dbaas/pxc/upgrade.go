@@ -51,7 +51,7 @@ var upgradeCmd = &cobra.Command{
 			return
 		}
 
-		app := pxc.New(name, defaultVersion, *upgradeAnswerInJSON)
+		app := pxc.New(name, defaultVersion, *upgradeAnswerInJSON, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

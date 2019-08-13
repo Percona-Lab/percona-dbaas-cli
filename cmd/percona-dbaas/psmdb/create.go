@@ -17,6 +17,7 @@ package psmdb
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -68,8 +69,23 @@ var createCmd = &cobra.Command{
 		if len(args) >= 2 {
 			rsName = args[1]
 		}
+		if len(*labels) > 0 {
+			match, err := regexp.MatchString("([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)|([a-zA-Z0-9_]+=[a-zA-Z0-9_]+,)+([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)", *labels)
+			if err != nil {
+				if *createAnswerInJSON {
+					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("label parse", err))
+					return
+				}
+				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				return
+			}
+			if !match {
+				fmt.Fprintf(os.Stderr, "[ERROR] Incorrect label format. Use key1=value1,key2=value2 syntax.\n")
+				return
+			}
+		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *createAnswerInJSON)
+		app := psmdb.New(clusterName, rsName, defaultVersion, *createAnswerInJSON, *labels)
 
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
@@ -176,6 +192,7 @@ var createCmd = &cobra.Command{
 var skipS3Storage *bool
 var envCrt *string
 var createAnswerInJSON *bool
+var labels *string
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "Node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -193,6 +210,7 @@ func init() {
 	createCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
 
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
+	labels = createCmd.Flags().String("labels", "", "PSMDB cluster labels inside kubernetes/openshift cluster")
 
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 

@@ -51,7 +51,7 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		app := pxc.New(name, defaultVersion, *editAnswerInJSON)
+		app := pxc.New(name, defaultVersion, *editAnswerInJSON, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

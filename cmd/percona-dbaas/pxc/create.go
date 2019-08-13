@@ -17,6 +17,7 @@ package pxc
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -47,7 +48,6 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
 			if *createAnswerInJSON {
@@ -57,8 +57,23 @@ var createCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
+		if len(*labels) > 0 {
+			match, err := regexp.MatchString("([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)|([a-zA-Z0-9_]+=[a-zA-Z0-9_]+,)+([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)", *labels)
+			if err != nil {
+				if *createAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("label parse", err))
+					return
+				}
+				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				return
+			}
+			if !match {
+				fmt.Fprintf(os.Stderr, "[ERROR] Incorrect label format. Use key1=value1,key2=value2 syntax.\n")
+				return
+			}
+		}
 
-		app := pxc.New(args[0], defaultVersion, *createAnswerInJSON)
+		app := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels)
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
@@ -171,6 +186,7 @@ var createCmd = &cobra.Command{
 var skipS3Storage *bool
 var envCrt *string
 var createAnswerInJSON *bool
+var labels *string
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -193,6 +209,7 @@ func init() {
 	createCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
+	labels = createCmd.Flags().String("labels", "", "PXC cluster labels inside kubernetes/openshift cluster")
 
 	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
 
