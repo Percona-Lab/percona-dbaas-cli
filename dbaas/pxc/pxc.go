@@ -355,9 +355,11 @@ func (p *PXC) Describe(kubeInput []byte) (string, error) {
 	if cr.Spec.Backup != nil {
 		backupImage = cr.Spec.Backup.Image
 
-		backupSchedule = ""
-		for schedule := range cr.Spec.Backup.Schedule {
-			backupSchedule = backupSchedule + cr.Spec.Backup.Schedule[schedule].Name + ", "
+		if cr.Spec.Backup.Schedule != nil {
+			backupSchedule = ""
+			for schedule := range cr.Spec.Backup.Schedule {
+				backupSchedule = backupSchedule + cr.Spec.Backup.Schedule[schedule].Name + ", "
+			}
 		}
 		backupSchedule = strings.TrimRight(backupSchedule, ", ")
 		for item := range cr.Spec.Backup.Storages {
@@ -406,7 +408,7 @@ func (p *PXC) PodTypes() []string {
 }
 
 func (p *PXC) DataPodName(index int) string {
-	return fmt.Sprintf("%s-pxc-%s", p.name, index)
+	return fmt.Sprintf("%s-pxc-%d", p.name, index)
 }
 
 type operatorLog struct {
