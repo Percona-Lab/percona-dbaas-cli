@@ -155,18 +155,18 @@ type PerconaServerMongoDB struct {
 	Spec   PerconaServerMongoDBSpec   `json:"spec,omitempty"`
 	Status PerconaServerMongoDBStatus `json:"status,omitempty"`
 
-	StorageClassesAllocated PerconaServerMongoDBStorageClasses
-	StorageSizeAllocated    PerconaServerMongoDBStorageSizes
+	StorageClassesAllocated PerconaServerMongoDBStorageClasses `json:"StorageClassesAllocated,omitempty"`
+	StorageSizeAllocated    PerconaServerMongoDBStorageSizes   `json:"StorageSizeAllocated,omitempty"`
 }
 
 type PerconaServerMongoDBStorageClasses struct {
-	backupCoordinator string
-	replicaSet        string
+	BackupCoordinator string `json:"backup-coordinator,omitempty"`
+	ReplicaSet        string `json:"rs0,omitempty"`
 }
 
 type PerconaServerMongoDBStorageSizes struct {
-	backupCoordinator string
-	replicaSet        string
+	BackupCoordinator string `json:"backup-coordinator,omitempty"`
+	ReplicaSet        string `json:"rs0,omitempty"`
 }
 
 // PerconaServerMongoDBList contains a list of PerconaServerMongoDB

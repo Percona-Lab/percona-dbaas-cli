@@ -408,14 +408,14 @@ func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
 		cr.Spec.Replsets[0].Resources.Requests.Memory,
 		dbaas.GetStringFromMap(budgetPSMDB),
 		*cr.Spec.Replsets[0].Affinity.TopologyKey,
-		cr.StorageClassesAllocated.replicaSet,
-		cr.StorageSizeAllocated.replicaSet,
+		cr.StorageClassesAllocated.ReplicaSet,
+		cr.StorageSizeAllocated.ReplicaSet,
 		cr.Spec.Backup.Image,
 		string(cpuSizeBytes),
 		string(memorySizeBytes),
 		backupAffinity,
-		nil,
-		nil,
+		cr.StorageClassesAllocated.BackupCoordinator,
+		cr.StorageSizeAllocated.BackupCoordinator,
 		backupSchedule), nil
 }
 
