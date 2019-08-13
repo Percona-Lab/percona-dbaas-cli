@@ -2,6 +2,7 @@ package broker
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/gcloud"
 	"github.com/alecthomas/jsonschema"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -19,6 +21,7 @@ type Controller struct {
 	instanceMap map[string]*ServiceInstance
 	bindingMap  map[string]*ServiceBinding
 	dbaas       *dbaas.Cmd
+	EnvName     string
 }
 
 // ProvisionParameters represents the parameters that can be tuned on a cluster
@@ -80,6 +83,69 @@ func New() (Controller, error) {
 	}
 
 	return c, nil
+}
+
+type GCloudRequest struct {
+	EnvName   string `json:"envName"`
+	Project   string `json:"project"`
+	Zone      string `json:"zone"`
+	Cluster   string `json:"cluster"`
+	KeyFile   string `json:"keyFile"`
+	Namespace string `json:"namespace"`
+}
+
+func isJSON(s string) bool {
+	var js map[string]interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
+
+}
+func (c *Controller) Gcloud(w http.ResponseWriter, r *http.Request) {
+	var gc GCloudRequest
+	err := ProvisionDataFromRequest(r, &gc)
+	if err != nil {
+		log.Println("Provision data:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if len(gc.KeyFile) > 0 {
+		if isJSON(gc.KeyFile) {
+			gc.KeyFile = base64.StdEncoding.EncodeToString([]byte(gc.KeyFile))
+		} else {
+			dat, err := ioutil.ReadFile(gc.KeyFile)
+			if err != nil {
+				fmt.Printf("\n[error] %s\n", err)
+				return
+			}
+			gc.KeyFile = base64.StdEncoding.EncodeToString([]byte(dat))
+		}
+	}
+	cloudEnv, err := gcloud.New(gc.EnvName, gc.Project, gc.Zone, gc.Cluster, gc.KeyFile, gc.Namespace)
+	if err != nil {
+		fmt.Printf("\n[error] %s\n", err)
+		return
+	}
+	err = cloudEnv.Setup()
+	if err != nil {
+		fmt.Printf("\n[error] %s\n", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+type EnvironmentRequest struct {
+	Environment string `json:"environment"`
+}
+
+func (c *Controller) Environment(w http.ResponseWriter, r *http.Request) {
+	var envReq EnvironmentRequest
+	err := ProvisionDataFromRequest(r, &envReq)
+	if err != nil {
+		log.Println("Provision data:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	c.EnvName = envReq.Environment
+	w.WriteHeader(http.StatusOK)
 }
 
 func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {

@@ -41,6 +41,8 @@ func (s *Server) Start() {
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.RemoveServiceInstance).Methods("DELETE")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}/service_bindings/{service_binding_guid}", s.controller.Bind).Methods("PUT")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}/service_bindings/{service_binding_guid}", s.controller.UnBind).Methods("DELETE")
+	router.HandleFunc("/v2/gcloud", s.controller.Gcloud).Methods("POST")
+	router.HandleFunc("/v2/environment", s.controller.Environment).Methods("POST")
 
 	http.Handle("/", router)
 
