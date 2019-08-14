@@ -94,8 +94,10 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 	for {
 		select {
 		case okmsg := <-created:
-			p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-			p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+			if _, ok := p.instanceMap[instanceID]; ok {
+				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+			}
 			log.Printf("Starting...[done] %s", okmsg)
 			return
 		case omsg := <-msg:
@@ -103,14 +105,18 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 			case dbaas.OutuputMsgDebug:
 				// fmt.Printf("\n[debug] %s\n", omsg)
 			case dbaas.OutuputMsgError:
-				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+				if _, ok := p.instanceMap[instanceID]; ok {
+					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+					p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
+				}
 				log.Printf("[operator log error] %s\n", omsg)
 			}
 			return
 		case err := <-cerr:
-			p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-			p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+			if _, ok := p.instanceMap[instanceID]; ok {
+				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+			}
 			log.Println("Create error:", err)
 			return
 		}

@@ -649,6 +649,7 @@ func (cr *PerconaServerMongoDB) SetNew(clusterName, rsName string, c ClusterConf
 	}
 
 	if len(c.PSMDB.BrokerInstance) > 0 {
+		cr.ObjectMeta.Annotations = make(map[string]string)
 		cr.ObjectMeta.Annotations["broker-instance"] = c.PSMDB.BrokerInstance
 	}
 
