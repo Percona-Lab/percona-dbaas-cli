@@ -70,7 +70,7 @@ var createCmd = &cobra.Command{
 			rsName = args[1]
 		}
 		if len(*labels) > 0 {
-			match, err := regexp.MatchString("([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)|([a-zA-Z0-9_]+=[a-zA-Z0-9_]+,)+([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)", *labels)
+			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
 				if *createAnswerInJSON {
 					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("label parse", err))
