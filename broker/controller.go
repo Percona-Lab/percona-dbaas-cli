@@ -342,6 +342,10 @@ func (c *Controller) getBrokerInstances(typ string) error {
 		return errors.Wrap(err, "getBrokerInstances")
 	}
 
+	return c.updateInstanceMap(s)
+}
+
+func (c *Controller) updateInstanceMap(s []byte) error {
 	s = s[1 : len(s)-1]
 
 	instances := bytes.Split(s, []byte("} {"))
@@ -352,22 +356,22 @@ func (c *Controller) getBrokerInstances(typ string) error {
 			if len(instances) > 1 {
 				v = append(v, []byte("}")...)
 			}
-			err = json.Unmarshal(v, &b)
+			err := json.Unmarshal(v, &b)
 			if err != nil {
-				return errors.Wrap(err, "instance unmarshal")
+				return errors.Wrap(err, "instance unmarshal 1")
 			}
 		case len(instances) - 1:
 			v = append([]byte("{"), v...)
-			err = json.Unmarshal(v, &b)
+			err := json.Unmarshal(v, &b)
 			if err != nil {
-				return errors.Wrap(err, "instance unmarshal")
+				return errors.Wrap(err, "instance unmarshal 2")
 			}
 		default:
-			v = append([]byte("{"), s...)
+			v = append([]byte("{"), v...)
 			v = append(v, []byte("}")...)
-			err = json.Unmarshal(v, &b)
+			err := json.Unmarshal(v, &b)
 			if err != nil {
-				return errors.Wrap(err, "instance unmarshal")
+				return errors.Wrap(err, "instance unmarshal 3")
 			}
 		}
 		c.instanceMap[b.ID] = &b
