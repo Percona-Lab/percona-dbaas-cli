@@ -93,11 +93,6 @@ pipeline {
                     curl -s -L https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz \
                         | sudo tar -C /usr/local/bin --strip-components 1 --wildcards -zxvpf - '*/oc'
                 '''
-                withCredentials([file(credentialsId: 'cloud-secret-file', variable: 'CLOUD_SECRET_FILE')]) {
-                    sh '''
-                        cp $CLOUD_SECRET_FILE ./e2e-tests/conf/cloud-secret.yml
-                    '''
-                }
             }
         }
         stage('Build docker image') {
