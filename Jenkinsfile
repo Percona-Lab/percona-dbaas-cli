@@ -31,14 +31,12 @@ void popArtifactFile(String FILE_NAME) {
 void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
     popArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
     sh """
-        if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
+         if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
             echo Skip $TEST_NAME test
         else
-            HOMETEMP=$(mktemp)
-            mkdir $HOMETEMP/.kube
-            ln -s /tmp/$CLUSTER_NAME-${CLUSTER_PREFIX} $HOMETEMP/.kube/config
+            export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
             source $HOME/google-cloud-sdk/path.bash.inc
-            HOME=$HOMETEMP ./e2e-tests/$TEST_NAME/run
+            ./e2e-tests/$TEST_NAME/run
             touch $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
         fi
     """

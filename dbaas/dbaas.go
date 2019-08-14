@@ -90,15 +90,16 @@ func New(environment string) (*Cmd, error) {
 
 	}
 	return &Cmd{
-		environment: os.Getenv("HOME") + "/.kube/" + "/config",
+		environment: "",
 	}, nil
 }
 
 func (p Cmd) runCmd(cmd string, args ...string) ([]byte, error) {
 	cli := exec.Command(cmd, args...)
 	cli.Env = os.Environ()
-	cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
-
+	if len(p.environment) > 0 {
+		cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
+	}
 	o, err := cli.CombinedOutput()
 	if err != nil {
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
