@@ -263,10 +263,9 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 
 	skipS3 := true
 
-	c.DeployCluster(instance, &skipS3, instanceID)
-
 	instance.InternalID = instanceID
 	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
+	c.DeployCluster(instance, &skipS3, instanceID)
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
 		Description:              InProgressOperationDescription,
@@ -296,19 +295,19 @@ func (c *Controller) UpdateServiceInstance(w http.ResponseWriter, r *http.Reques
 
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
 
-	err = c.UpdateCluster(&instance)
-	if err != nil {
-		log.Println("Update instatnce:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
 	instance.InternalID = instanceID
 	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
+	}
+
+	err = c.UpdateCluster(&instance)
+	if err != nil {
+		log.Println("Update instatnce:", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	c.instanceMap[instance.ID] = &instance
@@ -350,7 +349,9 @@ func (c *Controller) getBrokerInstances(typ string) error {
 		var b ServiceInstance
 		switch k {
 		case 0:
-			v = append(v, []byte("}")...)
+			if len(instances) > 1 {
+				v = append(v, []byte("}")...)
+			}
 			err = json.Unmarshal(v, &b)
 			if err != nil {
 				return errors.Wrap(err, "instance unmarshal")
@@ -392,8 +393,12 @@ func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *h
 
 func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Request) {
 	log.Println("Remove Service Instance...")
-
+	for k, v := range c.instanceMap {
+		log.Println(k)
+		log.Println(v)
+	}
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+	log.Println(instanceID)
 	instance := c.instanceMap[instanceID]
 	if instance == nil {
 		w.WriteHeader(http.StatusGone)
