@@ -331,12 +331,8 @@ func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *h
 
 func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Request) {
 	log.Println("Remove Service Instance...")
-	for k, v := range c.instanceMap {
-		log.Println(k)
-		log.Println(v)
-	}
+
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-	log.Println(instanceID)
 	instance := c.instanceMap[instanceID]
 	if instance == nil {
 		w.WriteHeader(http.StatusGone)
