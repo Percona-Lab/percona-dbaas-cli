@@ -16,8 +16,10 @@ package dbaas
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func (p Cmd) List(typ string) (string, error) {
@@ -38,6 +40,10 @@ func (p Cmd) ListName(typ, name string) (string, error) {
 	return string(out), nil
 }
 
+type MultiplePVCk8sOutput struct {
+	Items []corev1.PersistentVolumeClaim `json:"items"`
+}
+
 func (p Cmd) Describe(app Deploy) (string, error) {
 	out, err := p.runCmd("kubectl", "get", app.OperatorType(), app.Name(), "-o", "json")
 	if err != nil {
@@ -50,30 +56,25 @@ func (p Cmd) Describe(app Deploy) (string, error) {
 		return "", errors.Wrapf(err, "json prase")
 	}
 
-	cr, err := p.getPodInfo(app.DataPodName(0))
+	pvcList := &MultiplePVCk8sOutput{}
+	pvcsJSON, err := p.runCmd("kubectl", "get", "pvc", fmt.Sprintf("--selector=app.kubernetes.io/instance=%s,app.kubernetes.io/managed-by=%s", app.Name(), app.OperatorName()), "-o", "json")
 	if err != nil {
 		return "", err
+	}
+	err = json.Unmarshal([]byte(pvcsJSON), &pvcList)
+	if err != nil {
+		return "", errors.Wrapf(err, "json prase")
 	}
 	PVCs := map[string]string{}
 	AllocatedStorage := map[string]string{}
 
-	for item := range cr.Spec.Volumes {
-		for pod := range app.PodTypes() {
-			if cr.Spec.Volumes[item].Name == "datadir" || cr.Spec.Volumes[item].Name == "mongod-data" {
-				pvcinfo, err := p.getPvcInfo(cr.Spec.Volumes[item].VolumeSource.PersistentVolumeClaim.ClaimName)
-				if err != nil {
-					return "", err
-				}
-				PVCs[app.PodTypes()[pod]] = *pvcinfo.Spec.StorageClassName
-
-				qt, err := pvcinfo.Status.Capacity["storage"].MarshalJSON()
-				if err != nil {
-					return "", err
-				}
-				AllocatedStorage[app.PodTypes()[pod]] = string(qt)
-			}
+	for volume := range pvcList.Items {
+		PVCs[pvcList.Items[volume].Labels["app.kubernetes.io/component"]] = *pvcList.Items[volume].Spec.StorageClassName
+		qt, err := pvcList.Items[volume].Status.Capacity["storage"].MarshalJSON()
+		if err != nil {
+			return "", err
 		}
-
+		AllocatedStorage[pvcList.Items[volume].Labels["app.kubernetes.io/component"]] = string(qt)
 	}
 	mergedData["StorageClassesAllocated"] = PVCs
 	mergedData["StorageSizeAllocated"] = AllocatedStorage

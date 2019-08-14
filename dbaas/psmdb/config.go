@@ -161,12 +161,12 @@ type PerconaServerMongoDB struct {
 
 type PerconaServerMongoDBStorageClasses struct {
 	BackupCoordinator string `json:"backup-coordinator,omitempty"`
-	ReplicaSet        string `json:"rs0,omitempty"`
+	DataPod           string `json:"mongod,omitempty"`
 }
 
 type PerconaServerMongoDBStorageSizes struct {
 	BackupCoordinator string `json:"backup-coordinator,omitempty"`
-	ReplicaSet        string `json:"rs0,omitempty"`
+	DataPod           string `json:"mongod,omitempty"`
 }
 
 // PerconaServerMongoDBList contains a list of PerconaServerMongoDB

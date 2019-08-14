@@ -418,8 +418,8 @@ func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
 		cr.Spec.Replsets[0].Resources.Requests.Memory,
 		dbaas.GetStringFromMap(budgetPSMDB),
 		*cr.Spec.Replsets[0].Affinity.TopologyKey,
-		cr.StorageClassesAllocated.ReplicaSet,
-		cr.StorageSizeAllocated.ReplicaSet,
+		cr.StorageClassesAllocated.DataPod,
+		cr.StorageSizeAllocated.DataPod,
 		cr.Spec.Backup.Image,
 		string(cpuSizeBytes),
 		string(memorySizeBytes),
@@ -427,14 +427,6 @@ func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
 		cr.StorageClassesAllocated.BackupCoordinator,
 		cr.StorageSizeAllocated.BackupCoordinator,
 		backupSchedule), nil
-}
-
-func (p *PSMDB) PodTypes() []string {
-	return []string{p.rsName, "backup-coordinator"}
-}
-
-func (p *PSMDB) DataPodName(index int) string {
-	return fmt.Sprintf("%s-%s-%d", p.name, p.rsName, index)
 }
 
 type operatorLog struct {

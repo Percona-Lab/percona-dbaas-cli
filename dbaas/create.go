@@ -39,8 +39,6 @@ type Deploy interface {
 	Name() string
 	OperatorName() string
 	OperatorType() string
-	PodTypes() []string
-	DataPodName(index int) string
 
 	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, []string, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)

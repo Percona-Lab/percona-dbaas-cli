@@ -16,7 +16,6 @@ package dbaas
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -26,7 +25,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 )
 
 func init() {
@@ -217,33 +215,6 @@ func (p Cmd) checkOpenshift() bool {
 	}
 
 	return strings.Contains(string(output), "openshift")
-}
-
-func (p Cmd) getPodInfo(name string) (*corev1.Pod, error) {
-	podinfo, err := p.runCmd("kubectl", "get", "pod", name, "-o", "json")
-	if err != nil {
-		return nil, errors.Wrapf(err, "get cr: %s", podinfo)
-	}
-	cr := &corev1.Pod{}
-	err = json.Unmarshal([]byte(podinfo), &cr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "json prase")
-	}
-	return cr, nil
-}
-
-func (p Cmd) getPvcInfo(name string) (*corev1.PersistentVolumeClaim, error) {
-	pvcinfo, err := p.runCmd("kubectl", "get", "pvc", name, "-o", "json")
-	if err != nil {
-		return nil, errors.Wrapf(err, "get cr: %s", pvcinfo)
-	}
-
-	pvc := &corev1.PersistentVolumeClaim{}
-	err = json.Unmarshal([]byte(pvcinfo), &pvc)
-	if err != nil {
-		return nil, errors.Wrapf(err, "json prase")
-	}
-	return pvc, nil
 }
 
 func GetStringFromMap(input map[string]string) string {
