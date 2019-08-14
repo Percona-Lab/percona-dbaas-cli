@@ -40,7 +40,7 @@ var listCmd = &cobra.Command{
 			return
 		}
 		if len(args) > 0 {
-			app := pxc.New(args[0], defaultVersion, *listAnswerInJSON)
+			app := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "")
 			info, err := dbservice.Describe(app)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)

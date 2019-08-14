@@ -412,14 +412,6 @@ func (p *PXC) Describe(kubeInput []byte) (string, error) {
 		backupSchedule), nil
 }
 
-func (p *PXC) PodTypes() []string {
-	return []string{"pxc", "proxysql"}
-}
-
-func (p *PXC) DataPodName(index int) string {
-	return fmt.Sprintf("%s-pxc-%d", p.name, index)
-}
-
 type operatorLog struct {
 	Level      string  `json:"level"`
 	TS         float64 `json:"ts"`
