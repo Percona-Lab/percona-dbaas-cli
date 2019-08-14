@@ -34,9 +34,11 @@ void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
         if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
             echo Skip $TEST_NAME test
         else
-            export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
+            HOMETEMP=$(mktemp)
+            mkdir $HOMETEMP/.kube
+            ln -s /tmp/$CLUSTER_NAME-${CLUSTER_PREFIX} $HOMETEMP/.kube/config
             source $HOME/google-cloud-sdk/path.bash.inc
-            ./e2e-tests/$TEST_NAME/run
+            HOME=$HOMETEMP ./e2e-tests/$TEST_NAME/run
             touch $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
         fi
     """
