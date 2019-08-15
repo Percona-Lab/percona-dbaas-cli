@@ -221,6 +221,7 @@ deploy_cert_manager() {
 
 destroy() {
     local namespace="$1"
+    local prefix=$(echo $1 | cut -d- -f1)
 
     kubectl_bin logs $(get_operator_pod) \
         | grep -v 'level=info' \
@@ -235,10 +236,14 @@ destroy() {
 
     #TODO: maybe will be enabled later
     #diff $TEST_DIR/compare/operator.log $tmp_dir/operator.log
-
-    kubectl_bin delete psmdb --all
-    kubectl_bin delete psmdb-backup --all || :
-    kubectl_bin delete psmdb-recovery --all || :
+    kubectl_bin delete "${prefix}" --all
+    kubectl_bin delete "${prefix}"-backup --all
+    if [[ "${prefix}" == "pxc" ]]; then
+        kubectl_bin delete "${prefix}"-restore --all || :
+    fi
+    if [[ "${prefix}" == "psmdb" ]]; then
+        kubectl_bin delete "${prefix}"-recovery --all || :
+    fi
 
     kubectl_bin delete -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.7/deploy/manifests/cert-manager.yaml 2>/dev/null || :
     if [ "$OPENSHIFT" == 1 ]; then
