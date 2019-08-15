@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"log"
 	"testing"
 )
 
@@ -46,9 +45,8 @@ func TestUpdateInstanceMapTests(t *testing.T) {
 			if err != nil {
 				t.Error(name, err)
 			}
-			log.Println(len(c.instanceMap))
 			if len(c.instanceMap) != test.instQuant {
-				t.Error(name+":", "Wrong instance quantoty")
+				t.Error(name+":", "Wrong instance quantity")
 			}
 			for id, clusterName := range test.clusterNames {
 				if clusterName != c.instanceMap[id].Parameters.ClusterName {
