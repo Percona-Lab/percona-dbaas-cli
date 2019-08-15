@@ -6,8 +6,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/broker"
 	"github.com/Percona-Lab/percona-dbaas-cli/integtests/datafactory"
 )
 
@@ -48,13 +50,18 @@ func (c *Config) Run() error {
 }
 
 func (c *Config) check(testCase Case) error {
-	respData, respStatus, err := c.Request(testCase.Endpoint, testCase.ReqType, testCase.ReqData)
+	controller, err := broker.New()
+	ts := httptest.NewServer(http.HandlerFunc(controller.CreateServiceInstance))
+	defer ts.Close()
+
+	respData, respStatus, err := c.Request(ts.URL, testCase.ReqType, testCase.ReqData)
 	if err != nil {
 		return err
 	}
+
 	if respStatus != http.StatusOK || respStatus != http.StatusAccepted {
 		log.Println(respStatus)
-		//return fmt.Errorf("Wrong status")
+		return fmt.Errorf("Wrong status")
 	}
 	log.Println(respStatus, string(respData))
 	if len(testCase.ReqData) > 0 && string(respData) != testCase.RespData {
@@ -64,9 +71,9 @@ func (c *Config) check(testCase Case) error {
 }
 
 // Request send test request
-func (c *Config) Request(endpoint, reqType string, reqBody []byte) ([]byte, int, error) {
+func (c *Config) Request(address, reqType string, reqBody []byte) ([]byte, int, error) {
 	client := http.Client{}
-	req, err := http.NewRequest(reqType, c.Address+endpoint, bytes.NewReader(reqBody))
+	req, err := http.NewRequest(reqType, address, bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, 0, err
 	}
