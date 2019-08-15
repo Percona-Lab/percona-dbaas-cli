@@ -346,36 +346,25 @@ func (c *Controller) getBrokerInstances(typ string) error {
 }
 
 func (c *Controller) updateInstanceMap(s []byte) error {
-	s = s[1 : len(s)-1]
+	instances := append(
+		[]byte{'['},
+		append(
+			bytes.Replace(s[1:len(s)-1], []byte("} {"), []byte("}, {"), -1),
+			']',
+		)...,
+	)
 
-	instances := bytes.Split(s, []byte("} {"))
-	for k, v := range instances {
-		var b ServiceInstance
-		switch k {
-		case 0:
-			if len(instances) > 1 {
-				v = append(v, []byte("}")...)
-			}
-			err := json.Unmarshal(v, &b)
-			if err != nil {
-				return errors.Wrap(err, "instance unmarshal 1")
-			}
-		case len(instances) - 1:
-			v = append([]byte("{"), v...)
-			err := json.Unmarshal(v, &b)
-			if err != nil {
-				return errors.Wrap(err, "instance unmarshal 2")
-			}
-		default:
-			v = append([]byte("{"), v...)
-			v = append(v, []byte("}")...)
-			err := json.Unmarshal(v, &b)
-			if err != nil {
-				return errors.Wrap(err, "instance unmarshal 3")
-			}
-		}
-		c.instanceMap[b.ID] = &b
+	var b []ServiceInstance
+	err := json.Unmarshal(instances, &b)
+	if err != nil {
+		return err
 	}
+
+	for _, i := range b {
+		imap := i
+		c.instanceMap[i.ID] = &imap
+	}
+
 	return nil
 }
 
