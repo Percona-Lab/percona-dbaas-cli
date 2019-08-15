@@ -47,23 +47,23 @@ type MultiplePVCk8sOutput struct {
 func (p Cmd) Describe(app Deploy) (string, error) {
 	out, err := p.runCmd("kubectl", "get", app.OperatorType(), app.Name(), "-o", "json")
 	if err != nil {
-		return "", errors.Wrapf(err, "get cr: %s", out)
+		return "", errors.Wrapf(err, "describe-db %s", out)
 	}
 
 	mergedData := map[string]interface{}{}
 	err = json.Unmarshal([]byte(out), &mergedData)
 	if err != nil {
-		return "", errors.Wrapf(err, "json prase")
+		return "", errors.Wrapf(err, "describe-db")
 	}
 
 	pvcList := &MultiplePVCk8sOutput{}
 	pvcsJSON, err := p.runCmd("kubectl", "get", "pvc", fmt.Sprintf("--selector=app.kubernetes.io/instance=%s,app.kubernetes.io/managed-by=%s", app.Name(), app.OperatorName()), "-o", "json")
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "describe-db")
 	}
-	err = json.Unmarshal([]byte(pvcsJSON), &pvcList)
+	err = json.Unmarshal([]byte(pvcsJSON), pvcList)
 	if err != nil {
-		return "", errors.Wrapf(err, "json prase")
+		return "", errors.Wrapf(err, "describe-db")
 	}
 	PVCs := map[string]string{}
 	AllocatedStorage := map[string]string{}
@@ -72,7 +72,7 @@ func (p Cmd) Describe(app Deploy) (string, error) {
 		PVCs[pvcList.Items[volume].Labels["app.kubernetes.io/component"]] = *pvcList.Items[volume].Spec.StorageClassName
 		qt, err := pvcList.Items[volume].Status.Capacity["storage"].MarshalJSON()
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "describe-db")
 		}
 		AllocatedStorage[pvcList.Items[volume].Labels["app.kubernetes.io/component"]] = string(qt)
 	}
@@ -81,7 +81,7 @@ func (p Cmd) Describe(app Deploy) (string, error) {
 
 	out, err = json.Marshal(mergedData)
 	if err != nil {
-		return "", errors.Wrapf(err, "json pack")
+		return "", errors.Wrapf(err, "describe-db")
 	}
 	return app.Describe(out)
 }
