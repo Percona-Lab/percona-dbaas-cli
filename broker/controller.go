@@ -341,7 +341,9 @@ func (c *Controller) getBrokerInstances(typ string) error {
 	if err != nil {
 		return errors.Wrap(err, "getBrokerInstances")
 	}
-
+	if len(s) <= 2 {
+		return nil
+	}
 	return c.updateInstanceMap(s)
 }
 
