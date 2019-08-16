@@ -17,5 +17,10 @@ RUN curl -o /licenses/LICENSE.kubectl https://raw.githubusercontent.com/kubernet
 RUN cp /usr/share/google-cloud-sdk/LICENSE /licenses/LICENSE.gcloud
 COPY build/_output/bin/percona-dbaas /usr/local/bin/percona-dbaas
 
+RUN mkdir /tmp/dbaas
+RUN sed -i "s/^nobody.*/nobody:x:99:99:Nobody:\/tmp\/dbaas:\/sbin\/nologin/g" /etc/passwd
 
+EXPOSE 8081
 USER nobody
+
+CMD percona-dbaas service-broker
