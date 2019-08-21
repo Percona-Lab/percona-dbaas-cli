@@ -2,6 +2,7 @@ package apitester
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -54,11 +55,13 @@ func (c *Config) check(testCase Case) error {
 	ts := httptest.NewServer(http.HandlerFunc(controller.CreateServiceInstance))
 	defer ts.Close()
 
+	if testCase.Endpoint == datafactory.GetGetPXCInstanceData().Endpoint {
+		return c.checkStatus(ts, testCase)
+	}
 	respData, respStatus, err := c.Request(ts.URL, testCase.ReqType, testCase.ReqData)
 	if err != nil {
 		return err
 	}
-
 	if respStatus != http.StatusOK || respStatus != http.StatusAccepted {
 		log.Println(respStatus)
 		return fmt.Errorf("Wrong status")
@@ -67,6 +70,34 @@ func (c *Config) check(testCase Case) error {
 	if len(testCase.ReqData) > 0 && string(respData) != testCase.RespData {
 		return fmt.Errorf("Wrong responce")
 	}
+	return nil
+}
+
+func (c *Config) checkStatus(ts *httptest.Server, testCase Case) error {
+	startTime := time.Now()
+	endTime := startTime.Local().Add(time.Second * time.Duration(180))
+	ticker := time.NewTicker(2 * time.Second)
+
+	var instResp GetInstanceResp
+	for t := range ticker.C {
+		respData, _, err := c.Request(ts.URL, testCase.ReqType, testCase.ReqData)
+		if err != nil {
+			return err
+		}
+		err = json.Unmarshal(respData, &instResp)
+		if err != nil {
+			return err
+		}
+		if instResp.State != "succeeded" {
+			return nil
+		}
+		if t.Unix() >= endTime.Unix() {
+			ticker.Stop()
+			return fmt.Errorf("cluster not started")
+		}
+	}
+	ticker.Stop()
+
 	return nil
 }
 
@@ -111,6 +142,13 @@ func (t *Config) setCases() {
 		ReqData:  updatePXCInstanceData.ReqData,
 		RespData: updatePXCInstanceData.RespData,
 	})
+	getPXCInstanceData = datafactory.GetGetPXCInstanceData()
+	t.Cases = append(t.Cases, Case{
+		Endpoint: getPXCInstanceData.Endpoint,
+		ReqType:  getPXCInstanceData.ReqType,
+		ReqData:  getPXCInstanceData.ReqData,
+		RespData: getPXCInstanceData.RespData,
+	})
 	deletePXCInstanceData := datafactory.GetDeletePXCInstanceData()
 	t.Cases = append(t.Cases, Case{
 		Endpoint: deletePXCInstanceData.Endpoint,
@@ -139,6 +177,13 @@ func (t *Config) setCases() {
 		ReqData:  updatePSMDBInstanceData.ReqData,
 		RespData: updatePSMDBInstanceData.RespData,
 	})
+	getPSMDBInstanceData = datafactory.GetGetPSMDBInstanceData()
+	t.Cases = append(t.Cases, Case{
+		Endpoint: getPSMDBInstanceData.Endpoint,
+		ReqType:  getPSMDBInstanceData.ReqType,
+		ReqData:  getPSMDBInstanceData.ReqData,
+		RespData: getPSMDBInstanceData.RespData,
+	})
 	deletePSMDBInstanceData := datafactory.GetDeletePSMDBInstanceData()
 	t.Cases = append(t.Cases, Case{
 		Endpoint: deletePSMDBInstanceData.Endpoint,
@@ -146,4 +191,9 @@ func (t *Config) setCases() {
 		ReqData:  deletePSMDBInstanceData.ReqData,
 		RespData: deletePSMDBInstanceData.RespData,
 	})
+}
+
+type GetInstanceResp struct {
+	State       string `json:"state"`
+	Description string `json:"description"`
 }
