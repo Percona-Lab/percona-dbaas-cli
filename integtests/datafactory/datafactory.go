@@ -31,7 +31,7 @@ func GetGetPXCInstanceData() CaseData {
 		Endpoint: "/v2/service_instances/test-pxc-instance",
 		ReqType:  "GET",
 		ReqData:  []byte(``),
-		RespData: `{"state":"in progress","description":"creating service instance...","async_poll_interval_seconds":10}`,
+		RespData: ``,
 	}
 }
 
@@ -83,7 +83,7 @@ func GetGetPSMDBInstanceData() CaseData {
 		Endpoint: "/v2/service_instances/test-psmdb-instance",
 		ReqType:  "GET",
 		ReqData:  []byte(``),
-		RespData: `{"state":"in progress","description":"creating service instance...","async_poll_interval_seconds":10}`,
+		RespData: ``,
 	}
 }
 
