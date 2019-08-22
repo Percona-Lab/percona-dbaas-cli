@@ -17,7 +17,7 @@ RUN curl -o /licenses/LICENSE.kubectl https://raw.githubusercontent.com/kubernet
 RUN cp /usr/share/google-cloud-sdk/LICENSE /licenses/LICENSE.gcloud
 COPY build/_output/bin/percona-dbaas /usr/local/bin/percona-dbaas
 
-RUN RUN install -d -o 99 -g 0 -m 0775 /tmp/dbaas
+RUN install -d -o 99 -g 0 -m 0775 /tmp/dbaas
 RUN sed -i "s/^nobody.*/nobody:x:99:99:Nobody:\/tmp\/dbaas:\/sbin\/nologin/g" /etc/passwd
 
 EXPOSE 8081

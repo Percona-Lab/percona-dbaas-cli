@@ -1,0 +1,396 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: percona-service-broker
+---
+apiVersion: v1
+kind: Service
+metadata:
+ name: percona-service-broker
+ namespace: percona-service-broker
+spec:
+ selector:
+   app: percona-service-broker
+ ports:
+ - protocol: TCP
+   port: 8081
+   targetPort: 8081
+---
+apiVersion: servicecatalog.k8s.io/v1beta1
+kind: ClusterServiceBroker
+metadata:
+  name: percona-service-broker
+  namespace: percona-service-broker
+spec:
+  url: 'http://percona-service-broker.percona-service-broker.svc:8081'
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: percona-service-broker
+  namespace: percona-service-broker
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: percona-service-broker
+  namespace: percona-service-broker
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: percona
+subjects:
+  - kind: ServiceAccount
+    name: percona-service-broker
+    namespace: percona-service-broker
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: percona
+  namespace: percona-service-broker
+rules:
+- apiGroups:
+  - pxc.percona.com
+  resources:
+  - perconaxtradbclusters
+  - perconaxtradbclusters/status
+  - perconaxtradbclusterbackups
+  - perconaxtradbclusterbackups/status
+  - perconaxtradbclusterrestores
+  - perconaxtradbclusterrestores/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - psmdb.percona.com
+  resources:
+  - perconaservermongodbs
+  - perconaservermongodbs/status
+  - perconaservermongodbbackups
+  - perconaservermongodbbackups/status
+  - perconaservermongodbrestores
+  - perconaservermongodbrestores/status
+  verbs:
+  - get
+  - list
+  - update
+  - watch
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - rolebindings
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/exec
+  - configmaps
+  - services
+  - persistentvolumeclaims
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - certmanager.k8s.io
+  resources:
+  - issuers
+  - certificates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: percona-service-broker
+  namespace: percona-service-broker
+  labels:
+    app: percona-service-broker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: percona-service-broker
+  template:
+    metadata:
+      labels:
+        app: percona-service-broker
+    spec:
+      serviceAccountName: percona-service-broker
+      containers:
+        - name: percona-service-broker
+          image: perconalab/percona-xtradb-cluster-operator:pxc-service-broker
+          ports:
+          - containerPort: 8081
+          imagePullPolicy: Always
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: percona-xtradb-cluster-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: percona-xtradb-cluster-operator
+subjects:
+  - kind: ServiceAccount
+    name: percona-xtradb-cluster-operator
+    namespace: percona-service-broker
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: percona-xtradb-cluster-operator
+rules:
+- apiGroups:
+  - pxc.percona.com
+  resources:
+  - perconaxtradbclusters
+  - perconaxtradbclusters/status
+  - perconaxtradbclusterbackups
+  - perconaxtradbclusterbackups/status
+  - perconaxtradbclusterrestores
+  - perconaxtradbclusterrestores/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/exec
+  - configmaps
+  - services
+  - persistentvolumeclaims
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  - cronjobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - certmanager.k8s.io
+  resources:
+  - issuers
+  - certificates
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: percona-server-mongodb-operator
+rules:
+  - apiGroups:
+    - psmdb.percona.com
+    resources:
+    - perconaservermongodbs
+    - perconaservermongodbs/status
+    - perconaservermongodbbackups
+    - perconaservermongodbbackups/status
+    - perconaservermongodbrestores
+    - perconaservermongodbrestores/status
+    verbs:
+    - get
+    - list
+    - update
+    - watch
+    - create
+  - apiGroups:
+    - ""
+    resources:
+    - pods
+    - pods/exec
+    - services
+    - persistentvolumeclaims
+    - secrets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - apps
+    resources:
+    - deployments
+    - replicasets
+    - statefulsets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - batch
+    resources:
+    - cronjobs
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - policy
+    resources:
+    - poddisruptionbudgets
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+  - apiGroups:
+    - certmanager.k8s.io
+    resources:
+    - issuers
+    - certificates
+    verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+    - deletecollection
