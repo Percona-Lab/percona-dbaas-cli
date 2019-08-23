@@ -260,7 +260,11 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	}
 
 	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-
+	if _, ok := c.instanceMap[instanceID]; ok {
+		log.Println(instanceID, "already exist")
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
 	skipS3 := true
 
 	instance.InternalID = instanceID
@@ -272,7 +276,7 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
 
-	c.instanceMap[instance.ID] = &instance
+	c.instanceMap[instanceID] = &instance
 
 	response := CreateServiceInstanceResponse{
 		LastOperation: instance.LastOperation,
