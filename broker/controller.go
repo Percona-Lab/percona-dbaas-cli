@@ -229,7 +229,7 @@ func (c *Controller) Catalog(w http.ResponseWriter, r *http.Request) {
 					ProviderDisplayName: "percona",
 				},
 				Tags: []string{
-					"pxc",
+					"psmdb",
 				},
 				PlanUpdateable: true,
 			},
