@@ -25,6 +25,15 @@ type ServiceInstance struct {
 	} `json:"parameters,omitempty"`
 
 	Context Context `json:"context"`
+
+	Credentials Credentials `json:"credentials"`
+}
+
+type Credentials struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+	User string `json:"user"`
+	Pass string `json:"pass"`
 }
 
 type LastOperation struct {

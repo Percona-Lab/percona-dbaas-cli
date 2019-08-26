@@ -24,7 +24,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, false, "")
+		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "")
 		conf := pxc.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -54,9 +54,9 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		go dbservice.Create("pxc", app, created, msg, cerr)
-		go p.listenCreateChannels(created, msg, cerr, instanceID)
+		go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
 	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false, "")
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
 		conf := psmdb.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -85,25 +85,37 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		go dbservice.Create("psmdb", app, created, msg, cerr)
-		go p.listenCreateChannels(created, msg, cerr, instanceID)
+		go p.listenCreateChannels(created, msg, cerr, instanceID, "psmdb", dbservice)
 	}
 	return nil
 }
 
-func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID string) {
+func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
 	for {
 		select {
 		case okmsg := <-created:
+			var credentials Credentials
+			err := json.Unmarshal([]byte(okmsg), &credentials)
+			if err != nil {
+				log.Println("Error unmarshal crefdentials:", err)
+			}
 			if _, ok := p.instanceMap[instanceID]; ok {
 				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
 				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+				p.instanceMap[instanceID].Credentials = credentials
+				instance, err := json.Marshal(p.instanceMap[instanceID])
+				if err != nil {
+					log.Println("Error marshal oinstance", err)
+				}
+				dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+
 			}
-			log.Printf("Starting...[done] %s", okmsg)
+			log.Printf(okmsg)
 			return
 		case omsg := <-msg:
 			switch omsg.(type) {
 			case dbaas.OutuputMsgDebug:
-				// fmt.Printf("\n[debug] %s\n", omsg)
+				//log.Printf("\n[debug] %s\n", omsg)
 			case dbaas.OutuputMsgError:
 				if _, ok := p.instanceMap[instanceID]; ok {
 					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
@@ -158,6 +170,10 @@ func (p *Controller) listenDeleteChannels(ok chan string, cerr chan error) {
 }
 
 func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
+	dbservice, err := dbaas.New(p.EnvName)
+	if err != nil {
+		return err
+	}
 	created := make(chan string)
 	msg := make(chan dbaas.OutuputMsg)
 	cerr := make(chan error)
@@ -177,8 +193,8 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		conf.PXC.BrokerInstance = string(brokerInstance)
 		app.ClusterConfig = conf
 
-		go p.dbaas.Edit("pxc", app, nil, created, msg, cerr)
-		p.listenUpdateChannels(created, msg, cerr, instance.ID)
+		go dbservice.Edit("pxc", app, nil, created, msg, cerr)
+		p.listenUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false, "")
 		conf := psmdb.ClusterConfig{}
@@ -189,19 +205,26 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		conf.PSMDB.BrokerInstance = string(brokerInstance)
 		app.ClusterConfig = conf
 
-		go p.dbaas.Edit("psmdb", app, nil, created, msg, cerr)
-		p.listenUpdateChannels(created, msg, cerr, instance.ID)
+		go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
+		p.listenUpdateChannels(created, msg, cerr, instance.ID, "psmdb", p.dbaas)
 	}
 	return nil
 }
 
-func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID string) {
+func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
 	for {
 		select {
 		case okmsg := <-created:
-			p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
-			p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-			log.Printf("Starting...[done] %s", okmsg)
+			if _, ok := p.instanceMap[instanceID]; ok {
+				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+				instance, err := json.Marshal(p.instanceMap[instanceID])
+				if err != nil {
+					log.Println("Error marshal oinstance", err)
+				}
+				dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+			}
+			log.Printf(okmsg)
 			return
 		case omsg := <-msg:
 			switch omsg.(type) {

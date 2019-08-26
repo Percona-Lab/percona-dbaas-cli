@@ -123,6 +123,15 @@ func (p Cmd) apply(k8sObj string) error {
 	return nil
 }
 
+func (p Cmd) Annotate(resource, clusterName, annotName, instance string) error {
+	_, err := p.runCmd(execCommand, "annotate", resource, clusterName, annotName+"="+instance, "--overwrite=true")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (p Cmd) IsObjExists(typ, name string) (bool, error) {
 	switch typ {
 	case "pxc":
