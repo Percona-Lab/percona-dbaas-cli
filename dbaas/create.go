@@ -161,7 +161,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 		case ClusterStateInit:
 		}
 
-		/*opLogsStream, err := p.readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
 		if err != nil {
 			// waiting for the operator to start
 			if tries < getStatusMaxTries/2 {
@@ -175,11 +175,11 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 		if err != nil {
 			errc <- errors.Wrap(err, "parse operator logs")
 			return
-		}*/
+		}
 
-		/*for _, entry := range opLogs {
+		for _, entry := range opLogs {
 			msg <- entry
-		}*/
+		}
 
 		if tries >= getStatusMaxTries {
 			errc <- errors.Wrap(err, "unable to start cluster")

@@ -105,13 +105,8 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 			case dbaas.OutuputMsgDebug:
 				// fmt.Printf("\n[debug] %s\n", omsg)
 			case dbaas.OutuputMsgError:
-				if _, ok := p.instanceMap[instanceID]; ok {
-					p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-					p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-				}
 				log.Printf("[operator log error] %s\n", omsg)
 			}
-			return
 		case err := <-cerr:
 			if _, ok := p.instanceMap[instanceID]; ok {
 				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
