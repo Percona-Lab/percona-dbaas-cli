@@ -332,8 +332,13 @@ func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
+	secret, err := c.getClusterSecret(instance.Parameters.ClusterName)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 	response := instance
+	response.Credentials.Users = secret.Data
 
 	WriteResponse(w, http.StatusOK, response)
 }

@@ -90,6 +90,25 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	return nil
 }
 
+func (p *Controller) getClusterSecret(clusterName string) (Secret, error) {
+	var secret Secret
+	dbservice, err := dbaas.New(p.EnvName)
+	if err != nil {
+		return secret, err
+	}
+
+	s, err := dbservice.GetSecret(clusterName + "-secrets")
+	if err != nil {
+		return secret, err
+	}
+	err = json.Unmarshal(s, &secret)
+	if err != nil {
+		return secret, err
+	}
+
+	return secret, nil
+}
+
 func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
 	for {
 		select {
@@ -105,8 +124,9 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 				p.instanceMap[instanceID].Credentials = credentials
 				instance, err := json.Marshal(p.instanceMap[instanceID])
 				if err != nil {
-					log.Println("Error marshal oinstance", err)
+					log.Println("Error marshal instance", err)
 				}
+
 				dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
 
 			}

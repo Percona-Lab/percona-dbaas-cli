@@ -132,6 +132,10 @@ func (p Cmd) Annotate(resource, clusterName, annotName, instance string) error {
 	return nil
 }
 
+func (p Cmd) GetSecret(secretName string) ([]byte, error) {
+	return p.runCmd(execCommand, "get", "secret", secretName, "-o", "json")
+}
+
 func (p Cmd) IsObjExists(typ, name string) (bool, error) {
 	switch typ {
 	case "pxc":

@@ -30,9 +30,13 @@ type ServiceInstance struct {
 }
 
 type Credentials struct {
-	Host string `json:"host"`
-	Port int    `json:"port"`
-	User string `json:"user"`
+	Host  string            `json:"host"`
+	Port  int               `json:"port"`
+	Users map[string]string `json:"users,omitempty"`
+}
+
+type DBUser struct {
+	Name string `json:"name"`
 	Pass string `json:"pass"`
 }
 
@@ -67,4 +71,8 @@ type Context struct {
 	ClusterID string `json:"clusterid,omitempty"`
 	Namespace string `json:"namespace,omitempty"`
 	Platform  string `json:"platform,omitempty"`
+}
+
+type Secret struct {
+	Data map[string]string `json:"data"`
 }
