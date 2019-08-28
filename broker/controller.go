@@ -384,9 +384,10 @@ func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *h
 		return
 	}
 
-	response := CreateServiceInstanceResponse{
+	response := GetServiceInstanceLastOperationResponse{
 		LastOperation: instance.LastOperation,
 	}
+
 	WriteResponse(w, http.StatusOK, response)
 }
 
