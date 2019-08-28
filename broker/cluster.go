@@ -97,16 +97,13 @@ func (p *Controller) getClusterSecret(clusterName string) (Secret, error) {
 		return secret, err
 	}
 
-	s, err := dbservice.GetSecret(clusterName + "-secrets")
+	s, err := dbservice.GetObject("secret", clusterName+"-secrets")
 	if err != nil {
 		return secret, err
 	}
 	err = json.Unmarshal(s, &secret)
-	if err != nil {
-		return secret, err
-	}
 
-	return secret, nil
+	return secret, err
 }
 
 func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
@@ -116,7 +113,7 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 			var credentials Credentials
 			err := json.Unmarshal([]byte(okmsg), &credentials)
 			if err != nil {
-				log.Println("Error unmarshal crefdentials:", err)
+				log.Println("Error unmarshal credentials:", err)
 			}
 			if _, ok := p.instanceMap[instanceID]; ok {
 				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
@@ -242,7 +239,9 @@ func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.Ou
 				if err != nil {
 					log.Println("Error marshal oinstance", err)
 				}
-				dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+				if len(instance) > 0 {
+					dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+				}
 			}
 			log.Printf(okmsg)
 			return

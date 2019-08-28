@@ -125,15 +125,8 @@ func (p Cmd) apply(k8sObj string) error {
 
 func (p Cmd) Annotate(resource, clusterName, annotName, instance string) error {
 	_, err := p.runCmd(execCommand, "annotate", resource, clusterName, annotName+"="+instance, "--overwrite=true")
-	if err != nil {
-		return err
-	}
 
-	return nil
-}
-
-func (p Cmd) GetSecret(secretName string) ([]byte, error) {
-	return p.runCmd(execCommand, "get", "secret", secretName, "-o", "json")
+	return err
 }
 
 func (p Cmd) IsObjExists(typ, name string) (bool, error) {
