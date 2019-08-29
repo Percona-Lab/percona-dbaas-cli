@@ -269,12 +269,12 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 
 	instance.InternalID = instanceID
 	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
-	c.DeployCluster(instance, &skipS3, instanceID)
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
+	c.DeployCluster(instance, &skipS3, instanceID)
 
 	c.instanceMap[instanceID] = &instance
 
@@ -332,10 +332,13 @@ func (c *Controller) GetServiceInstance(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-
-	response := GetServiceInstanceLastOperationResponse{
-		instance.LastOperation,
+	secret, err := c.getClusterSecret(instance.Parameters.ClusterName)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
+	response := instance
+	response.Credentials.Users = secret.Data
 
 	WriteResponse(w, http.StatusOK, response)
 }
