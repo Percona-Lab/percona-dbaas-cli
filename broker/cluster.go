@@ -123,9 +123,9 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 				if err != nil {
 					log.Println("Error marshal instance", err)
 				}
-
-				dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
-
+				if len(instance) > 0 {
+					dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+				}
 			}
 			log.Printf(okmsg)
 			return
