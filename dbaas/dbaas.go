@@ -88,7 +88,7 @@ func New(environment string) (*Cmd, error) {
 
 	}
 	return &Cmd{
-		environment: "",
+		environment: environment,
 	}, nil
 }
 

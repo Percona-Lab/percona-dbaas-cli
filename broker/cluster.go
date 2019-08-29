@@ -189,6 +189,10 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 	created := make(chan string)
 	msg := make(chan dbaas.OutuputMsg)
 	cerr := make(chan error)
+	dbservice, err = dbaas.New(p.EnvName)
+	if err != nil {
+		return err
+	}
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
 		return err
