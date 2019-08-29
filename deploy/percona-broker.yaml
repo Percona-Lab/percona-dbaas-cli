@@ -80,6 +80,7 @@ rules:
   - update
   - watch
   - create
+  - delete
 - apiGroups:
   - apps
   resources:
