@@ -36,9 +36,16 @@ func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc 
 }
 
 func (p Cmd) delete(typ, name string) error {
-	out, err := p.runCmd("kubectl", "delete", typ, name)
-	if err != nil {
-		return errors.Wrapf(err, "get cr: %s", out)
+	if len(p.Namespace) > 0 {
+		out, err := p.runCmd("kubectl", "delete", typ, name, "-n", p.Namespace)
+		if err != nil {
+			return errors.Wrapf(err, "get cr: %s", out)
+		}
+	} else {
+		out, err := p.runCmd("kubectl", "delete", typ, name)
+		if err != nil {
+			return errors.Wrapf(err, "get cr: %s", out)
+		}
 	}
 
 	return nil

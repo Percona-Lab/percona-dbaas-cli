@@ -112,6 +112,9 @@ func (p Cmd) readOperatorLogs(operatorName string) ([]byte, error) {
 }
 
 func (p Cmd) GetObject(typ, name string) ([]byte, error) {
+	if len(p.Namespace) > 0 {
+		return p.runCmd(execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
+	}
 	return p.runCmd(execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
