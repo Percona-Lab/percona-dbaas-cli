@@ -18,6 +18,9 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	if err != nil {
 		return err
 	}
+	if len(instance.Context.Namespace) > 0 {
+		dbservice.Namespace = instance.Context.Namespace
+	}
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
 		return err
@@ -156,7 +159,9 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 	if err != nil {
 		return err
 	}
-
+	if len(instance.Context.Namespace) > 0 {
+		dbservice.Namespace = instance.Context.Namespace
+	}
 	switch instance.ServiceID {
 	case pxcServiceID:
 		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, false, ""), delePVC, ok, cerr)
@@ -192,6 +197,9 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 	dbservice, err = dbaas.New(p.EnvName)
 	if err != nil {
 		return err
+	}
+	if len(instance.Context.Namespace) > 0 {
+		dbservice.Namespace = instance.Context.Namespace
 	}
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {

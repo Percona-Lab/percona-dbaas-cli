@@ -44,6 +44,7 @@ var execCommand string
 
 type Cmd struct {
 	environment string
+	Namespace   string
 }
 
 type ErrCmdRun struct {
@@ -115,7 +116,11 @@ func (p Cmd) GetObject(typ, name string) ([]byte, error) {
 }
 
 func (p Cmd) apply(k8sObj string) error {
-	_, err := p.runCmd("sh", "-c", "cat <<-EOF | "+execCommand+" apply -f -\n"+k8sObj+"\nEOF")
+	namespace := ""
+	if len(p.Namespace) > 0 {
+		namespace = "-n " + p.Namespace + " "
+	}
+	_, err := p.runCmd("sh", "-c", "cat <<-EOF | "+execCommand+" apply "+namespace+"-f -\n"+k8sObj+"\nEOF")
 	if err != nil {
 		return err
 	}
