@@ -247,9 +247,6 @@ const (
 	defaultPolling = 10
 )
 
-/*
-{"service_id":"percona-server-for-mongodb-id","plan_id":"percona-server-for-mongodb-id","organization_guid":"bcc58b9a-c9b9-11e9-818e-0242ac110009","space_guid":"57fe5bb6-c9b5-11e9-aca1-080027ca08eb","parameters":{"cluster_name":"test-2","replicas":3,"size":"1Gi","topology_key":"none"},"context":{"clusterid":"bcc58b9a-c9b9-11e9-818e-0242ac110009","namespace":"myproject","platform":"kubernetes"}}
-*/
 func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request) {
 	log.Println("Create Service Instance...")
 
