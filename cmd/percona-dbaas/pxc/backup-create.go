@@ -82,9 +82,9 @@ var bcpCmd = &cobra.Command{
 			fmt.Print(list)
 			return
 		}
-
+		sp.Lock()
 		sp.Prefix = "Creating backup..."
-
+		sp.Unlock()
 		bcp := pxc.NewBackup(name)
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)

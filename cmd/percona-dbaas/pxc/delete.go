@@ -108,9 +108,9 @@ var delCmd = &cobra.Command{
 			}
 			sp.Start()
 		}
-
+		sp.Lock()
 		sp.Prefix = "Deleting..."
-
+		sp.Unlock()
 		ok := make(chan string)
 		cerr := make(chan error)
 

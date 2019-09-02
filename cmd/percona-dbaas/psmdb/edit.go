@@ -114,8 +114,9 @@ var editCmd = &cobra.Command{
 		}
 		app.ClusterConfig = config
 		go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
+		sp.Lock()
 		sp.Prefix = "Applying changes..."
-
+		sp.Unlock()
 		for {
 			select {
 			case <-created:
