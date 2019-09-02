@@ -40,8 +40,6 @@ const (
 	PlatformMinishift  PlatformType = "minishift"
 )
 
-//var execCommand string
-
 type Cmd struct {
 	environment string
 	Namespace   string
@@ -63,7 +61,7 @@ func New(environment string) (*Cmd, error) {
 	if _, err := exec.LookPath(execCommand); err != nil {
 		execCommand = k8sExecCustom
 		if _, err := exec.LookPath(execCommand); err != nil {
-			panic(fmt.Sprintf("Unable to find neither '%s' nor '%s' exec files", k8sExecDefault, k8sExecCustom))
+			return nil, fmt.Errorf("Unable to find neither '%s' nor '%s' exec files", k8sExecDefault, k8sExecCustom)
 		}
 	}
 
