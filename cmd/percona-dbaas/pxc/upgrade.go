@@ -113,9 +113,9 @@ var upgradeCmd = &cobra.Command{
 		}
 
 		go dbservice.Upgrade("pxc", app, appsImg, created, msg, cerr)
-
+		sp.Lock()
 		sp.Prefix = "Upgrading cluster..."
-
+		sp.Unlock()
 		for {
 			select {
 			case <-created:

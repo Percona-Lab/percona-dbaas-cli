@@ -125,8 +125,9 @@ var upgradeOperatorCmd = &cobra.Command{
 		}
 
 		go dbservice.UpgradeOperator(app, *oprtrImage, created, cerr)
+		sp.Lock()
 		sp.Prefix = "Upgrading cluster operator..."
-
+		sp.Unlock()
 		for {
 			select {
 			case <-created:

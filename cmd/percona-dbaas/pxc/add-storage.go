@@ -127,8 +127,9 @@ var storageCmd = &cobra.Command{
 		cerr := make(chan error)
 
 		go dbservice.Edit("pxc", app, s3stor, created, msg, cerr)
+		sp.Lock()
 		sp.Prefix = "Adding the storage..."
-
+		sp.Unlock()
 		for {
 			select {
 			case <-created:

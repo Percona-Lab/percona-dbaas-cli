@@ -119,9 +119,9 @@ var restoreCmd = &cobra.Command{
 			fmt.Print(list)
 			return
 		}
-
+		sp.Lock()
 		sp.Prefix = "Restoring backup..."
-
+		sp.Unlock()
 		bcp := psmdb.NewRestore(name)
 
 		bcp.Setup(bcpName)

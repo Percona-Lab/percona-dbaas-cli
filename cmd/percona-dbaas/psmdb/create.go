@@ -139,7 +139,9 @@ var createCmd = &cobra.Command{
 		if demo && err == nil {
 			sp.UpdateCharSet([]string{""})
 		}
+		sp.Lock()
 		sp.Prefix = "Starting..."
+		sp.Unlock()
 		sp.Start()
 		defer sp.Stop()
 		for {

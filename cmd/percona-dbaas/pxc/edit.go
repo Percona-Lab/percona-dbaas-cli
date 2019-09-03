@@ -109,8 +109,9 @@ var editCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		go dbservice.Edit("pxc", app, nil, created, msg, cerr)
+		sp.Lock()
 		sp.Prefix = "Applying changes..."
-
+		sp.Unlock()
 		for {
 			select {
 			case <-created:
