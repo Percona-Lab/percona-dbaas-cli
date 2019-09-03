@@ -32,7 +32,7 @@ type Version string
 const (
 	CurrentVersion Version = "default"
 
-	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:PR-237-15c39ed"
+	defaultOperatorVersion = "perconalab/percona-xtradb-cluster-operator:PR-237-15c39ed"
 )
 
 type PXC struct {
