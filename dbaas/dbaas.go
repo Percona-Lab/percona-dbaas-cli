@@ -61,7 +61,7 @@ func New(environment string) (*Cmd, error) {
 	if _, err := exec.LookPath(execCommand); err != nil {
 		execCommand = k8sExecCustom
 		if _, err := exec.LookPath(execCommand); err != nil {
-			return nil, fmt.Errorf("Unable to find neither '%s' nor '%s' exec files", k8sExecDefault, k8sExecCustom)
+			return nil, fmt.Errorf("unable to find neither '%s' nor '%s' exec files", k8sExecDefault, k8sExecCustom)
 		}
 	}
 
