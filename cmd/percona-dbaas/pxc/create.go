@@ -124,7 +124,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.Create("pxc", app, created, msg, cerr)
+		go dbservice.Create("pxc", app, *operatorImage, created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -189,6 +189,7 @@ var skipS3Storage *bool
 var envCrt *string
 var createAnswerInJSON *bool
 var labels *string
+var operatorImage *string
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "PXC node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -209,9 +210,15 @@ func init() {
 	createCmd.Flags().String("s3-credentials-secret", "", "Secrets with credentials for S3 compatible storage to store backup at. Alternatevily you can set --s3-access-key-id and --s3-secret-access-key instead.")
 	createCmd.Flags().String("s3-access-key-id", "", "Access Key ID for S3 compatible storage to store backup at")
 	createCmd.Flags().String("s3-secret-access-key", "", "Access Key for S3 compatible storage to store backup at")
+	createCmd.Flags().Bool("pmm-enabled", false, "Activate monitoring service.")
+	createCmd.Flags().String("pmm-image", "perconalab/pmm-client:1.17.1", "Monitoring service client image.")
+	createCmd.Flags().String("pmm-server-host", "monitoring-service", "Monitoring service server hostname.")
+	createCmd.Flags().String("pmm-server-user", "", "Monitoring service user for login.")
+	createCmd.Flags().String("pmm-server-password", "", "Monitoring service password for login.")
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
 	labels = createCmd.Flags().String("labels", "", "PXC cluster labels inside kubernetes/openshift cluster")
+	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
 
 	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
 

@@ -30,6 +30,7 @@ type ClusterConfig struct {
 	PXC      Spec
 	ProxySQL Spec
 	S3       dbaas.S3StorageConfig
+	PMM      PMMSpec
 }
 
 type Spec struct {
@@ -116,6 +117,30 @@ func ParseCreateFlagsToConfig(f *pflag.FlagSet) (config ClusterConfig, err error
 		config.S3.Key, err = f.GetString("s3-secret-access-key")
 		if err != nil {
 			return config, errors.New("undefined `s3-secret-access-key`")
+		}
+	}
+
+	config.PMM.Enabled, err = f.GetBool("pmm-enabled")
+	if err != nil {
+		return config, errors.New("undefined `pmm-enabled`")
+	}
+
+	if config.PMM.Enabled {
+		config.PMM.Image, err = f.GetString("pmm-image")
+		if err != nil {
+			return config, errors.New("undefined `pmm-image`")
+		}
+		config.PMM.ServerHost, err = f.GetString("pmm-server-host")
+		if err != nil {
+			return config, errors.New("undefined `pmm-server-host`")
+		}
+		config.PMM.ServerUser, err = f.GetString("pmm-server-user")
+		if err != nil {
+			return config, errors.New("undefined `pmm-server-user`")
+		}
+		config.PMM.ServerPass, err = f.GetString("pmm-server-password")
+		if err != nil {
+			return config, errors.New("undefined `pmm-server-password`")
 		}
 	}
 
@@ -292,6 +317,7 @@ type PMMSpec struct {
 	ServerHost string `json:"serverHost,omitempty"`
 	Image      string `json:"image,omitempty"`
 	ServerUser string `json:"serverUser,omitempty"`
+	ServerPass string `json:"serverPass,omitempty"`
 }
 
 type ResourcesList struct {
@@ -480,6 +506,10 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c ClusterConfig, s3 *
 		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
 			dbaas.DefaultBcpStorageName: s3,
 		}
+	}
+
+	if c.PMM.Enabled {
+		cr.Spec.PMM = &c.PMM
 	}
 
 	switch p {
