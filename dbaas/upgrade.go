@@ -116,7 +116,7 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 			tckr := time.NewTicker(500 * time.Millisecond)
 			defer tckr.Stop()
 			for range tckr.C {
-				status, err := p.runCmd(execCommand, "get", "pod", "-l", "name="+app.OperatorName(), "-o", "json")
+				status, err := p.runCmd(p.execCommand, "get", "pod", "-l", "name="+app.OperatorName(), "-o", "json")
 				if err != nil {
 					errc <- errors.Wrap(err, "get status")
 					return

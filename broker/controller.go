@@ -269,12 +269,18 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 
 	instance.InternalID = instanceID
 	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
+
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
-	c.DeployCluster(instance, &skipS3, instanceID)
+	err = c.DeployCluster(instance, &skipS3, instanceID)
+	if err != nil {
+		log.Println("Deploy cluster:", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
 	c.instanceMap[instanceID] = &instance
 
