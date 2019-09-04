@@ -41,6 +41,13 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		}
 		conf.PXC.BrokerInstance = string(brokerInstance)
 
+		if instance.Parameters.PMM.Enabled {
+			conf.PMM.Image = instance.Parameters.PMM.Image
+			conf.PMM.ServerHost = instance.Parameters.PMM.Host
+			conf.PMM.ServerUser = instance.Parameters.PMM.User
+			conf.PMM.ServerPass = instance.Parameters.PMM.Pass
+		}
+
 		app.ClusterConfig = conf
 
 		var s3stor *dbaas.BackupStorageSpec
