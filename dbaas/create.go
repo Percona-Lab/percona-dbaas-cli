@@ -93,10 +93,10 @@ oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
-func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Create(typ string, app Deploy, operatorVersion string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	p.runCmd(p.execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
-	err := p.applyBundles(app.Bundle(""))
+	err := p.applyBundles(app.Bundle(operatorVersion))
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundles")
 		return
@@ -106,7 +106,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			errc <- errors.Errorf(osRightsMsg, p.execCommand, p.osUser(), p.execCommand, osAdminBundle(app.Bundle("")), p.osUser())
+			errc <- errors.Errorf(osRightsMsg, p.execCommand, p.osUser(), p.execCommand, osAdminBundle(app.Bundle(operatorVersion)), p.osUser())
 		}
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return

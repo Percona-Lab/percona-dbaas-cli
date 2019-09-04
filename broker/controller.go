@@ -37,6 +37,8 @@ type PXCProvisionParameters struct {
 
 	// Size represents the size. Example: 1Gi
 	Size string `json:"size,omitempty"`
+
+	PMM
 }
 
 // ProvisionParameters represents the parameters that can be tuned on a cluster

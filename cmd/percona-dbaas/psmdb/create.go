@@ -132,7 +132,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.Create("psmdb", app, created, msg, cerr)
+		go dbservice.Create("psmdb", app, *operatorImage, created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -195,6 +195,7 @@ var skipS3Storage *bool
 var envCrt *string
 var createAnswerInJSON *bool
 var labels *string
+var operatorImage *string
 
 func init() {
 	createCmd.Flags().String("storage-size", "6G", "Node volume size, in bytes (e,g. 5Gi = 5GiB = 5 * 1024 * 1024 * 1024)")
@@ -213,6 +214,7 @@ func init() {
 
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
 	labels = createCmd.Flags().String("labels", "", "PSMDB cluster labels inside kubernetes/openshift cluster")
+	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
 
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 
