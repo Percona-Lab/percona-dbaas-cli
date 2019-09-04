@@ -63,7 +63,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-		go dbservice.Create("pxc", app, "", created, msg, cerr)
+		go dbservice.Create("pxc", app, instance.Parameters.OperatorImage, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
