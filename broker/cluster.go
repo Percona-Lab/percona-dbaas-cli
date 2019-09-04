@@ -13,6 +13,101 @@ const (
 	defaultVersion = "default"
 )
 
+func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
+	dbservice, err := dbaas.New(p.EnvName)
+	if err != nil {
+		return err
+	}
+
+	dbservice.Namespace = instance.Context.Namespace
+
+	brokerInstance, err := json.Marshal(instance)
+	if err != nil {
+		return err
+	}
+
+	app := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "")
+	conf := pxc.ClusterConfig{}
+	SetPXCDefaults(&conf)
+	if instance.Parameters.Replicas > int32(0) {
+		conf.PXC.Instances = instance.Parameters.Replicas
+	}
+	if len(instance.Parameters.Size) > 0 {
+		conf.PXC.StorageSize = instance.Parameters.Size
+	}
+	if len(instance.Parameters.TopologyKey) > 0 {
+		conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
+	}
+	conf.PXC.BrokerInstance = string(brokerInstance)
+
+	app.ClusterConfig = conf
+
+	var s3stor *dbaas.BackupStorageSpec
+
+	setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
+	if err != nil {
+		log.Println("[Error] set configuration:", err)
+		return nil
+	}
+
+	log.Println(setupmsg)
+
+	created := make(chan string)
+	msg := make(chan dbaas.OutuputMsg)
+	cerr := make(chan error)
+	go dbservice.Create("pxc", app, created, msg, cerr)
+	go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
+
+	return nil
+}
+
+func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
+	dbservice, err := dbaas.New(p.EnvName)
+	if err != nil {
+		return err
+	}
+
+	dbservice.Namespace = instance.Context.Namespace
+
+	brokerInstance, err := json.Marshal(instance)
+	if err != nil {
+		return err
+	}
+
+	app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
+	conf := psmdb.ClusterConfig{}
+	SetPSMDBDefaults(&conf)
+	if instance.Parameters.Replicas > int32(0) {
+		conf.PSMDB.Instances = instance.Parameters.Replicas
+	}
+	if len(instance.Parameters.Size) > 0 {
+		conf.PSMDB.StorageSize = instance.Parameters.Size
+	}
+	if len(instance.Parameters.TopologyKey) > 0 {
+		conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
+	}
+	conf.PSMDB.BrokerInstance = string(brokerInstance)
+	app.ClusterConfig = conf
+
+	var s3stor *dbaas.BackupStorageSpec
+
+	setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
+	if err != nil {
+		log.Println("[Error] set configuration:", err)
+		return nil
+	}
+
+	log.Println(setupmsg)
+
+	created := make(chan string)
+	msg := make(chan dbaas.OutuputMsg)
+	cerr := make(chan error)
+	go dbservice.Create("psmdb", app, created, msg, cerr)
+	go p.listenCreateChannels(created, msg, cerr, instanceID, "psmdb", dbservice)
+
+	return nil
+}
+
 func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
 	dbservice, err := dbaas.New(p.EnvName)
 	if err != nil {
