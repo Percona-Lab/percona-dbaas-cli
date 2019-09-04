@@ -38,6 +38,8 @@ type PXCProvisionParameters struct {
 	// Size represents the size. Example: 1Gi
 	Size string `json:"size,omitempty"`
 
+	OperatorImage string `json:"operator_image,omitempty"`
+
 	PMM
 }
 
