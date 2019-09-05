@@ -65,6 +65,8 @@ type Parameters struct {
 	ProxySQLReplicas int32  `json:"proxy_sql_replicas,omitempty"`
 	TopologyKey      string `json:"topology_key,omitempty"`
 	Size             string `json:"size,omitempty"`
+	OperatorImage    string `json:"operator_image,omitempty"`
+	PMM
 }
 
 type Context struct {
@@ -75,4 +77,12 @@ type Context struct {
 
 type Secret struct {
 	Data map[string]string `json:"data"`
+}
+
+type PMM struct {
+	Enabled bool   `json:"pmm_enabled,omitempty"`
+	Image   string `json:"pmm_image,omitempty"`
+	Host    string `json:"pmm_host,omitempty"`
+	User    string `json:"pmm_user,omitempty"`
+	Pass    string `json:"pmm_pass,omitempty"`
 }

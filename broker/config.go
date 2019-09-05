@@ -24,6 +24,8 @@ func SetPXCDefaults(c *pxc.ClusterConfig) {
 	c.ProxySQL.RequestMem = "1G"
 	c.ProxySQL.AntiAffinityKey = "kubernetes.io/hostname"
 
+	c.PMM.Image = "perconalab/pmm-client:1.17.1"
+
 	c.S3.SkipStorage = true
 }
 

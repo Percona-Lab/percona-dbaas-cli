@@ -41,6 +41,14 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		}
 		conf.PXC.BrokerInstance = string(brokerInstance)
 
+		if instance.Parameters.PMM.Enabled {
+			conf.PMM.Image = instance.Parameters.PMM.Image
+			conf.PMM.ServerHost = instance.Parameters.PMM.Host
+			conf.PMM.ServerUser = instance.Parameters.PMM.User
+			conf.PMM.ServerPass = instance.Parameters.PMM.Pass
+			conf.PMM.Enabled = instance.Parameters.PMM.Enabled
+		}
+
 		app.ClusterConfig = conf
 
 		var s3stor *dbaas.BackupStorageSpec
@@ -56,7 +64,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
-		go dbservice.Create("pxc", app, "", created, msg, cerr)
+		go dbservice.Create("pxc", app, instance.Parameters.OperatorImage, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
 	case psmdbServiceID:
 		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
