@@ -40,7 +40,15 @@ var listCmd = &cobra.Command{
 			return
 		}
 		if len(args) > 0 {
-			app := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "")
+			app, err := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "", *envStor)
+			if err != nil {
+				if *addStorageAnswerInJSON {
+					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
+					return
+				}
+				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				return
+			}
 			info, err := dbservice.Describe(app)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)

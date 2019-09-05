@@ -93,10 +93,18 @@ oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
-func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	p.runCmd(p.execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
+func (p Cmd) GetOSRightsMsg() string {
+	return osRightsMsg
+}
 
-	err := p.applyBundles(app.Bundle(""))
+func (p Cmd) GetStatusMaxTries() int {
+	return getStatusMaxTries
+}
+
+func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+	p.RunCmd(p.ExecCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.OSUser())
+
+	err := p.ApplyBundles(app.Bundle(""))
 	if err != nil {
 		errc <- errors.Wrap(err, "apply bundles")
 		return
@@ -106,7 +114,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			errc <- errors.Errorf(osRightsMsg, p.execCommand, p.osUser(), p.execCommand, osAdminBundle(app.Bundle("")), p.osUser())
+			errc <- errors.Errorf(osRightsMsg, p.ExecCommand, p.OSUser(), p.ExecCommand, p.OSAdminBundle(app.Bundle("")), p.OSUser())
 		}
 		errc <- errors.Wrap(err, "check if cluster exists")
 		return
@@ -122,7 +130,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 		errc <- errors.Wrap(err, "get cr")
 		return
 	}
-	err = p.apply(cr)
+	err = p.Apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -135,7 +143,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		secrets, err := p.getSecrets(app)
+		secrets, err := p.GetSecrets(app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster secrets")
 			return
@@ -161,7 +169,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 		case ClusterStateInit:
 		}
 
-		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.ReadOperatorLogs(app.OperatorName())
 		if err != nil {
 			// waiting for the operator to start
 			if tries < getStatusMaxTries/2 {
@@ -209,10 +217,10 @@ func (p Cmd) CreateSecret(name string, data map[string][]byte) error {
 		errors.Wrap(err, "json marshal")
 	}
 
-	return errors.WithMessage(p.apply(string(sj)), "apply")
+	return errors.WithMessage(p.Apply(string(sj)), "apply")
 }
 
-func osAdminBundle(bs []BundleObject) string {
+func (p Cmd) OSAdminBundle(bs []BundleObject) string {
 	objs := []string{}
 	for _, b := range bs {
 		switch b.Kind {
@@ -224,9 +232,9 @@ func osAdminBundle(bs []BundleObject) string {
 	return strings.Join(objs, "\n---\n")
 }
 
-func (p Cmd) applyBundles(bs []BundleObject) error {
+func (p Cmd) ApplyBundles(bs []BundleObject) error {
 	for _, b := range bs {
-		err := p.apply(b.Data)
+		err := p.Apply(b.Data)
 		if err != nil {
 			switch b.Kind {
 			case "CustomResourceDefinition", "Role":
@@ -245,11 +253,11 @@ func (p Cmd) applyBundles(bs []BundleObject) error {
 	return nil
 }
 
-func (p Cmd) osUser() string {
+func (p Cmd) OSUser() string {
 	ret := "<Your Opeshift User>"
-	s, err := p.runCmd("oc", "whoami")
+	s, err := p.RunCmd("oc", "whoami")
 	if err != nil {
-		u, err := p.gkeUser()
+		u, err := p.GKEUser()
 		if err != nil {
 			return ret
 		}
@@ -263,8 +271,8 @@ func (p Cmd) osUser() string {
 	return ret
 }
 
-func (p Cmd) gkeUser() (string, error) {
-	s, err := p.runCmd("gcloud", "config", "get-value", "core/account")
+func (p Cmd) GKEUser() (string, error) {
+	s, err := p.RunCmd("gcloud", "config", "get-value", "core/account")
 	if err != nil {
 		return "", err
 	}
@@ -272,8 +280,8 @@ func (p Cmd) gkeUser() (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-func (p Cmd) getSecrets(app Deploy) (map[string][]byte, error) {
-	data, err := p.GetObject("secrets", app.Name()+"-secrets")
+func (p Cmd) GetSecrets(appName string) (map[string][]byte, error) {
+	data, err := p.GetObject("secrets", appName+"-secrets")
 	if err != nil {
 		return nil, errors.Wrap(err, "get object")
 	}

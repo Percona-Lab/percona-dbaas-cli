@@ -41,9 +41,9 @@ const (
 )
 
 type Cmd struct {
-	environment string
+	Environment string
 	Namespace   string
-	execCommand string
+	ExecCommand string
 }
 
 type ErrCmdRun struct {
@@ -69,7 +69,7 @@ func New(environment string) (*Cmd, error) {
 	if len(environment) > 0 {
 		if _, err := exec.LookPath(targetKubeConfig); err != nil {
 			return &Cmd{
-				environment: targetKubeConfig,
+				Environment: targetKubeConfig,
 			}, nil
 
 		}
@@ -88,16 +88,16 @@ func New(environment string) (*Cmd, error) {
 
 	}
 	return &Cmd{
-		environment: environment,
-		execCommand: execCommand,
+		Environment: environment,
+		ExecCommand: execCommand,
 	}, nil
 }
 
-func (p Cmd) runCmd(cmd string, args ...string) ([]byte, error) {
+func (p Cmd) RunCmd(cmd string, args ...string) ([]byte, error) {
 	cli := exec.Command(cmd, args...)
 	cli.Env = os.Environ()
-	if len(p.environment) > 0 {
-		cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
+	if len(p.Environment) > 0 {
+		cli.Env = append(cli.Env, "KUBECONFIG="+p.Environment)
 	}
 	o, err := cli.CombinedOutput()
 	if err != nil {
@@ -107,23 +107,23 @@ func (p Cmd) runCmd(cmd string, args ...string) ([]byte, error) {
 	return o, nil
 }
 
-func (p Cmd) readOperatorLogs(operatorName string) ([]byte, error) {
-	return p.runCmd(p.execCommand, "logs", "-l", "name="+operatorName)
+func (p Cmd) ReadOperatorLogs(operatorName string) ([]byte, error) {
+	return p.RunCmd(p.ExecCommand, "logs", "-l", "name="+operatorName)
 }
 
 func (p Cmd) GetObject(typ, name string) ([]byte, error) {
 	if len(p.Namespace) > 0 {
-		return p.runCmd(p.execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
+		return p.RunCmd(p.ExecCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
 	}
-	return p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
+	return p.RunCmd(p.ExecCommand, "get", typ+"/"+name, "-o", "json")
 }
 
-func (p Cmd) apply(k8sObj string) error {
+func (p Cmd) Apply(k8sObj string) error {
 	namespace := ""
 	if len(p.Namespace) > 0 {
 		namespace = "-n " + p.Namespace + " "
 	}
-	_, err := p.runCmd("sh", "-c", "cat <<-EOF | "+p.execCommand+" apply "+namespace+"-f -\n"+k8sObj+"\nEOF")
+	_, err := p.RunCmd("sh", "-c", "cat <<-EOF | "+p.ExecCommand+" apply "+namespace+"-f -\n"+k8sObj+"\nEOF")
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (p Cmd) apply(k8sObj string) error {
 }
 
 func (p Cmd) Annotate(resource, clusterName, annotName, instance string) error {
-	_, err := p.runCmd(p.execCommand, "annotate", resource, clusterName, annotName+"="+instance, "--overwrite=true")
+	_, err := p.RunCmd(p.ExecCommand, "annotate", resource, clusterName, annotName+"="+instance, "--overwrite=true")
 
 	return err
 }
@@ -149,7 +149,7 @@ func (p Cmd) IsObjExists(typ, name string) (bool, error) {
 		typ = "perconaservermongodbbackup.psmdb.percona.com"
 	}
 
-	out, err := p.runCmd(p.execCommand, "get", typ, name, "-o", "name")
+	out, err := p.RunCmd(p.ExecCommand, "get", typ, name, "-o", "name")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return false, errors.Wrapf(err, "get cr: %s", out)
 	}
@@ -158,7 +158,7 @@ func (p Cmd) IsObjExists(typ, name string) (bool, error) {
 }
 
 func (p Cmd) Instances(typ string) ([]string, error) {
-	out, err := p.runCmd(p.execCommand, "get", typ, "-o", "name")
+	out, err := p.RunCmd(p.ExecCommand, "get", typ, "-o", "name")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return nil, errors.Wrapf(err, "get objects: %s", out)
 	}
@@ -167,7 +167,7 @@ func (p Cmd) Instances(typ string) ([]string, error) {
 }
 
 func (p Cmd) GetServiceBrokerInstances(typ string) ([]byte, error) {
-	out, err := p.runCmd(p.execCommand, "get", typ, "-o", "jsonpath='{.items..metadata.annotations.broker-instance}'")
+	out, err := p.RunCmd(p.ExecCommand, "get", typ, "-o", "jsonpath='{.items..metadata.annotations.broker-instance}'")
 	if err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return nil, errors.Wrapf(err, "get objects: %s", out)
 	}
@@ -205,7 +205,7 @@ func (p Cmd) GetPlatformType() PlatformType {
 }
 
 func (p Cmd) checkMinikube() bool {
-	output, err := p.runCmd(p.execCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
+	output, err := p.RunCmd(p.ExecCommand, "get", "storageclass", "-o", "jsonpath='{.items..provisioner}'")
 	if err != nil {
 		return false
 	}
@@ -214,7 +214,7 @@ func (p Cmd) checkMinikube() bool {
 }
 
 func (p Cmd) checkMinishift() bool {
-	output, err := p.runCmd(p.execCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
+	output, err := p.RunCmd(p.ExecCommand, "get", "pods", "master-etcd-localhost", "-n", "kube-system", "-o", "jsonpath='{.spec.volumes..path}'")
 	if err != nil {
 		return false
 	}
@@ -223,7 +223,7 @@ func (p Cmd) checkMinishift() bool {
 }
 
 func (p Cmd) checkOpenshift() bool {
-	output, err := p.runCmd(p.execCommand, "api-versions")
+	output, err := p.RunCmd(p.ExecCommand, "api-versions")
 	if err != nil {
 		return false
 	}

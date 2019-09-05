@@ -114,7 +114,16 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, *deleteAnswerInJSON, ""), *delePVC, ok, cerr)
+		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envStor)
+		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
+				return
+			}
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
+		go app.Delete(*delePVC, ok, cerr)
 
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()

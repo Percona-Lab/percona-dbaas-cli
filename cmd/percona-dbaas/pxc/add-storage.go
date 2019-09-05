@@ -53,7 +53,15 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		app := pxc.New(clusterName, defaultVersion, *addStorageAnswerInJSON, "")
+		app, err := pxc.New(clusterName, defaultVersion, *addStorageAnswerInJSON, "", *envStor)
+		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
+				return
+			}
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -66,7 +74,7 @@ var storageCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("pxc", clusterName)
+		ext, err := app.Cmd.IsObjExists("pxc", clusterName)
 		if err != nil {
 			if *addStorageAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))

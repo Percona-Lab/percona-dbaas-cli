@@ -19,13 +19,13 @@ import (
 )
 
 func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc chan<- error) {
-	err := p.delete(typ, app.Name())
+	err := p.DeleteObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "delete cluster")
 		return
 	}
 	if delPVC {
-		err := p.deletePVC(app)
+		err := p.DeletePVC(app.OperatorName(), app.Name())
 		if err != nil {
 			errc <- errors.Wrap(err, "delete cluster PVCs")
 			return
@@ -35,7 +35,7 @@ func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc 
 	ok <- ""
 }
 
-func (p Cmd) delete(typ, name string) error {
+func (p Cmd) DeleteObject(typ, name string) error {
 	args := []string{
 		"delete",
 		typ,
@@ -44,16 +44,16 @@ func (p Cmd) delete(typ, name string) error {
 	if len(p.Namespace) > 0 {
 		args = append(args, "-n", p.Namespace)
 	}
-	out, err := p.runCmd("kubectl", args...)
+	out, err := p.RunCmd("kubectl", args...)
 
 	return errors.Wrapf(err, "get cr: %s", out)
 
 }
 
-func (p Cmd) deletePVC(app Deploy) error {
-	out, err := p.runCmd("kubectl", "delete", "pvc",
-		"-l", "app.kubernetes.io/part-of="+app.OperatorName(),
-		"-l", "app.kubernetes.io/instance="+app.Name(),
+func (p Cmd) DeletePVC(appOperatorName, appName string) error {
+	out, err := p.RunCmd("kubectl", "delete", "pvc",
+		"-l", "app.kubernetes.io/part-of="+appOperatorName,
+		"-l", "app.kubernetes.io/instance="+appName,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "get cr: %s", out)

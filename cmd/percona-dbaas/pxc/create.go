@@ -73,7 +73,15 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		app := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels)
+		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envStor)
+		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
+				return
+			}
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
@@ -124,7 +132,7 @@ var createCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.Create("pxc", app, created, msg, cerr)
+		go app.Create(created, msg, cerr)
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")

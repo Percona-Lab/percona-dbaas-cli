@@ -23,7 +23,7 @@ import (
 )
 
 func (p Cmd) List(typ string) (string, error) {
-	out, err := p.runCmd("kubectl", "get", typ)
+	out, err := p.RunCmd("kubectl", "get", typ)
 	if err != nil {
 		return "", errors.Wrapf(err, "get cr: %s", out)
 	}
@@ -32,7 +32,7 @@ func (p Cmd) List(typ string) (string, error) {
 }
 
 func (p Cmd) ListName(typ, name string) (string, error) {
-	out, err := p.runCmd("kubectl", "get", typ, name)
+	out, err := p.RunCmd("kubectl", "get", typ, name)
 	if err != nil {
 		return "", errors.Wrapf(err, "get cr: %s", out)
 	}
@@ -45,7 +45,7 @@ type MultiplePVCk8sOutput struct {
 }
 
 func (p Cmd) Describe(app Deploy) (string, error) {
-	out, err := p.runCmd("kubectl", "get", app.OperatorType(), app.Name(), "-o", "json")
+	out, err := p.RunCmd("kubectl", "get", app.OperatorType(), app.Name(), "-o", "json")
 	if err != nil {
 		return "", errors.Wrapf(err, "describe-db %s", out)
 	}
@@ -57,7 +57,7 @@ func (p Cmd) Describe(app Deploy) (string, error) {
 	}
 
 	pvcList := &MultiplePVCk8sOutput{}
-	pvcsJSON, err := p.runCmd("kubectl", "get", "pvc", fmt.Sprintf("--selector=app.kubernetes.io/instance=%s,app.kubernetes.io/managed-by=%s", app.Name(), app.OperatorName()), "-o", "json")
+	pvcsJSON, err := p.RunCmd("kubectl", "get", "pvc", fmt.Sprintf("--selector=app.kubernetes.io/instance=%s,app.kubernetes.io/managed-by=%s", app.Name(), app.OperatorName()), "-o", "json")
 	if err != nil {
 		return "", errors.Wrapf(err, "describe-db")
 	}

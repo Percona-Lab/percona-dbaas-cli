@@ -26,7 +26,10 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 		return err
 	}
 
-	app := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "")
+	app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "", p.EnvName)
+	if err != nil {
+		return err
+	}
 	conf := pxc.ClusterConfig{}
 	SetPXCDefaults(&conf)
 	if instance.Parameters.Replicas > int32(0) {
@@ -122,7 +125,10 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "")
+		app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "", p.EnvName)
+		if err != nil {
+			return err
+		}
 		conf := pxc.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -259,7 +265,11 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 
 	switch instance.ServiceID {
 	case pxcServiceID:
-		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, false, ""), delePVC, ok, cerr)
+		app, err := pxc.New(name, defaultVersion, true, "", p.EnvName)
+		if err != nil {
+			return err
+		}
+		go dbservice.Delete("pxc", app, delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
 		go dbservice.Delete("psmdb", psmdb.New(name, name, defaultVersion, false, ""), delePVC, ok, cerr)
@@ -302,7 +312,10 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 	}
 	switch instance.ServiceID {
 	case pxcServiceID:
-		app := pxc.New(instance.Parameters.ClusterName, defaultVersion, false, "")
+		app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, false, "", p.EnvName)
+		if err != nil {
+			return err
+		}
 		conf := pxc.ClusterConfig{}
 		SetPXCDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {

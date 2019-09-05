@@ -1,47 +1,52 @@
-// Copyright © 2019 Percona, LLC
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-package dbaas
+package pxc
 
 import (
 	"encoding/json"
 	"strings"
 	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 )
 
-func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
-	acr, err := p.GetObject(typ, app.Name())
+func (p *PXC) upgrade(crRaw []byte, newImages map[string]string) error {
+	cr := &PerconaXtraDBCluster{}
+	err := json.Unmarshal(crRaw, cr)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal current cr")
+	}
+
+	p.config.APIVersion = cr.APIVersion
+	p.config.Kind = cr.Kind
+	p.config.Name = cr.Name
+	p.config.Finalizers = cr.Finalizers
+	p.config.Spec = cr.Spec
+	p.config.Status = cr.Status
+
+	p.config.Upgrade(newImages)
+
+	return nil
+}
+
+func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+	acr, err := p.Cmd.GetObject(p.typ, p.name)
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
 		return
 	}
 
-	err = app.Upgrade(acr, apps)
+	err = p.upgrade(acr, apps)
 	if err != nil {
 		errc <- errors.Wrap(err, "upgrade cluster")
 		return
 	}
 
-	cr, err := app.App()
+	cr, err := p.App()
 	if err != nil {
 		errc <- errors.Wrap(err, "get cr")
 		return
 	}
-	err = p.Apply(cr)
+	err = p.Cmd.Apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -52,34 +57,34 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 	tckr := time.NewTicker(500 * time.Millisecond)
 	defer tckr.Stop()
 	for range tckr.C {
-		status, err := p.GetObject(typ, app.Name())
+		status, err := p.Cmd.GetObject(p.typ, p.name)
 		if err != nil {
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := app.CheckStatus(status, make(map[string][]byte))
+		state, msgs, err := p.CheckStatus(status, make(map[string][]byte))
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
 		}
 
 		switch state {
-		case ClusterStateReady:
+		case dbaas.ClusterStateReady:
 			ok <- strings.Join(msgs, "\n")
 			return
-		case ClusterStateError:
+		case dbaas.ClusterStateError:
 			errc <- errors.New(strings.Join(msgs, "\n"))
 			return
-		case ClusterStateInit:
+		case dbaas.ClusterStateInit:
 		}
 
-		opLogsStream, err := p.ReadOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.Cmd.ReadOperatorLogs(p.name)
 		if err != nil {
 			errc <- errors.Wrap(err, "get operator logs")
 			return
 		}
 
-		opLogs, err := app.CheckOperatorLogs(opLogsStream)
+		opLogs, err := p.CheckOperatorLogs(opLogsStream)
 		if err != nil {
 			errc <- errors.Wrap(err, "parse operator logs")
 			return
@@ -89,7 +94,7 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 			msg <- entry
 		}
 
-		if tries >= getStatusMaxTries {
+		if tries >= p.Cmd.GetStatusMaxTries() {
 			errc <- errors.Wrap(err, "unable to start cluster")
 			return
 		}
@@ -98,14 +103,14 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 	}
 }
 
-func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc chan<- error) {
+func (p *PXC) UpgradeOperator(newImage string, ok chan<- string, errc chan<- error) {
 	if newImage == "" {
 		return
 	}
 
-	for _, o := range app.Bundle(newImage) {
-		if o.Kind == "Deployment" && o.Name == app.OperatorName() {
-			err := p.Apply(o.Data)
+	for _, o := range p.Bundle(newImage) {
+		if o.Kind == "Deployment" && o.Name == p.OperatorName() {
+			err := p.Cmd.Apply(o.Data)
 			if err != nil {
 				errc <- errors.Wrap(err, "apply cr")
 				return
@@ -116,7 +121,7 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 			tckr := time.NewTicker(500 * time.Millisecond)
 			defer tckr.Stop()
 			for range tckr.C {
-				status, err := p.RunCmd(p.ExecCommand, "get", "pod", "-l", "name="+app.OperatorName(), "-o", "json")
+				status, err := p.Cmd.RunCmd(p.Cmd.ExecCommand, "get", "pod", "-l", "name="+p.OperatorName(), "-o", "json")
 				if err != nil {
 					errc <- errors.Wrap(err, "get status")
 					return
@@ -129,7 +134,7 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 				}
 
 				if len(pods.Items) < 1 {
-					errc <- errors.Wrapf(err, "unable to find operator pod for %s", app.OperatorName())
+					errc <- errors.Wrapf(err, "unable to find operator pod for %s", p.OperatorName())
 					return
 				}
 

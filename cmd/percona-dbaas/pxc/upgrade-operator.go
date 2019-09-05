@@ -47,7 +47,15 @@ var upgradeOperatorCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
-		app := pxc.New(name, defaultVersion, *upgradeOperatorAnswerInJSON, "")
+		app, err := pxc.New(name, defaultVersion, *upgradeOperatorAnswerInJSON, "", *envStor)
+		if err != nil {
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
+				return
+			}
+			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			return
+		}
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")

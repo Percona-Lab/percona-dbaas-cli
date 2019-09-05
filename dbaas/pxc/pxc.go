@@ -39,12 +39,14 @@ type PXC struct {
 	name          string
 	config        *PerconaXtraDBCluster
 	obj           dbaas.Objects
+	typ           string
 	opLogsLastTS  float64
 	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
+	Cmd           *dbaas.Cmd
 }
 
-func New(name string, version Version, answerInJSON bool, labels string) *PXC {
+func New(name string, version Version, answerInJSON bool, labels, envCrt string) (*PXC, error) {
 	config := &PerconaXtraDBCluster{}
 	if len(labels) > 0 {
 		config.ObjectMeta.Labels = make(map[string]string)
@@ -54,12 +56,18 @@ func New(name string, version Version, answerInJSON bool, labels string) *PXC {
 			config.ObjectMeta.Labels[itemSlice[0]] = itemSlice[1]
 		}
 	}
+	dbservice, err := dbaas.New(envCrt)
+	if err != nil {
+		return nil, err
+	}
 	return &PXC{
 		name:         name,
 		obj:          Objects[version],
 		config:       config,
+		typ:          "pxc",
 		AnswerInJSON: answerInJSON,
-	}
+		Cmd:          dbservice,
+	}, nil
 }
 
 func (p PXC) Bundle(operatorVersion string) []dbaas.BundleObject {
@@ -128,72 +136,6 @@ func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas
 	}
 
 	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
-}
-
-const updateMsg = `Update MySQL cluster.
- 
-PXC instances           | %v
-ProxySQL instances      | %v
-`
-
-type UpdateMsg struct {
-	Message           string `json:"message"`
-	PXCInstances      int32  `json:"pxcInstances"`
-	ProxySQLInstances int32  `json:"proxySQLInstances"`
-}
-
-func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
-	cr := &PerconaXtraDBCluster{}
-	err := json.Unmarshal(crRaw, cr)
-	if err != nil {
-		return "", errors.Wrap(err, "unmarshal current cr")
-	}
-
-	p.config.APIVersion = cr.APIVersion
-	p.config.Kind = cr.Kind
-	p.config.Name = cr.Name
-	p.config.Finalizers = cr.Finalizers
-	p.config.Spec = cr.Spec
-	p.config.Status = cr.Status
-
-	err = p.config.UpdateWith(p.ClusterConfig, storage)
-	if err != nil {
-		return "", errors.Wrap(err, "applay changes to cr")
-	}
-
-	if p.AnswerInJSON {
-		updateJSONMsg := CreateMsg{
-			Message:           "Update MySQL cluster",
-			PXCInstances:      p.config.Spec.PXC.Size,
-			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
-		}
-		answer, err := json.Marshal(updateJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
-	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
-}
-
-func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
-	cr := &PerconaXtraDBCluster{}
-	err := json.Unmarshal(crRaw, cr)
-	if err != nil {
-		return errors.Wrap(err, "unmarshal current cr")
-	}
-
-	p.config.APIVersion = cr.APIVersion
-	p.config.Kind = cr.Kind
-	p.config.Name = cr.Name
-	p.config.Finalizers = cr.Finalizers
-	p.config.Spec = cr.Spec
-	p.config.Status = cr.Status
-
-	p.config.Upgrade(newImages)
-
-	return nil
 }
 
 const operatorImage = "percona/percona-xtradb-cluster-operator:"
@@ -295,121 +237,6 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
-}
-
-const describeMsg = `
-Name:                                %v
-Status:                              %v
-Multi-AZ:                            %v
-Labels:                              %v
- 
-PXC Count:                           %v
-PXC Image:                           %v
-PXC CPU Requests:                    %v
-PXC Memory Requests:                 %v
-PXC PodDisruptionBudget:             %v
-PXC AntiAffinityTopologyKey:         %v
-PXC StorageType:                     %v
-PXC Allocated Storage:               %v
- 
-ProxySQL Count:                      %v
-ProxySQL Image:                      %v
-ProxySQL CPU Requests:               %v
-ProxySQL Memory Requests:            %v
-ProxySQL PodDisruptionBudget:        %v
-ProxySQL AntiAffinityTopologyKey:    %v
-ProxySQL StorageType:                %v
-ProxySQL Allocated Storage:          %v
- 
-Backup Image:                        %v
-Backup StorageType:                  %v
-Backup Allocated Storage:            %v
-Backup Schedule:                     %v
-`
-
-func (p *PXC) Describe(kubeInput []byte) (string, error) {
-	cr := &PerconaXtraDBCluster{}
-	err := json.Unmarshal([]byte(kubeInput), &cr)
-	if err != nil {
-		return "", errors.Wrapf(err, "json prase")
-	}
-
-	multiAz := "yes"
-	noAzAffinityList := []string{"none", "hostname"}
-	for _, arg := range noAzAffinityList {
-		if *cr.Spec.PXC.Affinity.TopologyKey == arg {
-			multiAz = "no"
-		}
-	}
-	budgetPXC := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
-
-	if cr.Spec.PXC.PodDisruptionBudget != nil && cr.Spec.PXC.PodDisruptionBudget.MinAvailable != nil {
-		budgetPXC["MinAvailable"] = cr.Spec.PXC.PodDisruptionBudget.MinAvailable.String()
-	}
-	if cr.Spec.PXC.PodDisruptionBudget != nil && cr.Spec.PXC.PodDisruptionBudget.MaxUnavailable != nil {
-		budgetPXC["MaxUnavailable"] = cr.Spec.PXC.PodDisruptionBudget.MaxUnavailable.String()
-	}
-	budgetSQL := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
-	if cr.Spec.ProxySQL.PodDisruptionBudget != nil && cr.Spec.ProxySQL.PodDisruptionBudget.MinAvailable != nil {
-		budgetSQL["MinAvailable"] = cr.Spec.ProxySQL.PodDisruptionBudget.MinAvailable.String()
-	}
-	if cr.Spec.ProxySQL.PodDisruptionBudget != nil && cr.Spec.ProxySQL.PodDisruptionBudget.MaxUnavailable != nil {
-		budgetSQL["MaxUnavailable"] = cr.Spec.ProxySQL.PodDisruptionBudget.MaxUnavailable.String()
-	}
-
-	backupImage := "not set"
-	backupSize := "not set"
-	backupStorageClassName := "not set"
-	backupSchedule := "not set"
-	if cr.Spec.Backup != nil {
-		backupImage = cr.Spec.Backup.Image
-
-		if cr.Spec.Backup.Schedule != nil {
-			backupSchedule = ""
-			for schedule := range cr.Spec.Backup.Schedule {
-				backupSchedule = backupSchedule + cr.Spec.Backup.Schedule[schedule].Name + ", "
-			}
-		}
-		backupSchedule = strings.TrimRight(backupSchedule, ", ")
-		for item := range cr.Spec.Backup.Storages {
-			if cr.Spec.Backup.Storages[item].Type == "filesystem" {
-				volume := cr.Spec.Backup.Storages[item]
-				backupSizeBytes, err := volume.Volume.PersistentVolumeClaim.Resources.Requests["storage"].MarshalJSON()
-				if err != nil {
-					return "", err
-				}
-				backupSize = string(backupSizeBytes)
-				backupStorageClassName = string(*volume.Volume.PersistentVolumeClaim.StorageClassName)
-			}
-
-		}
-	}
-
-	return fmt.Sprintf(describeMsg,
-		cr.ObjectMeta.Name,
-		cr.Status.Status,
-		multiAz,
-		dbaas.GetStringFromMap(cr.ObjectMeta.Labels),
-		cr.Spec.PXC.Size,
-		cr.Spec.PXC.Image,
-		cr.Spec.PXC.Resources.Requests.CPU,
-		cr.Spec.PXC.Resources.Requests.Memory,
-		dbaas.GetStringFromMap(budgetPXC),
-		*cr.Spec.PXC.Affinity.TopologyKey,
-		cr.StorageClassesAllocated.PXC,
-		cr.StorageSizeAllocated.PXC,
-		cr.Spec.ProxySQL.Size,
-		cr.Spec.ProxySQL.Image,
-		cr.Spec.ProxySQL.Resources.Requests.CPU,
-		cr.Spec.ProxySQL.Resources.Requests.Memory,
-		dbaas.GetStringFromMap(budgetSQL),
-		*cr.Spec.ProxySQL.Affinity.TopologyKey,
-		cr.StorageClassesAllocated.ProxySQL,
-		cr.StorageSizeAllocated.ProxySQL,
-		backupImage,
-		backupSize,
-		backupStorageClassName,
-		backupSchedule), nil
 }
 
 type operatorLog struct {

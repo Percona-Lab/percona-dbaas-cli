@@ -38,7 +38,7 @@ func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan
 		return
 	}
 
-	err = p.apply(cr)
+	err = p.Apply(cr)
 	if err != nil {
 		errc <- errors.Wrap(err, "apply cr")
 		return
@@ -70,7 +70,7 @@ func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan
 		case ClusterStateInit:
 		}
 
-		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
+		opLogsStream, err := p.ReadOperatorLogs(app.OperatorName())
 		if err != nil {
 			errc <- errors.Wrap(err, "get operator logs")
 			return
