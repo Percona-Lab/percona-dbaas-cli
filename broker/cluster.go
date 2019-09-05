@@ -46,6 +46,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 			conf.PMM.ServerHost = instance.Parameters.PMM.Host
 			conf.PMM.ServerUser = instance.Parameters.PMM.User
 			conf.PMM.ServerPass = instance.Parameters.PMM.Pass
+			conf.PMM.Enabled = instance.Parameters.PMM.Enabled
 		}
 
 		app.ClusterConfig = conf
