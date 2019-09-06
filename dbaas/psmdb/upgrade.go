@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *PSMDB) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (p *PSMDB) Upgrade(apps map[string]string, ok chan<- ClusterData, msg chan<- ClusterData, errc chan<- error) {
 	acr, err := p.Cmd.GetObject(p.typ, p.name)
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -43,7 +43,7 @@ func (p *PSMDB) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dba
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := p.CheckStatus(status, make(map[string][]byte))
+		state, resp, err := p.CheckStatus(status, make(map[string][]byte))
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -51,10 +51,10 @@ func (p *PSMDB) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dba
 
 		switch state {
 		case dbaas.ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- resp
 			return
 		case dbaas.ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(strings.Join(resp.StatusMessages, "\n"))
 			return
 		case dbaas.ClusterStateInit:
 		}
@@ -72,7 +72,7 @@ func (p *PSMDB) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dba
 		}
 
 		for _, entry := range opLogs {
-			msg <- entry
+			msg <- ClusterData{Message: entry.String()}
 		}
 
 		if tries >= p.Cmd.GetStatusMaxTries() {

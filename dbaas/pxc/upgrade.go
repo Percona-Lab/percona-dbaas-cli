@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (p *PXC) Upgrade(apps map[string]string, ok chan<- ClusterData, msg chan<- ClusterData, errc chan<- error) {
 	acr, err := p.Cmd.GetObject(p.typ, p.name)
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -43,7 +43,7 @@ func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := p.CheckStatus(status, make(map[string][]byte))
+		state, resp, err := p.CheckStatus(status, make(map[string][]byte))
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -51,10 +51,10 @@ func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas
 
 		switch state {
 		case dbaas.ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- resp
 			return
 		case dbaas.ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(strings.Join(resp.StatusMessages, "\n"))
 			return
 		case dbaas.ClusterStateInit:
 		}
@@ -72,7 +72,7 @@ func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas
 		}
 
 		for _, entry := range opLogs {
-			msg <- entry
+			msg <- ClusterData{Message: entry.String()}
 		}
 
 		if tries >= p.Cmd.GetStatusMaxTries() {
@@ -103,7 +103,11 @@ func (p *PXC) upgrade(crRaw []byte, newImages map[string]string) error {
 	return nil
 }
 
-func (p *PXC) UpgradeOperator(newImage string, ok chan<- string, errc chan<- error) {
+type UpgradeResponse struct {
+	Message string `json:"message,omitempty"`
+}
+
+func (p *PXC) UpgradeOperator(newImage string, ok chan<- UpgradeResponse, errc chan<- error) {
 	if newImage == "" {
 		return
 	}
@@ -127,7 +131,7 @@ func (p *PXC) UpgradeOperator(newImage string, ok chan<- string, errc chan<- err
 					return
 				}
 				if running {
-					ok <- "Operator has been updated"
+					ok <- UpgradeResponse{Message: "Operator has been updated"}
 					return
 				}
 

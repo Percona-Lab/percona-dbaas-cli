@@ -17,7 +17,6 @@ package pxc
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -116,30 +115,33 @@ func (b *Restore) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	return msgs, nil
 }
 
-const okmsgrestore = `
-MySQL backup restored successfully:
-Name: %s
-`
+type RestoreResponse struct {
+	Message string `json"message,omitempty"`
+	Name    string `json:"name,omitempty"`
+}
 
-func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, RestoreResponse, error) {
 	st := &PerconaXtraDBClusterRestore{}
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
-		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
+		return dbaas.ClusterStateUnknown, RestoreResponse{}, errors.Wrap(err, "unmarshal status")
 	}
 
 	switch st.Status.State {
 	case RestoreSucceeded:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgrestore, st.Name)}, nil
+		return dbaas.ClusterStateReady, RestoreResponse{
+			Message: "MySQL backup restored successfully",
+			Name:    st.Name,
+		}, nil
 	case RestoreFailed:
-		return dbaas.ClusterStateError, []string{"restore attempt has failed"}, nil
+		return dbaas.ClusterStateError, RestoreResponse{Message: "restore attempt has failed"}, nil
 	default:
-		return dbaas.ClusterStateInit, nil, nil
+		return dbaas.ClusterStateInit, RestoreResponse{}, nil
 	}
 }
 
-func (b *Restore) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (b *Restore) Create(ok chan<- RestoreResponse, msg chan<- RestoreResponse, errc chan<- error) {
 	cr, err := b.CR()
 	if err != nil {
 		errc <- errors.Wrap(err, "create cr")
@@ -162,7 +164,7 @@ func (b *Restore) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc cha
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := b.CheckStatus(status)
+		state, resp, err := b.CheckStatus(status)
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -170,10 +172,10 @@ func (b *Restore) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc cha
 
 		switch state {
 		case dbaas.ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- resp
 			return
 		case dbaas.ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(resp.Message)
 			return
 		case dbaas.ClusterStateInit:
 		}
@@ -191,7 +193,7 @@ func (b *Restore) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc cha
 		}
 
 		for _, entry := range opLogs {
-			msg <- entry
+			msg <- RestoreResponse{Message: entry.String()}
 		}
 
 		if tries >= b.Cmd.GetStatusMaxTries() {

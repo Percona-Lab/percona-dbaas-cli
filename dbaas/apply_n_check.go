@@ -14,13 +14,7 @@
 
 package dbaas
 
-import (
-	"strings"
-	"time"
-
-	"github.com/pkg/errors"
-)
-
+/*
 type ApplyChecker interface {
 	CR() (string, error)
 
@@ -94,3 +88,4 @@ func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan
 		tries++
 	}
 }
+*/

@@ -15,9 +15,6 @@
 package dbaas
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -44,6 +41,7 @@ type MultiplePVCk8sOutput struct {
 	Items []corev1.PersistentVolumeClaim `json:"items"`
 }
 
+/*
 func (p Cmd) Describe(app Deploy) (string, error) {
 	out, err := p.RunCmd("kubectl", "get", app.OperatorType(), app.Name(), "-o", "json")
 	if err != nil {
@@ -85,3 +83,4 @@ func (p Cmd) Describe(app Deploy) (string, error) {
 	}
 	return app.Describe(out)
 }
+*/

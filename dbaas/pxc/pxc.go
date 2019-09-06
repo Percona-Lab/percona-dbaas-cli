@@ -42,12 +42,11 @@ type PXC struct {
 	obj           dbaas.Objects
 	typ           string
 	opLogsLastTS  float64
-	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
 	Cmd           *dbaas.Cmd
 }
 
-func New(name string, version Version, answerInJSON bool, labels, envCrt string) (*PXC, error) {
+func New(name string, version Version, labels, envCrt string) (*PXC, error) {
 	config := &PerconaXtraDBCluster{}
 	if len(labels) > 0 {
 		config.ObjectMeta.Labels = make(map[string]string)
@@ -62,12 +61,11 @@ func New(name string, version Version, answerInJSON bool, labels, envCrt string)
 		return nil, err
 	}
 	return &PXC{
-		name:         name,
-		obj:          Objects[version],
-		config:       config,
-		typ:          "pxc",
-		AnswerInJSON: answerInJSON,
-		Cmd:          dbservice,
+		name:   name,
+		obj:    Objects[version],
+		config: config,
+		typ:    "pxc",
+		Cmd:    dbservice,
 	}, nil
 }
 
@@ -111,32 +109,23 @@ type CreateMsg struct {
 	Storage           string `json:"storage"`
 }
 
-func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec) (string, error) {
+func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec) (CreateMsg, error) {
 	err := p.config.SetNew(p.Name(), c, s3, p.Cmd.GetPlatformType())
 	if err != nil {
-		return "", errors.Wrap(err, "parse options")
+		return CreateMsg{}, errors.Wrap(err, "parse options")
 	}
 
 	storage, err := p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return "", errors.Wrap(err, "marshal pxc volume requests")
+		return CreateMsg{}, errors.Wrap(err, "marshal pxc volume requests")
 	}
 
-	if p.AnswerInJSON {
-		createJSONMsg := CreateMsg{
-			Message:           "Create MySQL cluster",
-			PXCInstances:      p.config.Spec.PXC.Size,
-			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
-			Storage:           string(storage),
-		}
-		answer, err := json.Marshal(createJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
-	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
+	return CreateMsg{
+		Message:           "Create MySQL cluster",
+		PXCInstances:      p.config.Spec.PXC.Size,
+		ProxySQLInstances: p.config.Spec.ProxySQL.Size,
+		Storage:           string(storage),
+	}, nil
 }
 
 const operatorImage = "percona/percona-xtradb-cluster-operator:"
@@ -198,46 +187,40 @@ Pass: %s
 
 Enjoy!`
 
-type OkMsg struct {
-	Message string `json:"message"`
-	Host    string `json:"host"`
-	Port    int    `json:"port"`
-	User    string `json:"user"`
-	Pass    string `json:"pass"`
+type ClusterData struct {
+	Message        string   `json:"message,omitempty"`
+	Host           string   `json:"host,omitempty"`
+	Port           int      `json:"port,omitempty"`
+	User           string   `json:"user,omitempty"`
+	Pass           string   `json:"pass,omitempty"`
+	StatusMessages []string `json:"status_messages,omitempty"`
 }
 
-func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
+func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, ClusterData, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
-		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
+		return dbaas.ClusterStateUnknown, ClusterData{}, errors.Wrap(err, "unmarshal status")
 	}
 
 	switch st.Status.Status {
 	case AppStateReady:
-		if p.AnswerInJSON {
-			okJSONMsg := OkMsg{
-				Message: "MySQL cluster started successfully",
-				Host:    st.Status.Host,
-				Port:    3306,
-				User:    "root",
-				Pass:    string(pass["root"]),
-			}
-			answer, err := json.Marshal(okJSONMsg)
-			if err != nil {
-				return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
-			}
-			return dbaas.ClusterStateReady, []string{string(answer)}, nil
+		clusterData := ClusterData{
+			Message: "MySQL cluster started successfully",
+			Host:    st.Status.Host,
+			Port:    3306,
+			User:    "root",
+			Pass:    string(pass["root"]),
 		}
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
+		return dbaas.ClusterStateReady, clusterData, nil
 	case AppStateInit:
-		return dbaas.ClusterStateInit, nil, nil
+		return dbaas.ClusterStateInit, ClusterData{}, nil
 	case AppStateError:
-		return dbaas.ClusterStateError, alterStatusMgs(st.Status.Messages), nil
+		return dbaas.ClusterStateError, ClusterData{StatusMessages: alterStatusMgs(st.Status.Messages)}, nil
 	}
 
-	return dbaas.ClusterStateInit, nil, nil
+	return dbaas.ClusterStateInit, ClusterData{}, nil
 }
 
 type operatorLog struct {

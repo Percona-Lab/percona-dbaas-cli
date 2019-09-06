@@ -2,7 +2,6 @@ package pxc
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -10,23 +9,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-const updateMsg = `Update MySQL cluster.
- 
-PXC instances           | %v
-ProxySQL instances      | %v
-`
-
 type UpdateMsg struct {
 	Message           string `json:"message"`
 	PXCInstances      int32  `json:"pxcInstances"`
 	ProxySQLInstances int32  `json:"proxySQLInstances"`
 }
 
-func (p *PXC) edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
+func (p *PXC) edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (UpdateMsg, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
-		return "", errors.Wrap(err, "unmarshal current cr")
+		return UpdateMsg{}, errors.Wrap(err, "unmarshal current cr")
 	}
 
 	p.config.APIVersion = cr.APIVersion
@@ -38,26 +31,17 @@ func (p *PXC) edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, erro
 
 	err = p.config.UpdateWith(p.ClusterConfig, storage)
 	if err != nil {
-		return "", errors.Wrap(err, "applay changes to cr")
+		return UpdateMsg{}, errors.Wrap(err, "applay changes to cr")
 	}
 
-	if p.AnswerInJSON {
-		updateJSONMsg := CreateMsg{
-			Message:           "Update MySQL cluster",
-			PXCInstances:      p.config.Spec.PXC.Size,
-			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
-		}
-		answer, err := json.Marshal(updateJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
-	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
+	return UpdateMsg{
+		Message:           "Update MySQL cluster",
+		PXCInstances:      p.config.Spec.PXC.Size,
+		ProxySQLInstances: p.config.Spec.ProxySQL.Size,
+	}, nil
 }
 
-func (p PXC) Edit(storage *dbaas.BackupStorageSpec, ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (p PXC) Edit(storage *dbaas.BackupStorageSpec, ok chan<- ClusterData, msg chan<- ClusterData, errc chan<- error) {
 	acr, err := p.Cmd.GetObject(p.typ, p.name)
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -91,7 +75,7 @@ func (p PXC) Edit(storage *dbaas.BackupStorageSpec, ok chan<- string, msg chan<-
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := p.CheckStatus(status, make(map[string][]byte))
+		state, resp, err := p.CheckStatus(status, make(map[string][]byte))
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -99,10 +83,10 @@ func (p PXC) Edit(storage *dbaas.BackupStorageSpec, ok chan<- string, msg chan<-
 
 		switch state {
 		case dbaas.ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- resp
 			return
 		case dbaas.ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(strings.Join(resp.StatusMessages, "\n"))
 			return
 		case dbaas.ClusterStateInit:
 		}
@@ -120,7 +104,7 @@ func (p PXC) Edit(storage *dbaas.BackupStorageSpec, ok chan<- string, msg chan<-
 		}
 
 		for _, entry := range opLogs {
-			msg <- entry
+			msg <- ClusterData{Message: entry.String()}
 		}
 
 		if tries >= p.Cmd.GetStatusMaxTries() {

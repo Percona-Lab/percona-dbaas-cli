@@ -14,13 +14,7 @@
 
 package dbaas
 
-import (
-	"strings"
-	"time"
-
-	"github.com/pkg/errors"
-)
-
+/*
 func (p Cmd) Edit(typ string, app Deploy, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
@@ -94,4 +88,4 @@ func (p Cmd) Edit(typ string, app Deploy, storage *BackupStorageSpec, ok chan<- 
 
 		tries++
 	}
-}
+}*/

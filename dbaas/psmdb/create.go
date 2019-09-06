@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *PSMDB) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (p *PSMDB) Create(ok chan<- ClusterData, msg chan<- ClusterData, errc chan<- error) {
 	p.Cmd.RunCmd(p.Cmd.ExecCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.Cmd.OSUser())
 
 	err := p.Cmd.ApplyBundles(p.Bundle(""))
@@ -60,7 +60,7 @@ func (p *PSMDB) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := p.CheckStatus(status, secrets)
+		state, resp, err := p.CheckStatus(status, secrets)
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -68,10 +68,10 @@ func (p *PSMDB) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<
 
 		switch state {
 		case dbaas.ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- resp
 			return
 		case dbaas.ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(strings.Join(resp.StatusMessages, "\n"))
 			return
 		case dbaas.ClusterStateInit:
 		}
@@ -93,7 +93,7 @@ func (p *PSMDB) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<
 		}
 
 		for _, entry := range opLogs {
-			msg <- entry
+			msg <- ClusterData{Message: entry.String()}
 		}
 
 		if tries >= p.Cmd.GetStatusMaxTries() {

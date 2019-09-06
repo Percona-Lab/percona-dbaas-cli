@@ -17,7 +17,6 @@ package pxc
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -115,33 +114,41 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	return msgs, nil
 }
 
-const okmsgbcp = `
-MySQL backup created successfully:
-Name: %s
-Destination: %s
-`
+type BackupResponse struct {
+	Message     string `json:"message,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Destination string `json:"destination,omitempty"`
+}
 
-func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, BackupResponse, error) {
 	st := &PerconaXtraDBBackup{}
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
-		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
+		return dbaas.ClusterStateUnknown, BackupResponse{}, errors.Wrap(err, "unmarshal status")
 	}
 
 	switch st.Status.State {
 	case BackupSucceeded:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgbcp, st.Name, st.Status.Destination)}, nil
+		return dbaas.ClusterStateReady, BackupResponse{
+			Message:     "MySQL backup created successfully",
+			Name:        st.Name,
+			Destination: st.Status.Destination,
+		}, nil
 	case BackupStarting, BackupRunning:
-		return dbaas.ClusterStateInit, nil, nil
+		return dbaas.ClusterStateInit, BackupResponse{}, nil
 	case BackupFailed:
-		return dbaas.ClusterStateError, []string{"backup attempt has failed"}, nil
+		return dbaas.ClusterStateError, BackupResponse{
+			Message:     "backup attempt has failed",
+			Name:        st.Name,
+			Destination: st.Status.Destination,
+		}, nil
 	}
 
-	return dbaas.ClusterStateInit, nil, nil
+	return dbaas.ClusterStateInit, BackupResponse{}, nil
 }
 
-func (b *Backup) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (b *Backup) Create(ok chan<- BackupResponse, msg chan<- BackupResponse, errc chan<- error) {
 	cr, err := b.CR()
 	if err != nil {
 		errc <- errors.Wrap(err, "create cr")
@@ -164,7 +171,7 @@ func (b *Backup) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan
 			errc <- errors.Wrap(err, "get cluster status")
 			return
 		}
-		state, msgs, err := b.CheckStatus(status)
+		state, resp, err := b.CheckStatus(status)
 		if err != nil {
 			errc <- errors.Wrap(err, "parse cluster status")
 			return
@@ -172,10 +179,10 @@ func (b *Backup) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan
 
 		switch state {
 		case dbaas.ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- resp
 			return
 		case dbaas.ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(resp.Message)
 			return
 		case dbaas.ClusterStateInit:
 		}
@@ -193,7 +200,7 @@ func (b *Backup) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan
 		}
 
 		for _, entry := range opLogs {
-			msg <- entry
+			msg <- BackupResponse{Message: entry.String()}
 		}
 
 		if tries >= b.Cmd.GetStatusMaxTries() {

@@ -30,6 +30,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+/*
 type Deploy interface {
 	// Bundle returns crd, rbac and operator manifests
 	Bundle(operatorVersion string) []BundleObject
@@ -47,7 +48,7 @@ type Deploy interface {
 	Upgrade(crRaw []byte, newImages map[string]string) error
 	Describe(crRaw []byte) (string, error)
 }
-
+*/
 type ClusterState string
 
 const (
@@ -101,6 +102,7 @@ func (p Cmd) GetStatusMaxTries() int {
 	return getStatusMaxTries
 }
 
+/*
 func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	p.RunCmd(p.ExecCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.OSUser())
 
@@ -197,7 +199,7 @@ func (p Cmd) Create(typ string, app Deploy, ok chan<- string, msg chan<- Outuput
 		tries++
 	}
 }
-
+*/
 // CreateSecret creates k8s secret object with the given name and data
 func (p Cmd) CreateSecret(name string, data map[string][]byte) error {
 	s := corev1.Secret{

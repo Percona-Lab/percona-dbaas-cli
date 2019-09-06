@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+/*
 func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc chan<- error) {
 	err := p.DeleteObject(typ, app.Name())
 	if err != nil {
@@ -34,7 +35,7 @@ func (p Cmd) Delete(typ string, app Deploy, delPVC bool, ok chan<- string, errc 
 
 	ok <- ""
 }
-
+*/
 func (p Cmd) DeleteObject(typ, name string) error {
 	args := []string{
 		"delete",

@@ -14,15 +14,7 @@
 
 package dbaas
 
-import (
-	"encoding/json"
-	"strings"
-	"time"
-
-	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
-)
-
+/*
 func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
@@ -97,7 +89,8 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 		tries++
 	}
 }
-
+*/
+/*
 func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc chan<- error) {
 	if newImage == "" {
 		return
@@ -154,3 +147,4 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 		}
 	}
 }
+*/
