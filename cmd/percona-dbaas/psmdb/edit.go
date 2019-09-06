@@ -16,7 +16,6 @@ package psmdb
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -48,13 +47,9 @@ var editCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app, err := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON, "", *envEdt)
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, false, "", *envEdt)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb app", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] New PSMDB app: %v\n", err)
+			psmdb.PrintError(*editAnswerOutput, "new psmdb app", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -70,27 +65,16 @@ var editCmd = &cobra.Command{
 
 		ext, err := app.Cmd.IsObjExists("psmdb", clusterName)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			psmdb.PrintError(*editAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("Unable to find cluster psmdb/"+clusterName, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
-			}
+			psmdb.PrintError(*editAnswerOutput, "unable to find cluster psmdb/"+clusterName, nil)
 			list, err := app.Cmd.List("psmdb")
 			if err != nil {
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb clusters", err))
-					return
-				}
+				psmdb.PrintError(*editAnswerOutput, "psmdb clusters", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -103,11 +87,7 @@ var editCmd = &cobra.Command{
 		cerr := make(chan error)
 		config, err := psmdb.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("parsing flags", err))
-				return
-			}
-			fmt.Println("Parsing flags", err)
+			psmdb.PrintError(*editAnswerOutput, "parsing flags", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -127,19 +107,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *editAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					psmdb.PrintError(*editAnswerOutput, "operator log error", fmt.Errorf(omsg.String()))
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("edit psmdb", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit psmdb: %v\n", err)
+				psmdb.PrintError(*editAnswerOutput, "edit psmdb", err)
 				sp.HideCursor = true
 				return
 			}
@@ -148,12 +120,12 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
-var editAnswerInJSON *bool
+var editAnswerOutput *string
 
 func init() {
 	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
+	editAnswerOutput = editCmd.Flags().String("output", "", "Output format")
 
 	PSMDBCmd.AddCommand(editCmd)
 }

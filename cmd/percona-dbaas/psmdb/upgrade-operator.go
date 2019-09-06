@@ -42,13 +42,9 @@ var upgradeOperatorCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeOperatorAnswerInJSON, "", *envUpgrdOprtr)
+		app, err := psmdb.New(name, "doesnotMatter", defaultVersion, false, "", *envUpgrdOprtr)
 		if err != nil {
-			if *upgradeOperatorAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			psmdb.PrintError(*upgradeOperatorAnswerOutput, "new psmdb operator", err)
 			return
 
 		}
@@ -66,13 +62,8 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := app.Cmd.IsObjExists("psmdb", name)
 
 		if err != nil {
-			if *upgradeOperatorAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			psmdb.PrintError(*upgradeOperatorAnswerOutput, "check if cluster exists", err)
 			return
-
 		}
 
 		if !ext {
@@ -80,11 +71,7 @@ var upgradeOperatorCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
 			list, err := app.List()
 			if err != nil {
-				if *upgradeOperatorAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("db service list", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "[ERROR] db service list: %v\n", err)
+				psmdb.PrintError(*upgradeOperatorAnswerOutput, "db service list", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -98,11 +85,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := app.Cmd.Instances("psmdb")
 			if err != nil {
-				if *upgradeOperatorAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("unable to get psmdb instances", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "[ERROR] unable to get psmdb instances: %v\n", err)
+				psmdb.PrintError(*upgradeOperatorAnswerOutput, "unable to get psmdb instances", err)
 				return
 			}
 			if len(num) > 1 {
@@ -132,11 +115,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
 				return
 			case err := <-cerr:
-				if *upgradeOperatorAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("upgrade psmdb operator", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade psmdb operator: %v\n", err)
+				psmdb.PrintError(*upgradeOperatorAnswerOutput, "upgrade psmdb operator", err)
 				sp.HideCursor = true
 				return
 			}
@@ -146,12 +125,12 @@ var upgradeOperatorCmd = &cobra.Command{
 
 var envUpgrdOprtr *string
 var oprtrImage *string
-var upgradeOperatorAnswerInJSON *bool
+var upgradeOperatorAnswerOutput *string
 
 func init() {
 	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	upgradeOperatorAnswerInJSON = upgradeOperatorCmd.Flags().Bool("json", false, "Answers in JSON format")
+	upgradeOperatorAnswerOutput = upgradeOperatorCmd.Flags().String("output", "", "Output format")
 
 	PSMDBCmd.AddCommand(upgradeOperatorCmd)
 }

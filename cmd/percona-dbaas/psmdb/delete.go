@@ -44,13 +44,9 @@ var delCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := psmdb.New(name, "", defaultVersion, *deleteAnswerInJSON, "", *envDlt)
+		app, err := psmdb.New(name, "", defaultVersion, false, "", *envDlt)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			psmdb.PrintError(*deleteAnswerOutput, "new psmdb operator", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -66,26 +62,16 @@ var delCmd = &cobra.Command{
 
 		ext, err := app.Cmd.IsObjExists("psmdb", name)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			psmdb.PrintError(*deleteAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("Unable to find cluster psmdb/"+name, err))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			}
+			psmdb.PrintError(*deleteAnswerOutput, "unable to find cluster psmdb/"+name, nil)
 			list, err := app.Cmd.List("psmdb")
 			if err != nil {
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
-				}
+				psmdb.PrintError(*deleteAnswerOutput, "psmdb cluster list", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -122,11 +108,7 @@ var delCmd = &cobra.Command{
 				sp.FinalMSG = "Deleting...[done]\n"
 				return
 			case err := <-cerr:
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("delete psmdb", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] delete psmdb: %v\n", err)
+				psmdb.PrintError(*deleteAnswerOutput, "delete psmdb", err)
 				return
 			}
 		}
@@ -134,13 +116,13 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
-var deleteAnswerInJSON *bool
+var deleteAnswerOutput *string
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
-	deleteAnswerInJSON = delCmd.Flags().Bool("json", false, "Answers in JSON format")
+	deleteAnswerOutput = delCmd.Flags().String("output", "", "Output format")
 
 	PSMDBCmd.AddCommand(delCmd)
 }

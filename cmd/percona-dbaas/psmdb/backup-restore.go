@@ -43,20 +43,12 @@ var restoreCmd = &cobra.Command{
 		name := args[0]
 		bcp, err := psmdb.NewRestore(name, *envBckpCrt)
 		if err != nil {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new PSMDB restore", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			psmdb.PrintError(*backupRestoreAnswerOutput, "new PSMDB restore", err)
 			return
 		}
 
 		if len(args) < 2 || args[1] == "" {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("arguments", fmt.Errorf("you have to specify psmdb-cluster-name and psmdb-backup-name")))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[ERROR] you have to specify psmdb-cluster-name and psmdb-backup-name\n")
+			psmdb.PrintError(*backupRestoreAnswerOutput, "you have to specify psmdb-cluster-name and psmdb-backup-name", nil)
 			return
 		}
 		bcpName := args[1]
@@ -70,23 +62,16 @@ var restoreCmd = &cobra.Command{
 
 		ext, err := bcp.Cmd.IsObjExists("psmdb", name)
 		if err != nil {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			psmdb.PrintError(*backupRestoreAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			psmdb.PrintError(*backupRestoreAnswerOutput, "Unable to find cluster psmdb/"+name, nil)
 			list, err := bcp.Cmd.List("psmdb")
 			if err != nil {
-				if *backupRestoreAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
-					return
-				}
+				psmdb.PrintError(*backupRestoreAnswerOutput, "psmdb cluster list", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -97,11 +82,7 @@ var restoreCmd = &cobra.Command{
 		sp.Prefix = "Looking for the backup..."
 		ext, err = bcp.Cmd.IsObjExists("psmdb-backup", bcpName)
 		if err != nil {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if backup exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
+			psmdb.PrintError(*backupRestoreAnswerOutput, "check if backup exists", err)
 			return
 		}
 
@@ -110,10 +91,7 @@ var restoreCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "psmdb-backup", bcpName)
 			list, err := bcp.Cmd.List("psmdb-backup")
 			if err != nil {
-				if *backupRestoreAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
-					return
-				}
+				psmdb.PrintError(*backupRestoreAnswerOutput, "psmdb cluster list", err)
 				return
 			}
 			fmt.Println("Avaliable backups:")
@@ -144,30 +122,22 @@ var restoreCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *backupRestoreAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					psmdb.PrintError(*backupRestoreAnswerOutput, "operator log error", fmt.Errorf(omsg.String()))
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *backupRestoreAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] restore backup: %v\n", err)
+				psmdb.PrintError(*backupRestoreAnswerOutput, "psmdb cluster list", err)
 				return
 			}
 		}
 	},
 }
 var envBckpRstr *string
-var backupRestoreAnswerInJSON *bool
+var backupRestoreAnswerOutput *string
 
 func init() {
 	envBckpRstr = restoreCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupRestoreAnswerInJSON = restoreCmd.Flags().Bool("json", false, "Answers in JSON format")
+	backupRestoreAnswerOutput = restoreCmd.Flags().String("output", "", "Output format")
 
 	PSMDBCmd.AddCommand(restoreCmd)
 }

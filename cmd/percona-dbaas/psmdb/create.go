@@ -63,11 +63,7 @@ var createCmd = &cobra.Command{
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				if *createAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("label parse", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				psmdb.PrintError(*createAnswerOutput, "label parse", err)
 				return
 			}
 			if !match {
@@ -76,22 +72,14 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		app, err := psmdb.New(clusterName, rsName, defaultVersion, *createAnswerInJSON, *labels, *envCrt)
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, false, *labels, *envCrt)
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create psmdb", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "Create PSMDB", err)
+			psmdb.PrintError(*createAnswerOutput, "create psmdb operator", err)
 			return
 		}
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("parsing flags", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "Parsing flags", err)
+			psmdb.PrintError(*createAnswerOutput, "parsing flags", err)
 			return
 		}
 		var s3stor *dbaas.BackupStorageSpec
@@ -101,13 +89,9 @@ var createCmd = &cobra.Command{
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
-					fmt.Printf(noS3backupWarn, err)
+					psmdb.PrintError(*createAnswerOutput, noS3backupWarn, err)
 				default:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create S3 backup storage", err))
-						return
-					}
-					fmt.Fprint(os.Stderr, "[Error] create S3 backup storage:", err)
+					psmdb.PrintError(*createAnswerOutput, "create S3 backup storage", err)
 				}
 				return
 			}
@@ -116,11 +100,7 @@ var createCmd = &cobra.Command{
 		app.ClusterConfig = config
 		setupmsg, err := app.Setup(s3stor, app.Cmd.GetPlatformType())
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("set configuration", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[Error] set configuration:", err)
+			psmdb.PrintError(*createAnswerOutput, "set configuration", err)
 			return
 		}
 
@@ -153,34 +133,24 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
-					} else {
-						fmt.Fprintf(os.Stderr, "[operator log error] %s\n", omsg)
-					}
+					psmdb.PrintError(*createAnswerOutput, "operator log error", fmt.Errorf(omsg.String()))
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
+					psmdb.PrintError(*createAnswerOutput, "label parse", err)
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
 					list, err := app.Cmd.List("psmdb")
 					if err != nil {
-						if *createAnswerInJSON {
-							fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("list services", err))
-							return
-						}
+						psmdb.PrintError(*createAnswerOutput, "list services", err)
 						return
 					}
 					fmt.Println("Avaliable clusters:")
 					fmt.Print(list)
 				default:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create psmdb", err))
-						return
-					}
-					fmt.Fprintf(os.Stderr, "\n[ERROR] create psmdb: %v\n", err)
+					psmdb.PrintError(*createAnswerOutput, "create psmdb", err)
 				}
 
 				return
@@ -191,7 +161,7 @@ var createCmd = &cobra.Command{
 
 var skipS3Storage *bool
 var envCrt *string
-var createAnswerInJSON *bool
+var createAnswerOutput *string
 var labels *string
 
 func init() {
@@ -214,7 +184,7 @@ func init() {
 
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 
-	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
+	createAnswerOutput = createCmd.Flags().String("output", "", "Output format")
 
 	PSMDBCmd.AddCommand(createCmd)
 }
