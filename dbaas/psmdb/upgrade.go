@@ -1,4 +1,4 @@
-package pxc
+package psmdb
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+func (p *PSMDB) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
 	acr, err := p.Cmd.GetObject(p.typ, p.name)
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -84,8 +84,8 @@ func (p *PXC) Upgrade(apps map[string]string, ok chan<- string, msg chan<- dbaas
 	}
 }
 
-func (p *PXC) upgrade(crRaw []byte, newImages map[string]string) error {
-	cr := &PerconaXtraDBCluster{}
+func (p *PSMDB) upgrade(crRaw []byte, newImages map[string]string) error {
+	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal current cr")
@@ -94,7 +94,6 @@ func (p *PXC) upgrade(crRaw []byte, newImages map[string]string) error {
 	p.config.APIVersion = cr.APIVersion
 	p.config.Kind = cr.Kind
 	p.config.Name = cr.Name
-	p.config.Finalizers = cr.Finalizers
 	p.config.Spec = cr.Spec
 	p.config.Status = cr.Status
 
@@ -103,7 +102,7 @@ func (p *PXC) upgrade(crRaw []byte, newImages map[string]string) error {
 	return nil
 }
 
-func (p *PXC) UpgradeOperator(newImage string, ok chan<- string, errc chan<- error) {
+func (p *PSMDB) UpgradeOperator(newImage string, ok chan<- string, errc chan<- error) {
 	if newImage == "" {
 		return
 	}

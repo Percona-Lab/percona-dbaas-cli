@@ -48,15 +48,6 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		dbservice, err := dbaas.New(*envCrt)
-		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
@@ -73,7 +64,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envStor)
+		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envCrt)
 		if err != nil {
 			if *addStorageAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
@@ -96,7 +87,7 @@ var createCmd = &cobra.Command{
 		var s3stor *dbaas.BackupStorageSpec
 		if !*skipS3Storage {
 			var err error
-			s3stor, err = dbservice.S3Storage(app, config.S3)
+			s3stor, err = app.Cmd.S3Storage(app.Name(), config.S3)
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
@@ -116,7 +107,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
+		setupmsg, err := app.Setup(config, s3stor)
 		if err != nil {
 			if *createAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("set configuration", err))
@@ -170,7 +161,7 @@ var createCmd = &cobra.Command{
 						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create pxc cluster", err))
 					}
 					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
-					list, err := dbservice.List("pxc")
+					list, err := app.Cmd.List("pxc")
 					if err != nil {
 						if *createAnswerInJSON {
 							fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))

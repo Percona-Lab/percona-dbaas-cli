@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
@@ -43,18 +42,16 @@ var upgradeOperatorCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		dbservice, err := dbaas.New(*envUpgrdOprtr)
+		app, err := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeOperatorAnswerInJSON, "", *envUpgrdOprtr)
 		if err != nil {
 			if *upgradeOperatorAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new db service error", err))
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb operator", err))
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 
 		}
-		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeOperatorAnswerInJSON, "")
-
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -66,7 +63,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("psmdb", name)
+		ext, err := app.Cmd.IsObjExists("psmdb", name)
 
 		if err != nil {
 			if *upgradeOperatorAnswerInJSON {
@@ -81,7 +78,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbservice.List("psmdb")
+			list, err := app.List()
 			if err != nil {
 				if *upgradeOperatorAnswerInJSON {
 					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("db service list", err))
@@ -99,7 +96,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		cerr := make(chan error)
 
 		if *oprtrImage != "" {
-			num, err := dbservice.Instances("psmdb")
+			num, err := app.Cmd.Instances("psmdb")
 			if err != nil {
 				if *upgradeOperatorAnswerInJSON {
 					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("unable to get psmdb instances", err))
@@ -124,14 +121,14 @@ var upgradeOperatorCmd = &cobra.Command{
 			}
 		}
 
-		go dbservice.UpgradeOperator(app, *oprtrImage, created, cerr)
+		go app.UpgradeOperator(*oprtrImage, created, cerr)
 		sp.Lock()
 		sp.Prefix = "Upgrading cluster operator..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("psmdb", name)
+				okmsg, _ := app.Cmd.ListName("psmdb", name)
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
 				return
 			case err := <-cerr:

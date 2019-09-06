@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -42,12 +41,7 @@ var upgradeOperatorCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbservice, err := dbaas.New(*envUpgrdOprtr)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
-		app, err := pxc.New(name, defaultVersion, *upgradeOperatorAnswerInJSON, "", *envStor)
+		app, err := pxc.New(name, defaultVersion, *upgradeOperatorAnswerInJSON, "", *envUpgrdOprtr)
 		if err != nil {
 			if *addStorageAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
@@ -68,7 +62,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("pxc", name)
+		ext, err := app.Cmd.IsObjExists("pxc", name)
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -78,7 +72,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			list, err := dbservice.List("pxc")
+			list, err := app.Cmd.List("pxc")
 			if err != nil {
 				return
 			}
@@ -91,7 +85,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		cerr := make(chan error)
 
 		if *oprtrImage != "" {
-			num, err := dbservice.Instances("pxc")
+			num, err := app.Cmd.Instances("pxc")
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] unable to get pxc instances: %v\n", err)
 			}
@@ -111,14 +105,14 @@ var upgradeOperatorCmd = &cobra.Command{
 			}
 		}
 
-		go dbservice.UpgradeOperator(app, *oprtrImage, created, cerr)
+		go app.UpgradeOperator(*oprtrImage, created, cerr)
 		sp.Lock()
 		sp.Prefix = "Upgrading cluster operator..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("pxc", name)
+				okmsg, _ := app.Cmd.ListName("pxc", name)
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
 				return
 			case err := <-cerr:

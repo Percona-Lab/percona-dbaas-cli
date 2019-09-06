@@ -20,7 +20,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -30,26 +29,17 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		dbservice, err := dbaas.New(*envLst)
+		app, err := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "", *envLst)
 		if err != nil {
-			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
 		if len(args) > 0 {
-			app, err := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "", *envStor)
-			if err != nil {
-				if *addStorageAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-				return
-			}
-			info, err := dbservice.Describe(app)
+			info, err := app.Describe()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 				return
@@ -57,7 +47,7 @@ var listCmd = &cobra.Command{
 			fmt.Print(info)
 			return
 		}
-		list, err := dbservice.List("pxc")
+		list, err := app.List()
 		if err != nil {
 			if *listAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc list", err))

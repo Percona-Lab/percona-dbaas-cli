@@ -40,13 +40,13 @@ var bcpCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbservice, err := dbaas.New(*envBckpCrt)
+		bcp, err := psmdb.NewBackup(name, *envBckpCrt)
 		if err != nil {
 			if *backupCreateAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("creating backup object", err))
 				return
 			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			fmt.Fprintf(os.Stderr, "[ERROR] creating backup object: %v\n", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -56,7 +56,7 @@ var bcpCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("psmdb", name)
+		ext, err := bcp.Cmd.IsObjExists("psmdb", name)
 		if err != nil {
 			if *backupCreateAnswerInJSON {
 				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
@@ -69,7 +69,7 @@ var bcpCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbservice.List("psmdb")
+			list, err := bcp.Cmd.List("psmdb")
 			if err != nil {
 				if *backupCreateAnswerInJSON {
 					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb clusters list", err))
@@ -84,7 +84,6 @@ var bcpCmd = &cobra.Command{
 		sp.Lock()
 		sp.Prefix = "Creating backup..."
 		sp.Unlock()
-		bcp := psmdb.NewBackup(name)
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)
 
@@ -92,7 +91,7 @@ var bcpCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.ApplyCheck("psmdb-backup", bcp, ok, msg, cerr)
+		go bcp.Create(ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

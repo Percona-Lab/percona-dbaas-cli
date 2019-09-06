@@ -44,9 +44,11 @@ type PSMDB struct {
 	opLogsLastTS  float64
 	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
+	typ           string
+	Cmd           *dbaas.Cmd
 }
 
-func New(clusterName, replsetName string, version Version, answerInJSON bool, labels string) *PSMDB {
+func New(clusterName, replsetName string, version Version, answerInJSON bool, labels, envCrt string) (*PSMDB, error) {
 	config := &PerconaServerMongoDB{}
 	if len(labels) > 0 {
 		config.ObjectMeta.Labels = make(map[string]string)
@@ -56,7 +58,10 @@ func New(clusterName, replsetName string, version Version, answerInJSON bool, la
 			config.ObjectMeta.Labels[itemSlice[0]] = itemSlice[1]
 		}
 	}
-
+	dbservice, err := dbaas.New(envCrt)
+	if err != nil {
+		return nil, err
+	}
 	if replsetName == "" {
 		replsetName = defaultRSname
 	}
@@ -67,7 +72,9 @@ func New(clusterName, replsetName string, version Version, answerInJSON bool, la
 		obj:          objects[version],
 		config:       config,
 		AnswerInJSON: answerInJSON,
-	}
+		Cmd:          dbservice,
+		typ:          "psmdb",
+	}, nil
 }
 
 func (p PSMDB) Bundle(operatorVersion string) []dbaas.BundleObject {
@@ -137,70 +144,6 @@ func (p *PSMDB) Setup(s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) 
 	}
 
 	return fmt.Sprintf(createMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size, string(storage)), nil
-}
-
-const updateMsg = `Update MongoDB cluster.
- 
-Replica Set Name        | %v
-Replica Set Size        | %v
-`
-
-type UpdateMsg struct {
-	Message        string `json:"message"`
-	ReplicaSetName string `json:"replicaSetName"`
-	ReplicaSetSize int32  `json:"replicaSetSize"`
-}
-
-func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
-	cr := &PerconaServerMongoDB{}
-	err := json.Unmarshal(crRaw, cr)
-	if err != nil {
-		return "", errors.Wrap(err, "unmarshal current cr")
-	}
-
-	p.config.APIVersion = cr.APIVersion
-	p.config.Kind = cr.Kind
-	p.config.Name = cr.Name
-	p.config.Spec = cr.Spec
-	p.config.Status = cr.Status
-
-	err = p.config.UpdateWith(p.rsName, p.ClusterConfig, storage)
-	if err != nil {
-		return "", errors.Wrap(err, "apply changes to cr")
-	}
-
-	if p.AnswerInJSON {
-		updateJSONMsg := UpdateMsg{
-			Message:        "Update MongoDB cluster",
-			ReplicaSetName: p.config.Spec.Replsets[0].Name,
-			ReplicaSetSize: p.config.Spec.Replsets[0].Size,
-		}
-		answer, err := json.Marshal(updateJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
-	return fmt.Sprintf(updateMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size), nil
-}
-
-func (p *PSMDB) Upgrade(crRaw []byte, newImages map[string]string) error {
-	cr := &PerconaServerMongoDB{}
-	err := json.Unmarshal(crRaw, cr)
-	if err != nil {
-		return errors.Wrap(err, "unmarshal current cr")
-	}
-
-	p.config.APIVersion = cr.APIVersion
-	p.config.Kind = cr.Kind
-	p.config.Name = cr.Name
-	p.config.Spec = cr.Spec
-	p.config.Status = cr.Status
-
-	p.config.Upgrade(newImages)
-
-	return nil
 }
 
 const operatorImage = "percona/percona-server-mongodb-operator:"
@@ -329,104 +272,6 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	default:
 		return dbaas.ClusterStateInit, nil, nil
 	}
-}
-
-const describeMsg = `
-Name:                                          %v
-Status:                                        %v
-Multi-AZ:                                      %v
-Labels:                                        %v
- 
-PSMDB Count:                                   %v
-PSMDB Image:                                   %v
-PSMDB CPU Requests:                            %v
-PSMDB Memory Requests:                         %v
-PSMDB PodDisruptionBudget:                     %v
-PSMDB AntiAffinityTopologyKey:                 %v
-PSMDB StorageType:                             %v
-PSMDB Allocated Storage:                       %v
- 
-Backup coordinator Image:                      %v
-Backup coordinator CPU Requests:               %v
-Backup coordinator Memory Requests:            %v
-Backup coordinator AntiAffinityTopologyKey:    %v
-Backup coordinator StorageType:                %v
-Backup coordinator Allocated Storage:          %v
- 
-Backup Schedule:                               %v
-`
-
-func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
-	cr := &PerconaServerMongoDB{}
-	err := json.Unmarshal([]byte(kubeInput), &cr)
-	if err != nil {
-		return "", errors.Wrapf(err, "json prase")
-	}
-
-	multiAz := "yes"
-	noAzAffinityList := []string{"none", "hostname"}
-	for _, arg := range noAzAffinityList {
-		if *cr.Spec.Replsets[0].Affinity.TopologyKey == arg {
-			multiAz = "no"
-		}
-	}
-	budgetPSMDB := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
-
-	if cr.Spec.Replsets[0].PodDisruptionBudget != nil && cr.Spec.Replsets[0].PodDisruptionBudget.MinAvailable != nil {
-		budgetPSMDB["MinAvailable"] = cr.Spec.Replsets[0].PodDisruptionBudget.MinAvailable.String()
-	}
-	if cr.Spec.Replsets[0].PodDisruptionBudget != nil && cr.Spec.Replsets[0].PodDisruptionBudget.MaxUnavailable != nil {
-		budgetPSMDB["MaxUnavailable"] = cr.Spec.Replsets[0].PodDisruptionBudget.MaxUnavailable.String()
-	}
-	budgetCoordinator := map[string]string{"MinAvailable": "none", "MaxUnavailable": "none"}
-	if cr.Spec.Backup.Coordinator.PodDisruptionBudget != nil && cr.Spec.Backup.Coordinator.PodDisruptionBudget.MinAvailable != nil {
-		budgetCoordinator["MinAvailable"] = cr.Spec.Backup.Coordinator.PodDisruptionBudget.MinAvailable.String()
-	}
-	if cr.Spec.Backup.Coordinator.PodDisruptionBudget != nil && cr.Spec.Backup.Coordinator.PodDisruptionBudget.MaxUnavailable != nil {
-		budgetCoordinator["MaxUnavailable"] = cr.Spec.Backup.Coordinator.PodDisruptionBudget.MaxUnavailable.String()
-	}
-
-	cpuSizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["cpu"].MarshalJSON()
-	if err != nil {
-		return "", err
-	}
-	memorySizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["memory"].MarshalJSON()
-	if err != nil {
-		return "", err
-	}
-
-	backupAffinity := "not set"
-	backupSchedule := "not set"
-	if cr.Spec.Backup.Coordinator.Affinity != nil && cr.Spec.Backup.Coordinator.Affinity.TopologyKey != nil {
-		backupAffinity = *cr.Spec.Backup.Coordinator.Affinity.TopologyKey
-	}
-	if cr.Spec.Backup.Tasks != nil {
-		for index := range cr.Spec.Backup.Tasks {
-			backupSchedule = backupSchedule + cr.Spec.Backup.Tasks[index].Name + ", "
-		}
-		backupSchedule = strings.TrimSuffix(backupSchedule, ", ")
-	}
-
-	return fmt.Sprintf(describeMsg,
-		cr.ObjectMeta.Name,
-		cr.Status.Status,
-		multiAz,
-		dbaas.GetStringFromMap(cr.ObjectMeta.Labels),
-		cr.Spec.Replsets[0].Size,
-		cr.Spec.Image,
-		cr.Spec.Replsets[0].Resources.Requests.CPU,
-		cr.Spec.Replsets[0].Resources.Requests.Memory,
-		dbaas.GetStringFromMap(budgetPSMDB),
-		*cr.Spec.Replsets[0].Affinity.TopologyKey,
-		cr.StorageClassesAllocated.DataPod,
-		cr.StorageSizeAllocated.DataPod,
-		cr.Spec.Backup.Image,
-		string(cpuSizeBytes),
-		string(memorySizeBytes),
-		backupAffinity,
-		cr.StorageClassesAllocated.BackupCoordinator,
-		cr.StorageSizeAllocated.BackupCoordinator,
-		backupSchedule), nil
 }
 
 type operatorLog struct {

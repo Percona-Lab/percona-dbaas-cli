@@ -16,6 +16,7 @@ package dbaas
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func init() {
@@ -240,4 +242,31 @@ func GetStringFromMap(input map[string]string) string {
 		return strings.TrimSuffix(b.String(), ", ")
 	}
 	return "none"
+}
+
+func (p Cmd) GetOperatorPodStatus(OperatorName string) (bool, error) {
+	status, err := p.RunCmd(p.ExecCommand, "get", "pod", "-l", "name="+OperatorName, "-o", "json")
+	if err != nil {
+		return false, errors.Wrap(err, "get status")
+	}
+	pods := corev1.PodList{}
+	err = json.Unmarshal(status, &pods)
+	if err != nil {
+		return false, errors.Wrap(err, "marshal status")
+	}
+
+	if len(pods.Items) < 1 {
+		return false, errors.Wrapf(err, "unable to find operator pod for %s", OperatorName)
+	}
+
+	pod := pods.Items[0]
+	switch pod.Status.Phase {
+	case corev1.PodRunning:
+		return true, nil
+	case corev1.PodFailed:
+		return false, errors.Errorf("failed to run: %s: %s", pod.Status.Message, pod.Status.Reason)
+	default:
+		return false, nil
+	}
+
 }

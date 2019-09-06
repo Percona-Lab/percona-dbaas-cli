@@ -20,7 +20,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
@@ -30,18 +29,18 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MongoDB cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		dbservice, err := dbaas.New(*envLst)
+		app, err := psmdb.New(args[0], "", defaultVersion, *listAnswerInJSON, "", *envLst)
 		if err != nil {
 			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb operator", err))
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
 		}
 		if len(args) > 0 {
-			app := psmdb.New(args[0], "", defaultVersion, *listAnswerInJSON, "")
-			info, err := dbservice.Describe(app)
+
+			info, err := app.Describe()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 				return
@@ -49,7 +48,7 @@ var listCmd = &cobra.Command{
 			fmt.Print(info)
 			return
 		}
-		list, err := dbservice.List("psmdb")
+		list, err := app.List()
 		if err != nil {
 			if *listAnswerInJSON {
 				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("list psmdb clusters", err))

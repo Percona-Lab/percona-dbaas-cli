@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -44,10 +43,10 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbservice, err := dbaas.New(*envDlt)
+		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envDlt)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
+			if *addStorageAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
@@ -64,7 +63,7 @@ var delCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("pxc", name)
+		ext, err := app.Cmd.IsObjExists("pxc", name)
 		if err != nil {
 			if *deleteAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
@@ -81,7 +80,7 @@ var delCmd = &cobra.Command{
 			} else {
 				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
 			}
-			list, err := dbservice.List("pxc")
+			list, err := app.Cmd.List("pxc")
 			if err != nil {
 				if *deleteAnswerInJSON {
 					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc cluster list", err))
@@ -114,15 +113,6 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envStor)
-		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
 		go app.Delete(*delePVC, ok, cerr)
 
 		tckr := time.NewTicker(1 * time.Second)

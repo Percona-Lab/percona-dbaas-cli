@@ -52,13 +52,13 @@ var restoreCmd = &cobra.Command{
 		}
 		bcpName := args[1]
 
-		dbservice, err := dbaas.New(*envBckpRstr)
+		bcp, err := pxc.NewRestore(name, *envBckpRstr)
 		if err != nil {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservices", err))
+			if *backupCreateAnswerInJSON {
+				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("creating restor object", err))
 				return
 			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			fmt.Fprintf(os.Stderr, "[ERROR] creating restor object: %v\n", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -68,7 +68,7 @@ var restoreCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("pxc", name)
+		ext, err := bcp.Cmd.IsObjExists("pxc", name)
 
 		if err != nil {
 			if *backupRestoreAnswerInJSON {
@@ -86,7 +86,7 @@ var restoreCmd = &cobra.Command{
 			} else {
 				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
 			}
-			list, err := dbservice.List("pxc")
+			list, err := bcp.Cmd.List("pxc")
 			if err != nil {
 				return
 			}
@@ -96,7 +96,7 @@ var restoreCmd = &cobra.Command{
 		}
 
 		sp.Prefix = "Looking for the backup..."
-		ext, err = dbservice.IsObjExists("pxc-backup", bcpName)
+		ext, err = bcp.Cmd.IsObjExists("pxc-backup", bcpName)
 		if err != nil {
 			if *backupRestoreAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if backup exists", err))
@@ -113,7 +113,7 @@ var restoreCmd = &cobra.Command{
 			} else {
 				fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "pxc-backup", bcpName)
 			}
-			list, err := dbservice.List("pxc-backup")
+			list, err := bcp.Cmd.List("pxc-backup")
 			if err != nil {
 				return
 			}
@@ -124,7 +124,6 @@ var restoreCmd = &cobra.Command{
 		sp.Lock()
 		sp.Prefix = "Restoring backup..."
 		sp.Unlock()
-		bcp := pxc.NewRestore(name)
 
 		bcp.Setup(bcpName)
 
@@ -132,7 +131,7 @@ var restoreCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.ApplyCheck("pxc-restore", bcp, ok, msg, cerr)
+		go bcp.Create(ok, msg, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {

@@ -43,16 +43,6 @@ var storageCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterName := args[0]
 
-		dbservice, err := dbaas.New(*envStor)
-		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
-
 		app, err := pxc.New(clusterName, defaultVersion, *addStorageAnswerInJSON, "", *envStor)
 		if err != nil {
 			if *addStorageAnswerInJSON {
@@ -87,7 +77,7 @@ var storageCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", clusterName)
-			list, err := dbservice.List("pxc")
+			list, err := app.Cmd.List("pxc")
 			if err != nil {
 				if *addStorageAnswerInJSON {
 					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
@@ -111,7 +101,7 @@ var storageCmd = &cobra.Command{
 		}
 		app.ClusterConfig = config
 
-		s3stor, err := dbservice.S3Storage(app, config.S3)
+		s3stor, err := app.Cmd.S3Storage(app.Name(), config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
@@ -134,14 +124,14 @@ var storageCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
-		go dbservice.Edit("pxc", app, s3stor, created, msg, cerr)
+		go app.Edit(s3stor, created, msg, cerr)
 		sp.Lock()
 		sp.Prefix = "Adding the storage..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("pxc", clusterName)
+				okmsg, _ := app.Cmd.ListName("pxc", clusterName)
 				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:

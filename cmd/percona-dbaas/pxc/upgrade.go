@@ -41,17 +41,7 @@ var upgradeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		dbservice, err := dbaas.New(*envUpgrd)
-		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
-
-		app, err := pxc.New(name, defaultVersion, *upgradeAnswerInJSON, "", *envStor)
+		app, err := pxc.New(name, defaultVersion, *upgradeAnswerInJSON, "", *envUpgrd)
 		if err != nil {
 			if *addStorageAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
@@ -72,7 +62,7 @@ var upgradeCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("pxc", name)
+		ext, err := app.Cmd.IsObjExists("pxc", name)
 		if err != nil {
 			if *upgradeAnswerInJSON {
 				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
@@ -89,7 +79,7 @@ var upgradeCmd = &cobra.Command{
 			} else {
 				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
 			}
-			list, err := dbservice.List("pxc")
+			list, err := app.Cmd.List("pxc")
 			if err != nil {
 				if *upgradeAnswerInJSON {
 					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
@@ -120,14 +110,14 @@ var upgradeCmd = &cobra.Command{
 			return
 		}
 
-		go dbservice.Upgrade("pxc", app, appsImg, created, msg, cerr)
+		go app.Upgrade(appsImg, created, msg, cerr)
 		sp.Lock()
 		sp.Prefix = "Upgrading cluster..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("pxc", name)
+				okmsg, _ := app.Cmd.ListName("pxc", name)
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:

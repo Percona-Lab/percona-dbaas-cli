@@ -31,13 +31,21 @@ type Restore struct {
 	cluster      string
 	config       *PerconaServerMongoDBRestore
 	opLogsLastTS float64
+	typ          string
+	Cmd          *dbaas.Cmd
 }
 
-func NewRestore(cluster string) *Restore {
+func NewRestore(cluster, envCrt string) (*Restore, error) {
+	dbservice, err := dbaas.New(envCrt)
+	if err != nil {
+		return nil, err
+	}
 	return &Restore{
 		cluster: cluster,
 		config:  &PerconaServerMongoDBRestore{},
-	}
+		typ:     "psmdb-restore",
+		Cmd:     dbservice,
+	}, nil
 }
 
 func (b *Restore) Name() string {
@@ -131,4 +139,68 @@ func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error)
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
+}
+
+func (b *Restore) Create(ok chan<- string, msg chan<- dbaas.OutuputMsg, errc chan<- error) {
+	cr, err := b.CR()
+	if err != nil {
+		errc <- errors.Wrap(err, "create cr")
+		return
+	}
+
+	err = b.Cmd.Apply(cr)
+	if err != nil {
+		errc <- errors.Wrap(err, "apply cr")
+		return
+	}
+	time.Sleep(1 * time.Minute)
+
+	tries := 0
+	tckr := time.NewTicker(500 * time.Millisecond)
+	defer tckr.Stop()
+	for range tckr.C {
+		status, err := b.Cmd.GetObject(b.typ, b.name)
+		if err != nil {
+			errc <- errors.Wrap(err, "get cluster status")
+			return
+		}
+		state, msgs, err := b.CheckStatus(status)
+		if err != nil {
+			errc <- errors.Wrap(err, "parse cluster status")
+			return
+		}
+
+		switch state {
+		case dbaas.ClusterStateReady:
+			ok <- strings.Join(msgs, "\n")
+			return
+		case dbaas.ClusterStateError:
+			errc <- errors.New(strings.Join(msgs, "\n"))
+			return
+		case dbaas.ClusterStateInit:
+		}
+
+		opLogsStream, err := b.Cmd.ReadOperatorLogs(b.OperatorName())
+		if err != nil {
+			errc <- errors.Wrap(err, "get operator logs")
+			return
+		}
+
+		opLogs, err := b.CheckOperatorLogs(opLogsStream)
+		if err != nil {
+			errc <- errors.Wrap(err, "parse operator logs")
+			return
+		}
+
+		for _, entry := range opLogs {
+			msg <- entry
+		}
+
+		if tries >= b.Cmd.GetStatusMaxTries() {
+			errc <- errors.Wrap(err, "unable to create object")
+			return
+		}
+
+		tries++
+	}
 }

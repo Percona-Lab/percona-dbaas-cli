@@ -44,22 +44,21 @@ var storageCmd = &cobra.Command{
 		args = parseArgs(args)
 
 		clusterName := args[0]
-		dbservice, err := dbaas.New(*envStor)
-		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
+
 		rsName := ""
 		if len(args) >= 2 {
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *addStorageAnswerInJSON, "")
-
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, *addStorageAnswerInJSON, "", *envStor)
+		if err != nil {
+			if *createAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create psmdb", err))
+				return
+			}
+			fmt.Fprint(os.Stderr, "Create PSMDB", err)
+			return
+		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -71,7 +70,7 @@ var storageCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("psmdb", clusterName)
+		ext, err := app.Cmd.IsObjExists("psmdb", clusterName)
 		if err != nil {
 			if *addStorageAnswerInJSON {
 				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
@@ -84,7 +83,7 @@ var storageCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
-			list, err := dbservice.List("psmdb")
+			list, err := app.Cmd.List("psmdb")
 			if err != nil {
 				if *addStorageAnswerInJSON {
 					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb list", err))
@@ -106,7 +105,7 @@ var storageCmd = &cobra.Command{
 			fmt.Println("Parsing flags", err)
 		}
 
-		s3stor, err := dbservice.S3Storage(app, config.S3)
+		s3stor, err := app.Cmd.S3Storage(app.Name(), config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
@@ -129,14 +128,14 @@ var storageCmd = &cobra.Command{
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		app.ClusterConfig = config
-		go dbservice.Edit("psmdb", app, s3stor, created, msg, cerr)
+		go app.Edit(s3stor, created, msg, cerr)
 		sp.Lock()
 		sp.Prefix = "Adding the storage..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("psmdb", clusterName)
+				okmsg, _ := app.Cmd.ListName("psmdb", clusterName)
 				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:

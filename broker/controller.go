@@ -275,9 +275,23 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
-	err = c.DeployCluster(instance, &skipS3, instanceID)
-	if err != nil {
-		log.Println("Deploy cluster:", err)
+	switch instance.ServiceID {
+	case pxcServiceID:
+		err = c.DeployPXCCluster(instance, &skipS3, instanceID)
+		if err != nil {
+			log.Println("Deploy cluster:", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	case psmdbServiceID:
+		err = c.DeployPSMDBCluster(instance, &skipS3, instanceID)
+		if err != nil {
+			log.Println("Deploy cluster:", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	default:
+		log.Println("Deploy cluster: incorrect service ID")
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}

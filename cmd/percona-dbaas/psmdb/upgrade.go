@@ -41,18 +41,16 @@ var upgradeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		dbservice, err := dbaas.New(*envUpgrd)
+		app, err := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeAnswerInJSON, "", *envUpgrd)
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+			if *upgradeOperatorAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb operator", err))
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
 			return
+
 		}
-
-		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeAnswerInJSON, "")
-
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -64,7 +62,7 @@ var upgradeCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("psmdb", name)
+		ext, err := app.Cmd.IsObjExists("psmdb", name)
 		if err != nil {
 			if *upgradeAnswerInJSON {
 				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
@@ -77,7 +75,7 @@ var upgradeCmd = &cobra.Command{
 		if !ext {
 			sp.Stop()
 			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			list, err := dbservice.List("psmdb")
+			list, err := app.List()
 			if err != nil {
 				if *upgradeAnswerInJSON {
 					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
@@ -108,14 +106,14 @@ var upgradeCmd = &cobra.Command{
 			return
 		}
 
-		go dbservice.Upgrade("psmdb", app, appsImg, created, msg, cerr)
+		go app.Upgrade(appsImg, created, msg, cerr)
 		sp.Lock()
 		sp.Prefix = "Upgrading cluster..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("psmdb", name)
+				okmsg, _ := app.Cmd.ListName("psmdb", name)
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:

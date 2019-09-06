@@ -110,8 +110,8 @@ type CreateMsg struct {
 	Storage           string `json:"storage"`
 }
 
-func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
-	err := p.config.SetNew(p.Name(), c, s3, platform)
+func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec) (string, error) {
+	err := p.config.SetNew(p.Name(), c, s3, p.Cmd.GetPlatformType())
 	if err != nil {
 		return "", errors.Wrap(err, "parse options")
 	}

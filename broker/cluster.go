@@ -47,7 +47,7 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 
 	var s3stor *dbaas.BackupStorageSpec
 
-	setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
+	setupmsg, err := app.Setup(conf, s3stor)
 	if err != nil {
 		log.Println("[Error] set configuration:", err)
 		return nil
@@ -58,7 +58,7 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 	created := make(chan string)
 	msg := make(chan dbaas.OutuputMsg)
 	cerr := make(chan error)
-	go dbservice.Create("pxc", app, created, msg, cerr)
+	go app.Create(created, msg, cerr)
 	go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
 
 	return nil
@@ -77,7 +77,10 @@ func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage 
 		return err
 	}
 
-	app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
+	app, err := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "", p.EnvName)
+	if err != nil {
+		return err
+	}
 	conf := psmdb.ClusterConfig{}
 	SetPSMDBDefaults(&conf)
 	if instance.Parameters.Replicas > int32(0) {
@@ -105,92 +108,9 @@ func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage 
 	created := make(chan string)
 	msg := make(chan dbaas.OutuputMsg)
 	cerr := make(chan error)
-	go dbservice.Create("psmdb", app, created, msg, cerr)
+	go app.Create(created, msg, cerr)
 	go p.listenCreateChannels(created, msg, cerr, instanceID, "psmdb", dbservice)
 
-	return nil
-}
-
-func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
-	dbservice, err := dbaas.New(p.EnvName)
-	if err != nil {
-		return err
-	}
-
-	dbservice.Namespace = instance.Context.Namespace
-
-	brokerInstance, err := json.Marshal(instance)
-	if err != nil {
-		return err
-	}
-	switch instance.ServiceID {
-	case pxcServiceID:
-		app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "", p.EnvName)
-		if err != nil {
-			return err
-		}
-		conf := pxc.ClusterConfig{}
-		SetPXCDefaults(&conf)
-		if instance.Parameters.Replicas > int32(0) {
-			conf.PXC.Instances = instance.Parameters.Replicas
-		}
-		if len(instance.Parameters.Size) > 0 {
-			conf.PXC.StorageSize = instance.Parameters.Size
-		}
-		if len(instance.Parameters.TopologyKey) > 0 {
-			conf.PXC.AntiAffinityKey = instance.Parameters.TopologyKey
-		}
-		conf.PXC.BrokerInstance = string(brokerInstance)
-
-		app.ClusterConfig = conf
-
-		var s3stor *dbaas.BackupStorageSpec
-
-		setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
-		if err != nil {
-			log.Println("[Error] set configuration:", err)
-			return nil
-		}
-
-		log.Println(setupmsg)
-
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
-		cerr := make(chan error)
-		go dbservice.Create("pxc", app, created, msg, cerr)
-		go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
-	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
-		conf := psmdb.ClusterConfig{}
-		SetPSMDBDefaults(&conf)
-		if instance.Parameters.Replicas > int32(0) {
-			conf.PSMDB.Instances = instance.Parameters.Replicas
-		}
-		if len(instance.Parameters.Size) > 0 {
-			conf.PSMDB.StorageSize = instance.Parameters.Size
-		}
-		if len(instance.Parameters.TopologyKey) > 0 {
-			conf.PSMDB.AntiAffinityKey = instance.Parameters.TopologyKey
-		}
-		conf.PSMDB.BrokerInstance = string(brokerInstance)
-		app.ClusterConfig = conf
-
-		var s3stor *dbaas.BackupStorageSpec
-
-		setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
-		if err != nil {
-			log.Println("[Error] set configuration:", err)
-			return nil
-		}
-
-		log.Println(setupmsg)
-
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
-		cerr := make(chan error)
-		go dbservice.Create("psmdb", app, created, msg, cerr)
-		go p.listenCreateChannels(created, msg, cerr, instanceID, "psmdb", dbservice)
-	}
 	return nil
 }
 
@@ -269,10 +189,14 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 		if err != nil {
 			return err
 		}
-		go dbservice.Delete("pxc", app, delePVC, ok, cerr)
+		go app.Delete(delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
-		go dbservice.Delete("psmdb", psmdb.New(name, name, defaultVersion, false, ""), delePVC, ok, cerr)
+		app, err := psmdb.New(name, name, defaultVersion, true, "", p.EnvName)
+		if err != nil {
+			return err
+		}
+		go app.Delete(delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	}
 	return nil
@@ -325,10 +249,13 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		conf.PXC.BrokerInstance = string(brokerInstance)
 		app.ClusterConfig = conf
 
-		go dbservice.Edit("pxc", app, nil, created, msg, cerr)
+		go app.Edit(nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
 	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false, "")
+		app, err := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false, "", p.EnvName)
+		if err != nil {
+			return err
+		}
 		conf := psmdb.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -337,7 +264,7 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		conf.PSMDB.BrokerInstance = string(brokerInstance)
 		app.ClusterConfig = conf
 
-		go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
+		go app.Edit(nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID, "psmdb", p.dbaas)
 	}
 	return nil

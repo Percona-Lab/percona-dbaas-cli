@@ -43,22 +43,20 @@ var editCmd = &cobra.Command{
 
 		clusterName := args[0]
 
-		dbservice, err := dbaas.New(*envEdt)
-		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
-			return
-		}
 		rsName := ""
 		if len(args) >= 2 {
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON, "")
-
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON, "", *envEdt)
+		if err != nil {
+			if *editAnswerInJSON {
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new psmdb app", err))
+				return
+			}
+			fmt.Fprintf(os.Stderr, "[ERROR] New PSMDB app: %v\n", err)
+			return
+		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
 		demo, err := cmd.Flags().GetBool("demo")
@@ -70,10 +68,10 @@ var editCmd = &cobra.Command{
 		sp.Start()
 		defer sp.Stop()
 
-		ext, err := dbservice.IsObjExists("psmdb", clusterName)
+		ext, err := app.Cmd.IsObjExists("psmdb", clusterName)
 		if err != nil {
 			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
+				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
 				return
 			}
 			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
@@ -87,10 +85,10 @@ var editCmd = &cobra.Command{
 			} else {
 				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
 			}
-			list, err := dbservice.List("psmdb")
+			list, err := app.Cmd.List("psmdb")
 			if err != nil {
 				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster", err))
+					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb clusters", err))
 					return
 				}
 				return
@@ -113,14 +111,14 @@ var editCmd = &cobra.Command{
 			return
 		}
 		app.ClusterConfig = config
-		go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
+		go app.Edit(nil, created, msg, cerr)
 		sp.Lock()
 		sp.Prefix = "Applying changes..."
 		sp.Unlock()
 		for {
 			select {
 			case <-created:
-				okmsg, _ := dbservice.ListName("psmdb", clusterName)
+				okmsg, _ := app.Cmd.ListName("psmdb", clusterName)
 				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
 				return
 			case omsg := <-msg:
