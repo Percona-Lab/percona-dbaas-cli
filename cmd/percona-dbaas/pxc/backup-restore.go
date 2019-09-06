@@ -16,7 +16,6 @@ package pxc
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -43,22 +42,14 @@ var restoreCmd = &cobra.Command{
 
 		name := args[0]
 		if len(args) < 2 || args[1] == "" {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("you have to specify pxc-cluster-name and pxc-backup-name", nil))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[ERROR] you have to specify pxc-cluster-name and pxc-backup-name\n")
+			pxc.PrintError(*backupRestoreAnswerOutput, "you have to specify pxc-cluster-name and pxc-backup-name", nil)
 			return
 		}
 		bcpName := args[1]
 
 		bcp, err := pxc.NewRestore(name, *envBckpRstr)
 		if err != nil {
-			if *backupCreateAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("creating restor object", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] creating restor object: %v\n", err)
+			pxc.PrintError(*backupRestoreAnswerOutput, "creating restore object", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -69,25 +60,17 @@ var restoreCmd = &cobra.Command{
 		defer sp.Stop()
 
 		ext, err := bcp.Cmd.IsObjExists("pxc", name)
-
 		if err != nil {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			pxc.PrintError(*backupRestoreAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+bcpName, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			pxc.PrintError(*backupRestoreAnswerOutput, "unable to find cluster pxc/"+bcpName, nil)
 			list, err := bcp.Cmd.List("pxc")
 			if err != nil {
+				pxc.PrintError(*backupRestoreAnswerOutput, "list pxc", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -98,23 +81,16 @@ var restoreCmd = &cobra.Command{
 		sp.Prefix = "Looking for the backup..."
 		ext, err = bcp.Cmd.IsObjExists("pxc-backup", bcpName)
 		if err != nil {
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if backup exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if backup exists: %v\n", err)
+			pxc.PrintError(*backupRestoreAnswerOutput, "check if backup exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *backupRestoreAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find backup pxc-backup/"+bcpName, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find backup \"%s/%s\"\n", "pxc-backup", bcpName)
-			}
+			pxc.PrintError(*backupRestoreAnswerOutput, "unable to find backup pxc-backup/"+bcpName, nil)
 			list, err := bcp.Cmd.List("pxc-backup")
 			if err != nil {
+				pxc.PrintError(*backupRestoreAnswerOutput, "list pxc-backup", err)
 				return
 			}
 			fmt.Println("Avaliable backups:")
@@ -145,19 +121,11 @@ var restoreCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *backupRestoreAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					pxc.PrintError(*backupRestoreAnswerOutput, "loperator log error", nil)
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *backupRestoreAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("restore backup", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] restore backup: %v\n", err)
+				pxc.PrintError(*backupRestoreAnswerOutput, "restore backup", err)
 				return
 			}
 		}
@@ -165,11 +133,11 @@ var restoreCmd = &cobra.Command{
 }
 
 var envBckpRstr *string
-var backupRestoreAnswerInJSON *bool
+var backupRestoreAnswerOutput *string
 
 func init() {
 	envBckpRstr = restoreCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupRestoreAnswerInJSON = restoreCmd.Flags().Bool("json", false, "Answers in JSON format")
+	backupRestoreAnswerOutput = restoreCmd.Flags().String("output", "s", "Output format")
 
 	PXCCmd.AddCommand(restoreCmd)
 }

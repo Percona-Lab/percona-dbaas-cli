@@ -29,13 +29,9 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		app, err := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "", *envLst)
+		app, err := pxc.New(args[0], defaultVersion, false, "", *envLst)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			pxc.PrintError(*listAnswerOutput, "new operator", err)
 			return
 		}
 		if len(args) > 0 {
@@ -49,11 +45,7 @@ var listCmd = &cobra.Command{
 		}
 		list, err := app.List()
 		if err != nil {
-			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc list", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "\n[error] %s\n", err)
+			pxc.PrintError(*listAnswerOutput, "pxc list", err)
 			return
 		}
 
@@ -62,11 +54,11 @@ var listCmd = &cobra.Command{
 }
 
 var envLst *string
-var listAnswerInJSON *bool
+var listAnswerOutput *string
 
 func init() {
 	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	listAnswerInJSON = listCmd.Flags().Bool("json", false, "Answers in JSON format")
+	listAnswerOutput = listCmd.Flags().String("output", "", "Output format")
 
 	PXCCmd.AddCommand(listCmd)
 }

@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -363,8 +364,20 @@ func alterMessage(msg string) string {
 	return msg
 }
 
-// JSONErrorMsg creates error messages in JSON format
-func JSONErrorMsg(message string, err error) string {
+func PrintError(output, message string, err error) {
+	if output == "json" {
+		fmt.Fprint(os.Stderr, jsonErrorMsg(message, err))
+		return
+	}
+	if err == nil {
+		fmt.Fprint(os.Stderr, "[ERROR] "+message)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "[ERROR] "+message+": %v\n", err)
+	return
+}
+
+func jsonErrorMsg(message string, err error) string {
 	if err == nil {
 		return fmt.Sprintf("\n{\"error\": \"%s\"}\n", message)
 	}

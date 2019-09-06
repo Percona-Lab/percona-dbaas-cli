@@ -31,7 +31,7 @@ import (
 const (
 	defaultVersion = "default"
 
-	noS3backupWarn = `[Error] S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
+	noS3backupWarn = `S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
 You can skip this step by using --s3-skip-storage flag add the storage later with the "add-storage" command.
 `
 )
@@ -51,11 +51,7 @@ var createCmd = &cobra.Command{
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				if *createAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("label parse", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				pxc.PrintError(*createAnswerOutput, "label parse", err)
 				return
 			}
 			if !match {
@@ -64,23 +60,15 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envCrt)
+		app, err := pxc.New(args[0], defaultVersion, false, *labels, *envCrt)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			pxc.PrintError(*createAnswerOutput, "new operator", err)
 			return
 		}
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[Error] parse flags to config:", err)
+			pxc.PrintError(*createAnswerOutput, "parse flags to config", err)
 			return
 		}
 
@@ -91,17 +79,9 @@ var createCmd = &cobra.Command{
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg(noS3backupWarn, err))
-						return
-					}
-					fmt.Fprint(os.Stderr, noS3backupWarn, err)
+					pxc.PrintError(*createAnswerOutput, noS3backupWarn, err)
 				default:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create S3 backup storage", err))
-						return
-					}
-					fmt.Fprint(os.Stderr, "[Error] create S3 backup storage:", err)
+					pxc.PrintError(*createAnswerOutput, "create S3 backup storage", err)
 				}
 				return
 			}
@@ -109,11 +89,7 @@ var createCmd = &cobra.Command{
 
 		setupmsg, err := app.Setup(config, s3stor)
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("set configuration", err))
-				return
-			}
-			fmt.Println("[Error] set configuration:", err)
+			pxc.PrintError(*createAnswerOutput, "set configuration", err)
 			return
 		}
 
@@ -146,37 +122,23 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					pxc.PrintError(*createAnswerOutput, "operator log error", nil)
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create pxc cluster", err))
-					}
-					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
+					pxc.PrintError(*createAnswerOutput, "create pxc cluster", err)
 					list, err := app.Cmd.List("pxc")
 					if err != nil {
-						if *createAnswerInJSON {
-							fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
-							return
-						}
+						pxc.PrintError(*createAnswerOutput, "list pxc clusters", err)
 						return
 					}
 					fmt.Println("Avaliable clusters:")
 					fmt.Print(list)
 				default:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservices", err))
-						return
-					}
-					fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+					pxc.PrintError(*createAnswerOutput, "create pxc", err)
 				}
 
 				return
@@ -186,7 +148,7 @@ var createCmd = &cobra.Command{
 }
 var skipS3Storage *bool
 var envCrt *string
-var createAnswerInJSON *bool
+var createAnswerOutput *string
 var labels *string
 
 func init() {
@@ -212,7 +174,7 @@ func init() {
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
 	labels = createCmd.Flags().String("labels", "", "PXC cluster labels inside kubernetes/openshift cluster")
 
-	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
+	createAnswerOutput = createCmd.Flags().String("output", "", "Output format")
 
 	PXCCmd.AddCommand(createCmd)
 }

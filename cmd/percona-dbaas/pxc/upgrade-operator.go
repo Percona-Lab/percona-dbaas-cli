@@ -41,13 +41,9 @@ var upgradeOperatorCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		app, err := pxc.New(name, defaultVersion, *upgradeOperatorAnswerInJSON, "", *envUpgrdOprtr)
+		app, err := pxc.New(name, defaultVersion, false, "", *envUpgrdOprtr)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			pxc.PrintError(*upgradeOperatorAnswerOutput, "new operator", err)
 			return
 		}
 
@@ -65,15 +61,16 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := app.Cmd.IsObjExists("pxc", name)
 
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			pxc.PrintError(*upgradeOperatorAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			pxc.PrintError(*upgradeOperatorAnswerOutput, "Unable to find cluster pxc/"+name, nil)
 			list, err := app.Cmd.List("pxc")
 			if err != nil {
+				pxc.PrintError(*upgradeOperatorAnswerOutput, "list pxc", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -87,7 +84,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := app.Cmd.Instances("pxc")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] unable to get pxc instances: %v\n", err)
+				pxc.PrintError(*upgradeOperatorAnswerOutput, "unable to get pxc instances", err)
 			}
 			if len(num) > 1 {
 				sp.Stop()
@@ -116,7 +113,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
 				return
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade pxc operator: %v\n", err)
+				pxc.PrintError(*upgradeOperatorAnswerOutput, "upgrade pxc operator", err)
 				sp.HideCursor = true
 				return
 			}
@@ -126,12 +123,12 @@ var upgradeOperatorCmd = &cobra.Command{
 
 var envUpgrdOprtr *string
 var oprtrImage *string
-var upgradeOperatorAnswerInJSON *bool
+var upgradeOperatorAnswerOutput *string
 
 func init() {
 	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	upgradeOperatorAnswerInJSON = upgradeOperatorCmd.Flags().Bool("json", false, "Answers in JSON format")
+	upgradeOperatorAnswerOutput = upgradeOperatorCmd.Flags().String("output", "", "Output format")
 
 	PXCCmd.AddCommand(upgradeOperatorCmd)
 }

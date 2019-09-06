@@ -16,7 +16,6 @@ package pxc
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -41,13 +40,9 @@ var upgradeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := pxc.New(name, defaultVersion, *upgradeAnswerInJSON, "", *envUpgrd)
+		app, err := pxc.New(name, defaultVersion, false, "", *envUpgrd)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			pxc.PrintError(*upgradeAnswerOutput, "new operator", err)
 			return
 		}
 
@@ -64,27 +59,16 @@ var upgradeCmd = &cobra.Command{
 
 		ext, err := app.Cmd.IsObjExists("pxc", name)
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			pxc.PrintError(*upgradeAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			pxc.PrintError(*upgradeAnswerOutput, "unable to find cluster pxc/"+name, nil)
 			list, err := app.Cmd.List("pxc")
 			if err != nil {
-				if *upgradeAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
-					return
-				}
+				pxc.PrintError(*upgradeAnswerOutput, "list pxc clusters", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -102,11 +86,7 @@ var upgradeCmd = &cobra.Command{
 		}
 		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("setup images for upgrade", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
+			pxc.PrintError(*upgradeAnswerOutput, "setup images for upgrade", err)
 			return
 		}
 
@@ -126,19 +106,11 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *upgradeAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					pxc.PrintError(*upgradeAnswerOutput, "operator log error", nil)
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *upgradeAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("upgrade pxc", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade pxc: %v\n", err)
+				pxc.PrintError(*upgradeAnswerOutput, "upgrade pxc", err)
 				sp.HideCursor = true
 				return
 			}
@@ -147,7 +119,7 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
-var upgradeAnswerInJSON *bool
+var upgradeAnswerOutput *string
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade pxc to")
@@ -155,7 +127,7 @@ func init() {
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
-	upgradeAnswerInJSON = upgradeCmd.Flags().Bool("json", false, "Answers in JSON format")
+	upgradeAnswerOutput = upgradeCmd.Flags().String("output", "", "Output format")
 
 	PXCCmd.AddCommand(upgradeCmd)
 }

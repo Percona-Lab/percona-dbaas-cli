@@ -16,7 +16,6 @@ package pxc
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -43,11 +42,7 @@ var bcpCmd = &cobra.Command{
 
 		bcp, err := pxc.NewBackup(name, *envBckpCrt)
 		if err != nil {
-			if *backupCreateAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("creating backup object", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] creating backup object: %v\n", err)
+			pxc.PrintError(*backupCreateAnswerOutput, "creating backup object", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -59,23 +54,16 @@ var bcpCmd = &cobra.Command{
 
 		ext, err := bcp.Cmd.IsObjExists("pxc", name)
 		if err != nil {
-			if *backupCreateAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			pxc.PrintError(*backupCreateAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			pxc.PrintError(*backupCreateAnswerOutput, "Unable to find cluster pxc/"+name, nil)
 			list, err := bcp.Cmd.List("pxc")
 			if err != nil {
-				if *backupCreateAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
-					return
-				}
+				pxc.PrintError(*backupCreateAnswerOutput, "list pxc clusters", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -106,15 +94,11 @@ var bcpCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *backupCreateAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					pxc.PrintError(*backupCreateAnswerOutput, "operator log error", nil)
 					sp.Start()
 				}
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create backup: %v\n", err)
+				pxc.PrintError(*backupCreateAnswerOutput, "create backup", err)
 				return
 			}
 		}
@@ -122,11 +106,11 @@ var bcpCmd = &cobra.Command{
 }
 
 var envBckpCrt *string
-var backupCreateAnswerInJSON *bool
+var backupCreateAnswerOutput *string
 
 func init() {
 	envBckpCrt = bcpCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupCreateAnswerInJSON = bcpCmd.Flags().Bool("json", false, "Answers in JSON format")
+	backupCreateAnswerOutput = bcpCmd.Flags().String("output", "s", "Output format")
 
 	PXCCmd.AddCommand(bcpCmd)
 }

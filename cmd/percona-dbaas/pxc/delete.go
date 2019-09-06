@@ -43,13 +43,9 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		app, err := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels, *envDlt)
+		app, err := pxc.New(args[0], defaultVersion, false, *labels, *envDlt)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new operator", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			pxc.PrintError(*deleteAnswerOutput, "new operator", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -65,27 +61,16 @@ var delCmd = &cobra.Command{
 
 		ext, err := app.Cmd.IsObjExists("pxc", name)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			pxc.PrintError(*deleteAnswerOutput, "check if cluster exists", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			pxc.PrintError(*deleteAnswerOutput, "unable to find cluster pxc/"+name, nil)
 			list, err := app.Cmd.List("pxc")
 			if err != nil {
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc cluster list", err))
-					return
-				}
+				pxc.PrintError(*deleteAnswerOutput, "pxc cluster list", err)
 				return
 			}
 			fmt.Println("Avaliable clusters:")
@@ -123,11 +108,7 @@ var delCmd = &cobra.Command{
 				sp.FinalMSG = "Deleting...[done]\n"
 				return
 			case err := <-cerr:
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("delete pxc", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] delete pxc: %v\n", err)
+				pxc.PrintError(*deleteAnswerOutput, "delete pxc", err)
 				return
 			}
 		}
@@ -135,12 +116,12 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
-var deleteAnswerInJSON *bool
+var deleteAnswerOutput *string
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	deleteAnswerInJSON = delCmd.Flags().Bool("json", false, "Answers in JSON format")
+	deleteAnswerOutput = delCmd.Flags().String("output", "", "Answers in JSON format")
 
 	PXCCmd.AddCommand(delCmd)
 }
