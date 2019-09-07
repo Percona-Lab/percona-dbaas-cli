@@ -22,8 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 // editCmd represents the edit command
@@ -47,7 +47,7 @@ var editCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app, err := psmdb.New(clusterName, rsName, defaultVersion, false, "", *envEdt)
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, "", *envEdt)
 		if err != nil {
 			psmdb.PrintError(*editAnswerOutput, "new psmdb app", err)
 			return
@@ -82,8 +82,8 @@ var editCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan psmdb.ClusterData)
+		msg := make(chan psmdb.ClusterData)
 		cerr := make(chan error)
 		config, err := psmdb.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
@@ -99,17 +99,16 @@ var editCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := app.Cmd.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				finalMsg, err := SprintResponse(*editAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*editAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Applying changes...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					psmdb.PrintError(*editAnswerOutput, "operator log error", fmt.Errorf(omsg.String()))
-					sp.Start()
-				}
+				sp.Stop()
+				psmdb.PrintError(*editAnswerOutput, "operator log error", fmt.Errorf(omsg.Message))
+				sp.Start()
 			case err := <-cerr:
 				psmdb.PrintError(*editAnswerOutput, "edit psmdb", err)
 				sp.HideCursor = true

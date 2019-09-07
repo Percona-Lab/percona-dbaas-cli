@@ -41,7 +41,7 @@ var upgradeOperatorCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		app, err := pxc.New(name, defaultVersion, false, "", *envUpgrdOprtr)
+		app, err := pxc.New(name, defaultVersion, "", *envUpgrdOprtr)
 		if err != nil {
 			pxc.PrintError(*upgradeOperatorAnswerOutput, "new operator", err)
 			return
@@ -78,7 +78,7 @@ var upgradeOperatorCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
+		created := make(chan pxc.UpgradeResponse)
 		cerr := make(chan error)
 
 		if *oprtrImage != "" {
@@ -110,7 +110,11 @@ var upgradeOperatorCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := app.Cmd.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
+				finalMsg, err := SprintResponse(*upgradeOperatorAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*upgradeOperatorAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Upgrading cluster operator...[done]\n\n", finalMsg)
 				return
 			case err := <-cerr:
 				pxc.PrintError(*upgradeOperatorAnswerOutput, "upgrade pxc operator", err)

@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -103,8 +102,8 @@ var restoreCmd = &cobra.Command{
 
 		bcp.Setup(bcpName)
 
-		ok := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		ok := make(chan pxc.RestoreResponse)
+		msg := make(chan pxc.RestoreResponse)
 		cerr := make(chan error)
 
 		go bcp.Create(ok, msg, cerr)
@@ -113,17 +112,16 @@ var restoreCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-ok:
-				sp.FinalMSG = fmt.Sprintf("Restoring backup...[done]\n%s\n", okmsg)
+				finalMsg, err := SprintResponse(*backupRestoreAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*backupRestoreAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Restoring backup...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					pxc.PrintError(*backupRestoreAnswerOutput, "loperator log error", nil)
-					sp.Start()
-				}
+				sp.Stop()
+				pxc.PrintError(*backupRestoreAnswerOutput, "loperator log error: "+omsg.Message, nil)
+				sp.Start()
 			case err := <-cerr:
 				pxc.PrintError(*backupRestoreAnswerOutput, "restore backup", err)
 				return

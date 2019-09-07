@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -41,7 +40,7 @@ var editCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := pxc.New(name, defaultVersion, false, "", *envEdt)
+		app, err := pxc.New(name, defaultVersion, "", *envEdt)
 		if err != nil {
 			pxc.PrintError(*editAnswerOutput, "new operator", err)
 			return
@@ -84,8 +83,8 @@ var editCmd = &cobra.Command{
 		}
 		app.ClusterConfig = config
 
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan pxc.ClusterData)
+		msg := make(chan pxc.ClusterData)
 		cerr := make(chan error)
 		go app.Edit(nil, created, msg, cerr)
 		sp.Lock()
@@ -95,17 +94,16 @@ var editCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := app.Cmd.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				finalMsg, err := SprintResponse(*editAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*editAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Applying changes...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					pxc.PrintError(*editAnswerOutput, "operator log error", nil)
-					sp.Start()
-				}
+				sp.Stop()
+				pxc.PrintError(*editAnswerOutput, "operator log error: "+omsg.Message, nil)
+				sp.Start()
 			case err := <-cerr:
 				pxc.PrintError(*editAnswerOutput, "edit pxc", err)
 				sp.HideCursor = true

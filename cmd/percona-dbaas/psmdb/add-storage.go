@@ -25,6 +25,7 @@ import (
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 const noS3backupOpts = `[Error] S3 backup storage options doesn't set properly: %v.`
@@ -50,7 +51,7 @@ var storageCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app, err := psmdb.New(clusterName, rsName, defaultVersion, false, "", *envStor)
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, "", *envStor)
 		if err != nil {
 			psmdb.PrintError(*addStorageAnswerOutput, "create psmdb", err)
 			return
@@ -102,8 +103,8 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan psmdb.ClusterData)
+		msg := make(chan psmdb.ClusterData)
 		cerr := make(chan error)
 		app.ClusterConfig = config
 		go app.Edit(s3stor, created, msg, cerr)
@@ -114,17 +115,16 @@ var storageCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := app.Cmd.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
+				finalMsg, err := SprintResponse(*addStorageAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*addStorageAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Adding the storage...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					psmdb.PrintError(*addStorageAnswerOutput, "operator log error", fmt.Errorf(omsg.String()))
-					sp.Start()
-				}
+				sp.Stop()
+				psmdb.PrintError(*addStorageAnswerOutput, "operator log error", fmt.Errorf(omsg.Message))
+				sp.Start()
 			case err := <-cerr:
 				psmdb.PrintError(*addStorageAnswerOutput, "add storage to psmdb", err)
 				sp.HideCursor = true

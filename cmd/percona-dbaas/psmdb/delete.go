@@ -44,7 +44,7 @@ var delCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := psmdb.New(name, "", defaultVersion, false, "", *envDlt)
+		app, err := psmdb.New(name, "", defaultVersion, "", *envDlt)
 		if err != nil {
 			psmdb.PrintError(*deleteAnswerOutput, "new psmdb operator", err)
 			return

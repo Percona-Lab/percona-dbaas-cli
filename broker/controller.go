@@ -326,14 +326,22 @@ func (c *Controller) UpdateServiceInstance(w http.ResponseWriter, r *http.Reques
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
-
-	err = c.UpdateCluster(&instance)
-	if err != nil {
-		log.Println("Update instatnce:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	switch instance.ServiceID {
+	case pxcServiceID:
+		err = c.UpdatePXCCluster(&instance)
+		if err != nil {
+			log.Println("Update instatnce:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	case psmdbServiceID:
+		err = c.UpdatePSMDBCluster(&instance)
+		if err != nil {
+			log.Println("Update instatnce:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
-
 	c.instanceMap[instance.ID] = &instance
 
 	response := CreateServiceInstanceResponse{

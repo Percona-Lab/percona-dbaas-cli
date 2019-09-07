@@ -29,7 +29,7 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		app, err := pxc.New(args[0], defaultVersion, false, "", *envLst)
+		app, err := pxc.New(args[0], defaultVersion, "", *envLst)
 		if err != nil {
 			pxc.PrintError(*listAnswerOutput, "new operator", err)
 			return

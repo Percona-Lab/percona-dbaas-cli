@@ -25,6 +25,7 @@ import (
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 // bcpCmd represents the list command
@@ -77,8 +78,8 @@ var bcpCmd = &cobra.Command{
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)
 
-		ok := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		ok := make(chan psmdb.BackupResponse)
+		msg := make(chan psmdb.BackupResponse)
 		cerr := make(chan error)
 
 		go bcp.Create(ok, msg, cerr)
@@ -87,17 +88,16 @@ var bcpCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-ok:
-				sp.FinalMSG = fmt.Sprintf("Creating backup...[done]\n%s\n", okmsg)
+				finalMsg, err := SprintResponse(*backupCreateAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*backupCreateAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintf("Creating backup...[done]\n%s\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					psmdb.PrintError(*backupCreateAnswerOutput, "operator log error", err)
-					sp.Start()
-				}
+				sp.Stop()
+				psmdb.PrintError(*backupCreateAnswerOutput, "operator log error", fmt.Errorf(omsg.Message))
+				sp.Start()
 			case err := <-cerr:
 				psmdb.PrintError(*backupCreateAnswerOutput, "psmdb clusters list", err)
 				return

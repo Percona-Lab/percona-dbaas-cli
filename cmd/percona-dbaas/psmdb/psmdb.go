@@ -15,6 +15,8 @@
 package psmdb
 
 import (
+	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -36,4 +38,17 @@ func parseArgs(args []string) []string {
 	}
 
 	return args
+}
+
+func SprintResponse(output string, data interface{}) (string, error) {
+	if output == "json" {
+		d, err := json.Marshal(data)
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintln(string(d)), nil
+	}
+
+	return fmt.Sprintln(data), nil
 }

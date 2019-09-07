@@ -60,7 +60,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		app, err := pxc.New(args[0], defaultVersion, false, *labels, *envCrt)
+		app, err := pxc.New(args[0], defaultVersion, *labels, *envCrt)
 		if err != nil {
 			pxc.PrintError(*createAnswerOutput, "new operator", err)
 			return
@@ -92,11 +92,14 @@ var createCmd = &cobra.Command{
 			pxc.PrintError(*createAnswerOutput, "set configuration", err)
 			return
 		}
+		setupFinalMsg, err := SprintResponse(*createAnswerOutput, setupmsg)
+		if err != nil {
+			pxc.PrintError(*createAnswerOutput, "sprint setup message", err)
+		}
+		fmt.Println(setupFinalMsg)
 
-		fmt.Println(setupmsg)
-
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan pxc.ClusterData)
+		msg := make(chan pxc.ClusterData)
 		cerr := make(chan error)
 
 		go app.Create(created, msg, cerr)
@@ -114,17 +117,16 @@ var createCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-created:
-				sp.FinalMSG = fmt.Sprintf("Starting...[done]\n%s\n", okmsg)
+				finalMsg, err := SprintResponse(*createAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*createAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Starting...[done]\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					pxc.PrintError(*createAnswerOutput, "operator log error", nil)
-					sp.Start()
-				}
+				sp.Stop()
+				pxc.PrintError(*createAnswerOutput, "operator log error: "+omsg.Message, nil)
+				sp.Start()
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {

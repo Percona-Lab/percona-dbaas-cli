@@ -26,6 +26,7 @@ import (
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 const (
@@ -72,7 +73,7 @@ var createCmd = &cobra.Command{
 			}
 		}
 
-		app, err := psmdb.New(clusterName, rsName, defaultVersion, false, *labels, *envCrt)
+		app, err := psmdb.New(clusterName, rsName, defaultVersion, *labels, *envCrt)
 		if err != nil {
 			psmdb.PrintError(*createAnswerOutput, "create psmdb operator", err)
 			return
@@ -103,11 +104,14 @@ var createCmd = &cobra.Command{
 			psmdb.PrintError(*createAnswerOutput, "set configuration", err)
 			return
 		}
+		setupFinalMsg, err := SprintResponse(*createAnswerOutput, setupmsg)
+		if err != nil {
+			pxc.PrintError(*createAnswerOutput, "sprint setup message", err)
+		}
+		fmt.Println(setupFinalMsg)
 
-		fmt.Println(setupmsg)
-
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan psmdb.ClusterData)
+		msg := make(chan psmdb.ClusterData)
 		cerr := make(chan error)
 
 		go app.Create(created, msg, cerr)
@@ -125,17 +129,16 @@ var createCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-created:
-				sp.FinalMSG = fmt.Sprintf("Starting...[done]\n%s\n", okmsg)
+				finalMsg, err := SprintResponse(*createAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*createAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Starting...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					psmdb.PrintError(*createAnswerOutput, "operator log error", fmt.Errorf(omsg.String()))
-					sp.Start()
-				}
+				sp.Stop()
+				psmdb.PrintError(*createAnswerOutput, "operator log error", fmt.Errorf(omsg.Message))
+				sp.Start()
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {

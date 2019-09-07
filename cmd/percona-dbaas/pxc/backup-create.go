@@ -76,8 +76,8 @@ var bcpCmd = &cobra.Command{
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)
 
-		ok := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		ok := make(chan pxc.BackupResponse)
+		msg := make(chan pxc.BackupResponse)
 		cerr := make(chan error)
 
 		go bcp.Create(ok, msg, cerr)
@@ -86,17 +86,16 @@ var bcpCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-ok:
-				sp.FinalMSG = fmt.Sprintf("Creating backup...[done]\n%s\n", okmsg)
+				finalMsg, err := SprintResponse(*addStorageAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*addStorageAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Creating backup...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					pxc.PrintError(*backupCreateAnswerOutput, "operator log error", nil)
-					sp.Start()
-				}
+				sp.Stop()
+				pxc.PrintError(*backupCreateAnswerOutput, "operator log error: "+omsg.Message, nil)
+				sp.Start()
 			case err := <-cerr:
 				pxc.PrintError(*backupCreateAnswerOutput, "create backup", err)
 				return

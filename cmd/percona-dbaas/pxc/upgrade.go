@@ -22,7 +22,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
@@ -40,7 +39,7 @@ var upgradeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := pxc.New(name, defaultVersion, false, "", *envUpgrd)
+		app, err := pxc.New(name, defaultVersion, "", *envUpgrd)
 		if err != nil {
 			pxc.PrintError(*upgradeAnswerOutput, "new operator", err)
 			return
@@ -76,8 +75,8 @@ var upgradeCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan pxc.ClusterData)
+		msg := make(chan pxc.ClusterData)
 		cerr := make(chan error)
 
 		oparg := ""
@@ -98,17 +97,16 @@ var upgradeCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := app.Cmd.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
+				finalMsg, err := SprintResponse(*upgradeAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*upgradeAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Upgrading cluster...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					pxc.PrintError(*upgradeAnswerOutput, "operator log error", nil)
-					sp.Start()
-				}
+				sp.Stop()
+				pxc.PrintError(*upgradeAnswerOutput, "operator log error: "+omsg.Message, nil)
+				sp.Start()
 			case err := <-cerr:
 				pxc.PrintError(*upgradeAnswerOutput, "upgrade pxc", err)
 				sp.HideCursor = true

@@ -17,6 +17,7 @@ package pxc
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/briandowns/spinner"
@@ -43,7 +44,7 @@ var storageCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterName := args[0]
 
-		app, err := pxc.New(clusterName, defaultVersion, false, "", *envStor)
+		app, err := pxc.New(clusterName, defaultVersion, "", *envStor)
 		if err != nil {
 			pxc.PrintError(*addStorageAnswerOutput, "new pxc operator", err)
 			return
@@ -97,8 +98,8 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
-		msg := make(chan dbaas.OutuputMsg)
+		created := make(chan pxc.ClusterData)
+		msg := make(chan pxc.ClusterData)
 		cerr := make(chan error)
 
 		go app.Edit(s3stor, created, msg, cerr)
@@ -107,19 +108,18 @@ var storageCmd = &cobra.Command{
 		sp.Unlock()
 		for {
 			select {
-			case <-created:
-				okmsg, _ := app.Cmd.ListName("pxc", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
+			case okmsg := <-created:
+				finalMsg, err := SprintResponse(*addStorageAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*addStorageAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Adding the storage...[done]\n\n", finalMsg)
 				return
 			case omsg := <-msg:
-				switch omsg.(type) {
-				case dbaas.OutuputMsgDebug:
-					// fmt.Printf("\n[debug] %s\n", omsg)
-				case dbaas.OutuputMsgError:
-					sp.Stop()
-					pxc.PrintError(*addStorageAnswerOutput, "operator log error", nil)
-					sp.Start()
-				}
+				sp.Stop()
+				pxc.PrintError(*addStorageAnswerOutput, "operator log error", fmt.Errorf(strings.Join(omsg.StatusMessages, "\n")))
+				sp.Start()
+
 			case err := <-cerr:
 				pxc.PrintError(*addStorageAnswerOutput, "add storage to pxc", err)
 				sp.HideCursor = true

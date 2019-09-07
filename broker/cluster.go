@@ -2,6 +2,7 @@ package broker
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -26,7 +27,7 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 		return err
 	}
 
-	app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, true, "", p.EnvName)
+	app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, "", p.EnvName)
 	if err != nil {
 		return err
 	}
@@ -52,16 +53,58 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 		log.Println("[Error] set configuration:", err)
 		return nil
 	}
+	setupFinalMsg, err := SprintResponse("json", setupmsg)
+	if err != nil {
+		log.Println("[Error] sprint setup message", err)
+	}
+	log.Println(setupFinalMsg)
 
-	log.Println(setupmsg)
-
-	created := make(chan string)
-	msg := make(chan dbaas.OutuputMsg)
+	created := make(chan pxc.ClusterData)
+	msg := make(chan pxc.ClusterData)
 	cerr := make(chan error)
 	go app.Create(created, msg, cerr)
-	go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
+	go p.listenPXCCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
 
 	return nil
+}
+
+func (p *Controller) listenPXCCreateChannels(created chan pxc.ClusterData, msg chan pxc.ClusterData, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
+	for {
+		select {
+		case okmsg := <-created:
+			if _, ok := p.instanceMap[instanceID]; ok {
+				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+				p.instanceMap[instanceID].Credentials.Host = okmsg.Host
+				p.instanceMap[instanceID].Credentials.Port = okmsg.Port
+				p.instanceMap[instanceID].Credentials.Users = map[string]string{
+					okmsg.User: okmsg.Pass,
+				}
+				instance, err := json.Marshal(p.instanceMap[instanceID])
+				if err != nil {
+					log.Println("Error marshal instance", err)
+				}
+				if len(instance) > 0 {
+					dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+				}
+			}
+			okFinalMsg, err := SprintResponse("json", okmsg)
+			if err != nil {
+				log.Println("[Error] sprint setup message", err)
+			}
+			log.Println(okFinalMsg)
+			return
+		case omsg := <-msg:
+			log.Printf("[operator log error] %s\n", omsg)
+		case err := <-cerr:
+			if _, ok := p.instanceMap[instanceID]; ok {
+				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+			}
+			log.Println("Create error:", err)
+			return
+		}
+	}
 }
 
 func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
@@ -77,7 +120,7 @@ func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage 
 		return err
 	}
 
-	app, err := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "", p.EnvName)
+	app, err := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, "", p.EnvName)
 	if err != nil {
 		return err
 	}
@@ -102,14 +145,17 @@ func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage 
 		log.Println("[Error] set configuration:", err)
 		return nil
 	}
+	setupFinalMsg, err := SprintResponse("json", setupmsg)
+	if err != nil {
+		log.Println("[Error] sprint setup message", err)
+	}
+	log.Println(setupFinalMsg)
 
-	log.Println(setupmsg)
-
-	created := make(chan string)
-	msg := make(chan dbaas.OutuputMsg)
+	created := make(chan psmdb.ClusterData)
+	msg := make(chan psmdb.ClusterData)
 	cerr := make(chan error)
 	go app.Create(created, msg, cerr)
-	go p.listenCreateChannels(created, msg, cerr, instanceID, "psmdb", dbservice)
+	go p.listenPSMDBCreateChannels(created, msg, cerr, instanceID, "psmdb", dbservice)
 
 	return nil
 }
@@ -130,19 +176,19 @@ func (p *Controller) getClusterSecret(clusterName string) (Secret, error) {
 	return secret, err
 }
 
-func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
+func (p *Controller) listenPSMDBCreateChannels(created chan psmdb.ClusterData, msg chan psmdb.ClusterData, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
 	for {
 		select {
 		case okmsg := <-created:
-			var credentials Credentials
-			err := json.Unmarshal([]byte(okmsg), &credentials)
-			if err != nil {
-				log.Println("Error unmarshal credentials:", err)
-			}
 			if _, ok := p.instanceMap[instanceID]; ok {
 				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
 				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-				p.instanceMap[instanceID].Credentials = credentials
+				p.instanceMap[instanceID].Credentials.Host = okmsg.Host
+				p.instanceMap[instanceID].Credentials.Port = okmsg.Port
+				p.instanceMap[instanceID].Credentials.Users = map[string]string{
+					okmsg.UserAdminUser:    okmsg.UserAdminPass,
+					okmsg.ClusterAdminUser: okmsg.ClusterAdminPass,
+				}
 				instance, err := json.Marshal(p.instanceMap[instanceID])
 				if err != nil {
 					log.Println("Error marshal instance", err)
@@ -151,15 +197,14 @@ func (p *Controller) listenCreateChannels(created chan string, msg chan dbaas.Ou
 					dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
 				}
 			}
-			log.Printf(okmsg)
+			okFinalMsg, err := SprintResponse("json", okmsg)
+			if err != nil {
+				log.Println("[Error] sprint setup message", err)
+			}
+			log.Println(okFinalMsg)
 			return
 		case omsg := <-msg:
-			switch omsg.(type) {
-			case dbaas.OutuputMsgDebug:
-				//log.Printf("\n[debug] %s\n", omsg)
-			case dbaas.OutuputMsgError:
-				log.Printf("[operator log error] %s\n", omsg)
-			}
+			log.Println("[operator log error] ", omsg.Message)
 		case err := <-cerr:
 			if _, ok := p.instanceMap[instanceID]; ok {
 				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
@@ -185,14 +230,14 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 
 	switch instance.ServiceID {
 	case pxcServiceID:
-		app, err := pxc.New(name, defaultVersion, true, "", p.EnvName)
+		app, err := pxc.New(name, defaultVersion, "", p.EnvName)
 		if err != nil {
 			return err
 		}
 		go app.Delete(delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
-		app, err := psmdb.New(name, name, defaultVersion, true, "", p.EnvName)
+		app, err := psmdb.New(name, name, defaultVersion, "", p.EnvName)
 		if err != nil {
 			return err
 		}
@@ -215,13 +260,13 @@ func (p *Controller) listenDeleteChannels(ok chan string, cerr chan error) {
 	}
 }
 
-func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
+func (p *Controller) UpdatePXCCluster(instance *ServiceInstance) error {
 	dbservice, err := dbaas.New(p.EnvName)
 	if err != nil {
 		return err
 	}
-	created := make(chan string)
-	msg := make(chan dbaas.OutuputMsg)
+	created := make(chan pxc.ClusterData)
+	msg := make(chan pxc.ClusterData)
 	cerr := make(chan error)
 	dbservice, err = dbaas.New(p.EnvName)
 	if err != nil {
@@ -234,43 +279,27 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 	if err != nil {
 		return err
 	}
-	switch instance.ServiceID {
-	case pxcServiceID:
-		app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, false, "", p.EnvName)
-		if err != nil {
-			return err
-		}
-		conf := pxc.ClusterConfig{}
-		SetPXCDefaults(&conf)
-		if instance.Parameters.Replicas > int32(0) {
-			conf.PXC.Instances = instance.Parameters.Replicas
-		}
 
-		conf.PXC.BrokerInstance = string(brokerInstance)
-		app.ClusterConfig = conf
-
-		go app.Edit(nil, created, msg, cerr)
-		p.listenUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
-	case psmdbServiceID:
-		app, err := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false, "", p.EnvName)
-		if err != nil {
-			return err
-		}
-		conf := psmdb.ClusterConfig{}
-		SetPSMDBDefaults(&conf)
-		if instance.Parameters.Replicas > int32(0) {
-			conf.PSMDB.Instances = instance.Parameters.Replicas
-		}
-		conf.PSMDB.BrokerInstance = string(brokerInstance)
-		app.ClusterConfig = conf
-
-		go app.Edit(nil, created, msg, cerr)
-		p.listenUpdateChannels(created, msg, cerr, instance.ID, "psmdb", p.dbaas)
+	app, err := pxc.New(instance.Parameters.ClusterName, defaultVersion, "", p.EnvName)
+	if err != nil {
+		return err
 	}
+	conf := pxc.ClusterConfig{}
+	SetPXCDefaults(&conf)
+	if instance.Parameters.Replicas > int32(0) {
+		conf.PXC.Instances = instance.Parameters.Replicas
+	}
+
+	conf.PXC.BrokerInstance = string(brokerInstance)
+	app.ClusterConfig = conf
+
+	go app.Edit(nil, created, msg, cerr)
+	p.listenPXCUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
+
 	return nil
 }
 
-func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.OutuputMsg, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
+func (p *Controller) listenPXCUpdateChannels(created chan pxc.ClusterData, msg chan pxc.ClusterData, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
 	for {
 		select {
 		case okmsg := <-created:
@@ -285,18 +314,10 @@ func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.Ou
 					dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
 				}
 			}
-			log.Printf(okmsg)
+			log.Println(okmsg)
 			return
 		case omsg := <-msg:
-			switch omsg.(type) {
-			case dbaas.OutuputMsgDebug:
-				// fmt.Printf("\n[debug] %s\n", omsg)
-			case dbaas.OutuputMsgError:
-				p.instanceMap[instanceID].LastOperation.State = FailedOperationState
-				p.instanceMap[instanceID].LastOperation.Description = FailedOperationDescription
-				log.Printf("[operator log error] %s\n", omsg)
-			}
-			return
+			log.Println("[operator log error] \n", omsg)
 		case err := <-cerr:
 			p.instanceMap[instanceID].LastOperation.State = FailedOperationState
 			p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
@@ -304,4 +325,83 @@ func (p *Controller) listenUpdateChannels(created chan string, msg chan dbaas.Ou
 			return
 		}
 	}
+}
+
+func (p *Controller) UpdatePSMDBCluster(instance *ServiceInstance) error {
+	dbservice, err := dbaas.New(p.EnvName)
+	if err != nil {
+		return err
+	}
+	created := make(chan psmdb.ClusterData)
+	msg := make(chan psmdb.ClusterData)
+	cerr := make(chan error)
+	dbservice, err = dbaas.New(p.EnvName)
+	if err != nil {
+		return err
+	}
+
+	dbservice.Namespace = instance.Context.Namespace
+
+	brokerInstance, err := json.Marshal(instance)
+	if err != nil {
+		return err
+	}
+
+	app, err := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, "", p.EnvName)
+	if err != nil {
+		return err
+	}
+	conf := psmdb.ClusterConfig{}
+	SetPSMDBDefaults(&conf)
+	if instance.Parameters.Replicas > int32(0) {
+		conf.PSMDB.Instances = instance.Parameters.Replicas
+	}
+	conf.PSMDB.BrokerInstance = string(brokerInstance)
+	app.ClusterConfig = conf
+
+	go app.Edit(nil, created, msg, cerr)
+	p.listenPSMDBUpdateChannels(created, msg, cerr, instance.ID, "psmdb", p.dbaas)
+
+	return nil
+}
+
+func (p *Controller) listenPSMDBUpdateChannels(created chan psmdb.ClusterData, msg chan psmdb.ClusterData, cerr chan error, instanceID, resource string, dbservice *dbaas.Cmd) {
+	for {
+		select {
+		case okmsg := <-created:
+			if _, ok := p.instanceMap[instanceID]; ok {
+				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
+				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
+				instance, err := json.Marshal(p.instanceMap[instanceID])
+				if err != nil {
+					log.Println("Error marshal oinstance", err)
+				}
+				if len(instance) > 0 {
+					dbservice.Annotate(resource, p.instanceMap[instanceID].Parameters.ClusterName, "broker-instance", string(instance))
+				}
+			}
+			log.Println(okmsg)
+			return
+		case omsg := <-msg:
+			log.Printf("[operator log error] %s\n", omsg)
+		case err := <-cerr:
+			p.instanceMap[instanceID].LastOperation.State = FailedOperationState
+			p.instanceMap[instanceID].LastOperation.Description = InProgressOperationDescription
+			log.Println("Create error:", err)
+			return
+		}
+	}
+}
+
+func SprintResponse(output string, data interface{}) (string, error) {
+	if output == "json" {
+		d, err := json.Marshal(data)
+		if err != nil {
+			return "", err
+		}
+
+		return fmt.Sprintln(string(d)), nil
+	}
+
+	return fmt.Sprintln(data), nil
 }

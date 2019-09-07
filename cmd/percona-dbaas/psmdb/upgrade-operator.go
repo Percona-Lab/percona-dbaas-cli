@@ -26,6 +26,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
 // upgradeOperatorCmd represents the edit command
@@ -42,7 +43,7 @@ var upgradeOperatorCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		app, err := psmdb.New(name, "doesnotMatter", defaultVersion, false, "", *envUpgrdOprtr)
+		app, err := psmdb.New(name, "doesnotMatter", defaultVersion, "", *envUpgrdOprtr)
 		if err != nil {
 			psmdb.PrintError(*upgradeOperatorAnswerOutput, "new psmdb operator", err)
 			return
@@ -112,7 +113,11 @@ var upgradeOperatorCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := app.Cmd.ListName("psmdb", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
+				finalMsg, err := SprintResponse(*upgradeOperatorAnswerOutput, okmsg)
+				if err != nil {
+					pxc.PrintError(*upgradeOperatorAnswerOutput, "sprint response", err)
+				}
+				sp.FinalMSG = fmt.Sprintln("Upgrading cluster operator...[done]\n\n", finalMsg)
 				return
 			case err := <-cerr:
 				psmdb.PrintError(*upgradeOperatorAnswerOutput, "upgrade psmdb operator", err)

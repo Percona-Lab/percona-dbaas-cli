@@ -43,7 +43,7 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		app, err := pxc.New(args[0], defaultVersion, false, *labels, *envDlt)
+		app, err := pxc.New(args[0], defaultVersion, *labels, *envDlt)
 		if err != nil {
 			pxc.PrintError(*deleteAnswerOutput, "new operator", err)
 			return

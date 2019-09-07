@@ -29,7 +29,7 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MongoDB cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		app, err := psmdb.New(args[0], "", defaultVersion, false, "", *envLst)
+		app, err := psmdb.New(args[0], "", defaultVersion, "", *envLst)
 		if err != nil {
 			psmdb.PrintError(*listAnswerOutput, "new psmdb operator", err)
 			return
