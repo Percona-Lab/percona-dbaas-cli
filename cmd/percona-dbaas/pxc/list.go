@@ -15,9 +15,7 @@
 package pxc
 
 import (
-	"fmt"
-	"os"
-
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -30,45 +28,42 @@ var listCmd = &cobra.Command{
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
 
 	Run: func(cmd *cobra.Command, args []string) {
+		switch *listAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		dbservice, err := dbaas.New(*envLst)
 		if err != nil {
-			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice:", err.Error())
 			return
 		}
 		if len(args) > 0 {
-			app := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "")
+			app := pxc.New(args[0], defaultVersion, "")
 			info, err := dbservice.Describe(app)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				log.Errorln("describe:", err.Error())
 				return
 			}
-			fmt.Print(info)
+
+			log.Println(info)
 			return
 		}
 		list, err := dbservice.List("pxc")
 		if err != nil {
-			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc list", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "\n[error] %s\n", err)
+			log.Errorln("pxc list:", err.Error())
 			return
 		}
 
-		fmt.Print(list)
+		log.Println(list)
 	},
 }
 
 var envLst *string
-var listAnswerInJSON *bool
+var listAnswerFormat *string
 
 func init() {
 	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	listAnswerInJSON = listCmd.Flags().Bool("json", false, "Answers in JSON format")
+	listAnswerFormat = listCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(listCmd)
 }

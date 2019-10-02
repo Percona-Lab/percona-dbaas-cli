@@ -15,13 +15,12 @@
 package pxc
 
 import (
-	"fmt"
-	"os"
 	"regexp"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -48,40 +47,33 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		switch *createAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
+
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Error("new dbservice: ", err.Error())
 			return
 		}
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				if *createAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("label parse", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				log.Errorln("label parse:", err.Error())
 				return
 			}
 			if !match {
-				fmt.Fprintf(os.Stderr, "[ERROR] Incorrect label format. Use key1=value1,key2=value2 syntax.\n")
+				log.Errorln("Incorrect label format. Use key1=value1,key2=value2 syntax")
 				return
 			}
 		}
 
-		app := pxc.New(args[0], defaultVersion, *createAnswerInJSON, *labels)
+		app := pxc.New(args[0], defaultVersion, *labels)
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[Error] parse flags to config:", err)
+			log.Errorln("parse flags to config:", err.Error())
 			return
 		}
 
@@ -92,17 +84,9 @@ var createCmd = &cobra.Command{
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg(noS3backupWarn, err))
-						return
-					}
-					fmt.Fprint(os.Stderr, noS3backupWarn, err)
+					log.Errorln(noS3backupWarn, err.Error())
 				default:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create S3 backup storage", err))
-						return
-					}
-					fmt.Fprint(os.Stderr, "[Error] create S3 backup storage:", err)
+					log.Errorln("create S3 backup storage:", err.Error())
 				}
 				return
 			}
@@ -110,15 +94,11 @@ var createCmd = &cobra.Command{
 
 		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
 		if err != nil {
-			if *createAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("set configuration", err))
-				return
-			}
-			fmt.Println("[Error] set configuration:", err)
+			log.Errorln("set configuration:", err.Error())
 			return
 		}
 
-		fmt.Println(setupmsg)
+		log.Println(setupmsg)
 
 		created := make(chan string)
 		msg := make(chan dbaas.OutuputMsg)
@@ -139,7 +119,9 @@ var createCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-created:
-				sp.FinalMSG = fmt.Sprintf("Starting...[done]\n%s\n", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("Starting done!", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -147,37 +129,22 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Errorln("operator log error:", err.Error())
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("create pxc cluster", err))
-					}
-					fmt.Fprintf(os.Stderr, "\n[ERROR] %v\n", err)
+					log.Errorln("create pxc cluster:", err.Error())
 					list, err := dbservice.List("pxc")
 					if err != nil {
-						if *createAnswerInJSON {
-							fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
-							return
-						}
+						log.Errorln("list pxc clusters:", err.Error())
 						return
 					}
-					fmt.Println("Avaliable clusters:")
-					fmt.Print(list)
+					log.Println("Avaliable clusters:", list)
 				default:
-					if *createAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservices", err))
-						return
-					}
-					fmt.Fprintf(os.Stderr, "\n[ERROR] create pxc: %v\n", err)
+					log.Errorln("create pxc:", err.Error())
 				}
 
 				return
@@ -187,7 +154,7 @@ var createCmd = &cobra.Command{
 }
 var skipS3Storage *bool
 var envCrt *string
-var createAnswerInJSON *bool
+var createAnswerFormat *string
 var labels *string
 var operatorImage *string
 
@@ -220,7 +187,7 @@ func init() {
 	labels = createCmd.Flags().String("labels", "", "PXC cluster labels inside kubernetes/openshift cluster")
 	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
 
-	createAnswerInJSON = createCmd.Flags().Bool("json", false, "Answers in JSON format")
+	createAnswerFormat = createCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(createCmd)
 }

@@ -40,11 +40,10 @@ type PXC struct {
 	config        *PerconaXtraDBCluster
 	obj           dbaas.Objects
 	opLogsLastTS  float64
-	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
 }
 
-func New(name string, version Version, answerInJSON bool, labels string) *PXC {
+func New(name string, version Version, labels string) *PXC {
 	config := &PerconaXtraDBCluster{}
 	if len(labels) > 0 {
 		config.ObjectMeta.Labels = make(map[string]string)
@@ -55,10 +54,9 @@ func New(name string, version Version, answerInJSON bool, labels string) *PXC {
 		}
 	}
 	return &PXC{
-		name:         name,
-		obj:          Objects[version],
-		config:       config,
-		AnswerInJSON: answerInJSON,
+		name:   name,
+		obj:    Objects[version],
+		config: config,
 	}
 }
 
@@ -88,12 +86,7 @@ func (p PXC) App() (string, error) {
 	return string(cr), nil
 }
 
-const createMsg = `Create MySQL cluster.
- 
-PXC instances           | %v
-ProxySQL instances      | %v
-Storage                 | %v
-`
+const createMsg = `Create MySQL cluster. PXC instances: %v, ProxySQL instances: %v, Storage: %v`
 
 type CreateMsg struct {
 	Message           string `json:"message"`
@@ -113,7 +106,7 @@ func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas
 		return "", errors.Wrap(err, "marshal pxc volume requests")
 	}
 
-	if p.AnswerInJSON {
+	/*if p.AnswerInJSON {
 		createJSONMsg := CreateMsg{
 			Message:           "Create MySQL cluster",
 			PXCInstances:      p.config.Spec.PXC.Size,
@@ -125,16 +118,12 @@ func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas
 			return "", errors.Wrap(err, "marshal answer")
 		}
 		return string(answer), nil
-	}
+	}*/
 
 	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
 }
 
-const updateMsg = `Update MySQL cluster.
- 
-PXC instances           | %v
-ProxySQL instances      | %v
-`
+const updateMsg = `Update MySQL cluster. PXC instances: %v, ProxySQL instances: %v`
 
 type UpdateMsg struct {
 	Message           string `json:"message"`
@@ -160,20 +149,12 @@ func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, erro
 	if err != nil {
 		return "", errors.Wrap(err, "applay changes to cr")
 	}
-
-	if p.AnswerInJSON {
-		updateJSONMsg := CreateMsg{
+	/*
+		return UpdateMsg{
 			Message:           "Update MySQL cluster",
 			PXCInstances:      p.config.Spec.PXC.Size,
 			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
-		}
-		answer, err := json.Marshal(updateJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
+		}, nil*/
 	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
 }
 
@@ -247,13 +228,7 @@ type k8sStatus struct {
 }
 
 const okmsg = `
-MySQL cluster started successfully, right endpoint for application:
-Host: %s
-Port: 3306
-User: root
-Pass: %s
-
-Enjoy!`
+MySQL cluster started successfully, right endpoint for application: Host: %s, Port: 3306, User: root,Pass: %s`
 
 type OkMsg struct {
 	Message string `json:"message"`
@@ -273,7 +248,7 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 
 	switch st.Status.Status {
 	case AppStateReady:
-		if p.AnswerInJSON {
+		/*if p.AnswerInJSON {
 			okJSONMsg := OkMsg{
 				Message: "MySQL cluster started successfully",
 				Host:    st.Status.Host,
@@ -286,7 +261,7 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 				return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
 			}
 			return dbaas.ClusterStateReady, []string{string(answer)}, nil
-		}
+		}*/
 		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
@@ -326,6 +301,35 @@ Backup StorageType:                  %v
 Backup Allocated Storage:            %v
 Backup Schedule:                     %v
 `
+
+type DescribeMsg struct {
+	Name                       string            `json:"name"`
+	Status                     AppState          `json:"status"`
+	MultiAZ                    string            `json:"multiAZ"`
+	Labels                     map[string]string `json:"labels"`
+	PXCCount                   int32             `json:"pxcCount"`
+	PXCImage                   string            `json:"pxcImage"`
+	PXCCPU                     string            `json:"pxcCPU"`
+	PXCMemoryRequests          string            `json:"pxcMemoryRequests"`
+	PXCPodDisruptionBudget     map[string]string `json:"pxcPodDisruptionBudget"`
+	PXCAntiAffinityTopologyKey string            `json:"pxcAntiAffinityTopologyKey"`
+	PXCStorageType             string            `json:"pxcStorageType"`
+	PXCAllocatedStorage        string            `json:"pxcAllocatedStorage"`
+
+	ProxySQLCount                   int32             `json:"proxySQLCount"`
+	ProxySQLImage                   string            `json:"proxySQLImage"`
+	ProxySQLCPURequests             string            `json:"proxySQLCPURequests"`
+	ProxySQLMemoryRequests          string            `json:"proxySQLMemoryRequests"`
+	ProxySQLPodDisruptionBudget     map[string]string `json:"proxySQLPodDisruptionBudget"`
+	ProxySQLAntiAffinityTopologyKey string            `json:"proxySQLAntiAffinityTopologyKey"`
+	ProxySQLStorageType             string            `json:"proxySQLStorageType"`
+	ProxySQLAllocatedStorage        string            `json:"proxySQLAllocatedStorage"`
+
+	BackupImage            string `json:"backupImage"`
+	BackupStorageType      string `json:"backupStorageType"`
+	BackupAllocatedStorage string `json:"backupStorageType"`
+	BackupSchedule         string `json:"backupSchedule"`
+}
 
 func (p *PXC) Describe(kubeInput []byte) (string, error) {
 	cr := &PerconaXtraDBCluster{}
@@ -410,6 +414,33 @@ func (p *PXC) Describe(kubeInput []byte) (string, error) {
 		backupSize,
 		backupStorageClassName,
 		backupSchedule), nil
+
+	/*return DescribeMsg{
+		Name:                            cr.ObjectMeta.Name,
+		Status:                          cr.Status.Status,
+		MultiAZ:                         multiAz,
+		Labels:                          cr.ObjectMeta.Labels,
+		PXCCount:                        cr.Spec.PXC.Size,
+		PXCImage:                        cr.Spec.PXC.Image,
+		PXCCPU:                          cr.Spec.PXC.Resources.Requests.CPU,
+		PXCMemoryRequests:               cr.Spec.PXC.Resources.Requests.Memory,
+		PXCPodDisruptionBudget:          budgetPXC,
+		PXCAntiAffinityTopologyKey:      *cr.Spec.PXC.Affinity.TopologyKey,
+		PXCStorageType:                  cr.StorageClassesAllocated.PXC,
+		PXCAllocatedStorage:             cr.StorageSizeAllocated.PXC,
+		ProxySQLCount:                   cr.Spec.ProxySQL.Size,
+		ProxySQLImage:                   cr.Spec.ProxySQL.Image,
+		ProxySQLCPURequests:             cr.Spec.ProxySQL.Resources.Requests.CPU,
+		ProxySQLMemoryRequests:          cr.Spec.ProxySQL.Resources.Requests.Memory,
+		ProxySQLPodDisruptionBudget:     budgetSQL,
+		ProxySQLAntiAffinityTopologyKey: *cr.Spec.ProxySQL.Affinity.TopologyKey,
+		ProxySQLStorageType:             cr.StorageClassesAllocated.ProxySQL,
+		ProxySQLAllocatedStorage:        cr.StorageSizeAllocated.ProxySQL,
+		BackupImage:                     backupImage,
+		BackupStorageType:               backupSize,
+		BackupAllocatedStorage:          backupStorageClassName,
+		BackupSchedule:                  backupSchedule,
+	}, nil*/
 }
 
 type operatorLog struct {

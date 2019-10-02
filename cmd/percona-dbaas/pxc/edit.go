@@ -15,12 +15,11 @@
 package pxc
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -40,18 +39,17 @@ var editCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
+		switch *editAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice:", err.Error())
 			return
 		}
 
-		app := pxc.New(name, defaultVersion, *editAnswerInJSON, "")
+		app := pxc.New(name, defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -66,41 +64,25 @@ var editCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Errorln("check if cluster exists:", err.Error())
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			log.Errorln("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc clusters list", err))
-					return
-				}
+				log.Errorln("pxc clusters list:", err.Error())
 				return
 			}
-			fmt.Fprint(os.Stderr, "Avaliable clusters:")
-			fmt.Print(list)
+			log.Println("Avaliable clusters:", list)
 			return
 		}
 
 		config, err := pxc.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[Error] parse flags to config:", err)
+			log.Errorln("parse flags to config:", err.Error())
 			return
 		}
 		app.ClusterConfig = config
@@ -116,7 +98,9 @@ var editCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("Applying changes done.", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -124,19 +108,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *editAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Errorln("operator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("edit pxc", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit pxc: %v\n", err)
+				log.Errorln("edit pxc:", err.Error())
 				sp.HideCursor = true
 				return
 			}
@@ -145,13 +121,13 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
-var editAnswerInJSON *bool
+var editAnswerFormat *string
 
 func init() {
 	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
+	editAnswerFormat = editCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(editCmd)
 }

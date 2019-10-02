@@ -107,11 +107,7 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	return msgs, nil
 }
 
-const okmsgbcp = `
-MySQL backup created successfully:
-Name: %s
-Destination: %s
-`
+const okmsgbcp = `MySQL backup created successfully. Name: %s, Destination: %s`
 
 func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
 	st := &PerconaXtraDBBackup{}

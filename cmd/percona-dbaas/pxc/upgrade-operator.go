@@ -23,6 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -42,12 +43,16 @@ var upgradeOperatorCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
+		switch *upgradeOperatorAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		dbservice, err := dbaas.New(*envUpgrdOprtr)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice:", err.Error())
 			return
 		}
-		app := pxc.New(name, defaultVersion, *upgradeOperatorAnswerInJSON, "")
+		app := pxc.New(name, defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -63,19 +68,20 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Errorln("check if cluster exists:", err.Error())
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			log.Errorf("unable to find cluster \"%s/%s\"\n", "pxc", name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
+				log.Errorln("cluster list:", err.Error())
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+
+			log.Println("avaliable clusters:", list)
 			return
 		}
 
@@ -85,7 +91,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := dbservice.Instances("pxc")
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] unable to get pxc instances: %v\n", err)
+				log.Errorln("unable to get pxc instances:", err.Error())
 			}
 			if len(num) > 1 {
 				sp.Stop()
@@ -111,10 +117,12 @@ var upgradeOperatorCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster operator...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("upgrading cluster operator done.", okmsg)
 				return
 			case err := <-cerr:
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade pxc operator: %v\n", err)
+				log.Errorln("upgrade pxc operator:", err.Error())
 				sp.HideCursor = true
 				return
 			}
@@ -124,12 +132,12 @@ var upgradeOperatorCmd = &cobra.Command{
 
 var envUpgrdOprtr *string
 var oprtrImage *string
-var upgradeOperatorAnswerInJSON *bool
+var upgradeOperatorAnswerFormat *string
 
 func init() {
 	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	upgradeOperatorAnswerInJSON = upgradeOperatorCmd.Flags().Bool("json", false, "Answers in JSON format")
+	upgradeOperatorAnswerFormat = upgradeOperatorCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(upgradeOperatorCmd)
 }

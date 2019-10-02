@@ -15,12 +15,11 @@
 package pxc
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -40,18 +39,17 @@ var upgradeCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
+		switch *upgradeAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice:", err)
 			return
 		}
 
-		app := pxc.New(name, defaultVersion, *upgradeAnswerInJSON, "")
+		app := pxc.New(name, defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -66,31 +64,20 @@ var upgradeCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Errorln("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			log.Errorln("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				if *upgradeAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("list pxc clusters", err))
-					return
-				}
+				log.Errorln("list pxc clusters:", err)
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+
+			log.Println("avaliable clusters:", list)
 			return
 		}
 
@@ -104,11 +91,7 @@ var upgradeCmd = &cobra.Command{
 		}
 		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("setup images for upgrade", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
+			log.Errorln("setup images for upgrade:", err)
 			return
 		}
 
@@ -120,7 +103,9 @@ var upgradeCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("upgrade cluster done.", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -128,19 +113,11 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *upgradeAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Errorln("perator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *upgradeAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("upgrade pxc", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade pxc: %v\n", err)
+				log.Errorln("upgrade pxc:", err)
 				sp.HideCursor = true
 				return
 			}
@@ -149,7 +126,7 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
-var upgradeAnswerInJSON *bool
+var upgradeAnswerFormat *string
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade pxc to")
@@ -157,7 +134,7 @@ func init() {
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
-	upgradeAnswerInJSON = upgradeCmd.Flags().Bool("json", false, "Answers in JSON format")
+	upgradeAnswerFormat = upgradeCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(upgradeCmd)
 }

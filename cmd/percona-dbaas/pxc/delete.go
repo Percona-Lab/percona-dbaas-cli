@@ -23,6 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -44,13 +45,13 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
+		switch *deleteAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice", err.Error())
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -66,31 +67,19 @@ var delCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Errorln("check if cluster exists:", err.Error())
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			log.Errorln("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc cluster list", err))
-					return
-				}
+				log.Errorln("pxc cluster list:", err.Error())
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+			log.Println("avaliable clusters:", list)
 			return
 		}
 
@@ -114,21 +103,19 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, *deleteAnswerInJSON, ""), *delePVC, ok, cerr)
+		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, ""), *delePVC, ok, cerr)
 
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
 			select {
 			case <-ok:
-				sp.FinalMSG = "Deleting...[done]\n"
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("deleting done")
 				return
 			case err := <-cerr:
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("delete pxc", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] delete pxc: %v\n", err)
+				log.Errorln("delete pxc:", err.Error())
 				return
 			}
 		}
@@ -136,12 +123,12 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
-var deleteAnswerInJSON *bool
+var deleteAnswerFormat *string
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	deleteAnswerInJSON = delCmd.Flags().Bool("json", false, "Answers in JSON format")
+	deleteAnswerFormat = delCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(delCmd)
 }
