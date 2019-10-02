@@ -17,8 +17,15 @@ package psmdb
 import (
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
+
+var log *logrus.Logger
+
+func init() {
+	log = logrus.New()
+}
 
 // PSMDBCmd represents the pxc command
 var PSMDBCmd = &cobra.Command{

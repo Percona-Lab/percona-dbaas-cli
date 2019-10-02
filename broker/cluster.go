@@ -67,7 +67,7 @@ func (p *Controller) DeployCluster(instance ServiceInstance, skipS3Storage *bool
 		go dbservice.Create("pxc", app, instance.Parameters.OperatorImage, created, msg, cerr)
 		go p.listenCreateChannels(created, msg, cerr, instanceID, "pxc", dbservice)
 	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, true, "")
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, "")
 		conf := psmdb.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {
@@ -175,7 +175,7 @@ func (p *Controller) DeleteCluster(instance *ServiceInstance) error {
 		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, ""), delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	case psmdbServiceID:
-		go dbservice.Delete("psmdb", psmdb.New(name, name, defaultVersion, false, ""), delePVC, ok, cerr)
+		go dbservice.Delete("psmdb", psmdb.New(name, name, defaultVersion, ""), delePVC, ok, cerr)
 		p.listenDeleteChannels(ok, cerr)
 	}
 	return nil
@@ -228,7 +228,7 @@ func (p *Controller) UpdateCluster(instance *ServiceInstance) error {
 		go dbservice.Edit("pxc", app, nil, created, msg, cerr)
 		p.listenUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
 	case psmdbServiceID:
-		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, false, "")
+		app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, "")
 		conf := psmdb.ClusterConfig{}
 		SetPSMDBDefaults(&conf)
 		if instance.Parameters.Replicas > int32(0) {

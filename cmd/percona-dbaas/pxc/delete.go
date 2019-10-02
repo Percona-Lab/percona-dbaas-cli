@@ -51,7 +51,7 @@ var delCmd = &cobra.Command{
 		}
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
-			log.Errorln("new dbservice", err.Error())
+			log.Errorln("new dbservice:", err.Error())
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)

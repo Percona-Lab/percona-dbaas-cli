@@ -15,19 +15,18 @@
 package psmdb
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 )
 
-const noS3backupOpts = `[Error] S3 backup storage options doesn't set properly: %v.`
+const noS3backupOpts = `S3 backup storage options doesn't set properly: %v.`
 
 // storageCmd represents the edit command
 var storageCmd = &cobra.Command{
@@ -42,15 +41,14 @@ var storageCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-
+		switch *addStorageAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		clusterName := args[0]
 		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice:", err.Error())
 			return
 		}
 		rsName := ""
@@ -58,7 +56,7 @@ var storageCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *addStorageAnswerInJSON, "")
+		app := psmdb.New(clusterName, rsName, defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -73,54 +71,35 @@ var storageCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", clusterName)
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Errorln("check if cluster exists:", err.Error())
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
+			log.Errorln("unable to find cluster psmdb/" + clusterName)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				if *addStorageAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb list", err))
-					return
-				}
+				log.Errorln("psmdb list:", err.Error())
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+
+			log.Println("avaliable clusters:", list)
 			return
 		}
 
 		config, err := psmdb.ParseAddStorageFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *addStorageAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("parsing flags", err))
-				return
-			}
-			fmt.Println("Parsing flags", err)
+			log.Errorln("parsing flags", err.Error())
 		}
 
 		s3stor, err := dbservice.S3Storage(app, config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
-				if *addStorageAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("S3 backup storage options doesn't set properly", err))
-					return
-				}
-				fmt.Printf(noS3backupOpts, err)
+				log.Printf(noS3backupOpts, err)
 			default:
-				if *addStorageAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("create S3 backup storage", err))
-					return
-				}
-				fmt.Println("[Error] create S3 backup storage:", err)
+				log.Println("create S3 backup storage:", err.Error)
 			}
 			return
 		}
@@ -137,7 +116,9 @@ var storageCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Adding the storage...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("adding the storage done.", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -145,19 +126,11 @@ var storageCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *addStorageAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Errorln("operator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *addStorageAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("add storage to psmdb:", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] add storage to psmdb: %v\n", err)
+				log.Println("add storage to psmdb:", err.Error())
 				sp.HideCursor = true
 				return
 			}
@@ -166,7 +139,7 @@ var storageCmd = &cobra.Command{
 }
 
 var envStor *string
-var addStorageAnswerInJSON *bool
+var addStorageAnswerFormat *string
 
 func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
@@ -179,7 +152,7 @@ func init() {
 
 	storageCmd.Flags().Int32("replset-size", 0, "Number of nodes in replset")
 
-	addStorageAnswerInJSON = storageCmd.Flags().Bool("json", false, "Answers in JSON format")
+	addStorageAnswerFormat = storageCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(storageCmd)
 }

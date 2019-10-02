@@ -30,7 +30,7 @@ import (
 const (
 	defaultVersion = "default"
 
-	noS3backupWarn = `[Error] S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
+	noS3backupWarn = `S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
 You can skip this step by using --s3-skip-storage flag add the storage later with the "add-storage" command.
 `
 )
@@ -84,7 +84,7 @@ var createCmd = &cobra.Command{
 			if err != nil {
 				switch err.(type) {
 				case dbaas.ErrNoS3Options:
-					log.Errorln(noS3backupWarn, err.Error())
+					log.Errorf(noS3backupWarn, err)
 				default:
 					log.Errorln("create S3 backup storage:", err.Error())
 				}

@@ -23,6 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -44,14 +45,13 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
+		switch *deleteAnswerFormat {
+		case "json":
+			log.Formatter = new(logrus.JSONFormatter)
+		}
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Errorln("new dbservice:", err.Error())
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -67,30 +67,19 @@ var delCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Errorln("check if cluster exists:", err.Error())
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *deleteAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("Unable to find cluster psmdb/"+name, err))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
-			}
+			log.Errorln("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
-				}
+				log.Errorln("psmdb cluster list:", err.Error())
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+			log.Errorln("avaliable clusters:", list)
 			return
 		}
 
@@ -114,20 +103,18 @@ var delCmd = &cobra.Command{
 		ok := make(chan string)
 		cerr := make(chan error)
 
-		go dbservice.Delete("psmdb", psmdb.New(name, "", defaultVersion, *deleteAnswerInJSON, ""), *delePVC, ok, cerr)
+		go dbservice.Delete("psmdb", psmdb.New(name, "", defaultVersion, ""), *delePVC, ok, cerr)
 		tckr := time.NewTicker(1 * time.Second)
 		defer tckr.Stop()
 		for {
 			select {
 			case <-ok:
-				sp.FinalMSG = "Deleting...[done]\n"
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("Deleting done")
 				return
 			case err := <-cerr:
-				if *deleteAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("delete psmdb", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] delete psmdb: %v\n", err)
+				log.Errorln("delete psmdb:", err.Error())
 				return
 			}
 		}
@@ -135,13 +122,13 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
-var deleteAnswerInJSON *bool
+var deleteAnswerFormat *string
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
-	deleteAnswerInJSON = delCmd.Flags().Bool("json", false, "Answers in JSON format")
+	deleteAnswerFormat = delCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(delCmd)
 }
