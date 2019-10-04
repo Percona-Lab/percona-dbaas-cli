@@ -251,42 +251,60 @@ const (
 	defaultPolling = 10
 )
 
-func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) WrapWithServiceInstance(handler func(w http.ResponseWriter, r *http.Request, instance ServiceInstance)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var instance ServiceInstance
+
+		err := ProvisionDataFromRequest(r, &instance)
+		if err != nil {
+			log.Println("Provision instatnce:", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+		if _, ok := c.instanceMap[instanceID]; ok {
+			log.Println(instanceID, "already exist")
+			w.WriteHeader(http.StatusConflict)
+			return
+		}
+
+		instance.InternalID = instanceID
+		instance.ID = instanceID
+
+		handler(w, r, instance)
+	}
+}
+
+func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request, instance ServiceInstance) {
 	log.Println("Create Service Instance...")
 
-	var instance ServiceInstance
-
-	err := ProvisionDataFromRequest(r, &instance)
-	if err != nil {
-		log.Println("Provision instatnce:", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-	if _, ok := c.instanceMap[instanceID]; ok {
-		log.Println(instanceID, "already exist")
-		w.WriteHeader(http.StatusConflict)
-		return
-	}
 	skipS3 := true
-
-	instance.InternalID = instanceID
-	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
 
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
-	err = c.DeployCluster(instance, &skipS3, instanceID)
-	if err != nil {
-		log.Println("Deploy cluster:", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+
+	switch instance.ServiceID {
+	case pxcServiceID:
+		err := c.DeployPXCCluster(instance, &skipS3, instance.ID)
+		if err != nil {
+			log.Println("Deploy cluster:", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+	case psmdbServiceID:
+		err := c.DeployPSMDBCluster(instance, &skipS3, instance.ID)
+		if err != nil {
+			log.Println("Deploy cluster:", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 	}
 
-	c.instanceMap[instanceID] = &instance
+	c.instanceMap[instance.ID] = &instance
 
 	response := CreateServiceInstanceResponse{
 		LastOperation: instance.LastOperation,
@@ -295,35 +313,30 @@ func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Reques
 	WriteResponse(w, http.StatusAccepted, response)
 }
 
-func (c *Controller) UpdateServiceInstance(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) UpdateServiceInstance(w http.ResponseWriter, r *http.Request, instance ServiceInstance) {
 	log.Println("Update Service Instance...")
 
-	var instance ServiceInstance
-
-	err := ProvisionDataFromRequest(r, &instance)
-	if err != nil {
-		log.Println("Provision instatnce:", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-
-	instance.InternalID = instanceID
-	instance.ID = ExtractVarsFromRequest(r, "service_instance_guid")
 	instance.LastOperation = &LastOperation{
 		State:                    InProgressOperationSate,
 		Description:              InProgressOperationDescription,
 		AsyncPollIntervalSeconds: defaultPolling,
 	}
-
-	err = c.UpdateCluster(&instance)
-	if err != nil {
-		log.Println("Update instatnce:", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	switch instance.ServiceID {
+	case pxcServiceID:
+		err := c.UpdatePXCCluster(&instance)
+		if err != nil {
+			log.Println("Update instatnce:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	case psmdbServiceID:
+		err := c.UpdatePSMDBCluster(&instance)
+		if err != nil {
+			log.Println("Update instatnce:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
-
 	c.instanceMap[instance.ID] = &instance
 
 	response := CreateServiceInstanceResponse{
@@ -404,23 +417,24 @@ func (c *Controller) GetServiceInstanceLastOperation(w http.ResponseWriter, r *h
 	WriteResponse(w, http.StatusOK, response)
 }
 
-func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Request) {
+func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Request, instance ServiceInstance) {
 	log.Println("Remove Service Instance...")
 
-	instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-	instance := c.instanceMap[instanceID]
-	if instance == nil {
-		w.WriteHeader(http.StatusGone)
-		return
+	switch instance.ServiceID {
+	case pxcServiceID:
+		err := c.DeletePXCCluster(&instance)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	case psmdbServiceID:
+		err := c.DeletePSMDBCluster(&instance)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
-
-	err := c.DeleteCluster(instance)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	delete(c.instanceMap, instanceID)
+	delete(c.instanceMap, instance.ID)
 
 	WriteResponse(w, http.StatusOK, "{}")
 }

@@ -94,12 +94,7 @@ func (p PSMDB) App() (string, error) {
 	return string(cr), nil
 }
 
-const createMsg = `Create MongoDB cluster.
- 
-Replica Set Name        | %v
-Replica Set Size        | %v
-Storage                 | %v
-`
+const createMsg = `Create MongoDB cluster. Replica Set Name: %v, Replica Set Size: %v, Storage %v`
 
 type CreateMsg struct {
 	Message        string `json:"message"`
