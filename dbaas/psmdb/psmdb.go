@@ -104,49 +104,29 @@ type CreateMsg struct {
 }
 
 func (c *CreateMsg) String() string {
-	createString := `Replica Set Name: %v, Replica Set Size: %v, Storage %v`
-	return fmt.Sprintf(createString, c.ReplicaSetName, c.ReplicaSetSize, c.Storage)
+	createString := `%v. Replica Set Name: %v, Replica Set Size: %v, Storage %v`
+	return fmt.Sprintf(createString, c.Message, c.ReplicaSetName, c.ReplicaSetSize, c.Storage)
 }
 
-func (p *PSMDB) Setup(s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (CreateMsg, error) {
+func (p *PSMDB) Setup(s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (dbaas.Msg, error) {
 	err := p.config.SetNew(p.Name(), p.rsName, p.ClusterConfig, s3, platform)
 
 	if err != nil {
-		return CreateMsg{}, errors.Wrap(err, "parse options")
+		return &CreateMsg{}, errors.Wrap(err, "parse options")
 	}
 
 	storage, err := p.config.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return CreateMsg{}, errors.Wrap(err, "marshal psmdb volume requests")
+		return &CreateMsg{}, errors.Wrap(err, "marshal psmdb volume requests")
 	}
 
-	/*if p.AnswerInJSON {
-		createJSONMsg := CreateMsg{
-			Message:        "Create MongoDB cluster",
-			ReplicaSetName: p.config.Spec.Replsets[0].Name,
-			ReplicaSetSize: p.config.Spec.Replsets[0].Size,
-			Storage:        string(storage),
-		}
-		answer, err := json.Marshal(createJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}*/
-	return CreateMsg{
+	return &CreateMsg{
 		Message:        "Create MongoDB cluster",
 		ReplicaSetName: p.config.Spec.Replsets[0].Name,
 		ReplicaSetSize: p.config.Spec.Replsets[0].Size,
 		Storage:        string(storage),
 	}, nil
-	//return fmt.Sprintf(createMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size, string(storage)), nil
 }
-
-const updateMsg = `Update MongoDB cluster.
- 
-Replica Set Name        | %v
-Replica Set Size        | %v
-`
 
 type UpdateMsg struct {
 	Message        string `json:"message"`
@@ -154,11 +134,19 @@ type UpdateMsg struct {
 	ReplicaSetSize int32  `json:"replicaSetSize"`
 }
 
-func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
+func (u *UpdateMsg) String() string {
+	var updateMsg = `%v.
+Replica Set Name: %v
+Replica Set Size: %v
+`
+	return fmt.Sprintf(updateMsg, u.Message, u.ReplicaSetName, u.ReplicaSetSize)
+}
+
+func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (dbaas.Msg, error) {
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
-		return "", errors.Wrap(err, "unmarshal current cr")
+		return &UpdateMsg{}, errors.Wrap(err, "unmarshal current cr")
 	}
 
 	p.config.APIVersion = cr.APIVersion
@@ -169,23 +157,14 @@ func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, er
 
 	err = p.config.UpdateWith(p.rsName, p.ClusterConfig, storage)
 	if err != nil {
-		return "", errors.Wrap(err, "apply changes to cr")
+		return &UpdateMsg{}, errors.Wrap(err, "apply changes to cr")
 	}
 
-	/*if p.AnswerInJSON {
-		updateJSONMsg := UpdateMsg{
-			Message:        "Update MongoDB cluster",
-			ReplicaSetName: p.config.Spec.Replsets[0].Name,
-			ReplicaSetSize: p.config.Spec.Replsets[0].Size,
-		}
-		answer, err := json.Marshal(updateJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}*/
-
-	return fmt.Sprintf(updateMsg, p.config.Spec.Replsets[0].Name, p.config.Spec.Replsets[0].Size), nil
+	return &UpdateMsg{
+		Message:        "Update MongoDB cluster",
+		ReplicaSetName: p.config.Spec.Replsets[0].Name,
+		ReplicaSetSize: p.config.Spec.Replsets[0].Size,
+	}, nil
 }
 
 func (p *PSMDB) Upgrade(crRaw []byte, newImages map[string]string) error {
@@ -246,17 +225,6 @@ type k8sStatus struct {
 	Status PerconaServerMongoDBStatus
 }
 
-const okmsg = `
-MongoDB cluster started successfully, right endpoint for application:
-Host: %s
-Port: 27017
-ClusterAdmin User: %s
-ClusterAdmin Password: %s
-UserAdmin User: %s
-UserAdmin Password: %s
-
-Enjoy!`
-
 type OkMsg struct {
 	Message          string `json:"message"`
 	Host             string `json:"host"`
@@ -268,7 +236,7 @@ type OkMsg struct {
 }
 
 func (o *OkMsg) String() string {
-	okMsgString := `
+	okMsgString := `%v.
 Host: %s
 Port: 27017
 ClusterAdmin User: %s
@@ -276,7 +244,7 @@ ClusterAdmin Password: %s
 UserAdmin User: %s
 UserAdmin Password: %s
 `
-	return fmt.Sprintf(okMsgString, o.Host, o.ClusterAdminUser, o.ClusterAdminPass, o.UserAdminUser, o.UserAdminPass)
+	return fmt.Sprintf(okMsgString, o.Message, o.Host, o.ClusterAdminUser, o.ClusterAdminPass, o.UserAdminUser, o.UserAdminPass)
 }
 
 type StatusMsgs struct {
@@ -300,22 +268,6 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 		switch st.Status.Status {
 		case AppStateReady:
 			host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
-			/*if p.AnswerInJSON {
-				okJSONMsg := OkMsg{
-					Message:          "MomgoDB cluster started successfully",
-					Host:             host,
-					Port:             27017,
-					ClusterAdminUser: string(pass["MONGODB_CLUSTER_ADMIN_USER"]),
-					ClusterAdminPass: string(pass["MONGODB_CLUSTER_MONITOR_PASSWORD"]),
-					UserAdminUser:    string(pass["MONGODB_USER_ADMIN_USER"]),
-					UserAdminPass:    string(pass["MONGODB_USER_ADMIN_PASSWORD"]),
-				}
-				answer, err := json.Marshal(okJSONMsg)
-				if err != nil {
-					return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
-				}
-				return dbaas.ClusterStateReady, []string{string(answer)}, nil
-			}*/
 			return dbaas.ClusterStateReady, &OkMsg{
 				Message:          "MomgoDB cluster started successfully",
 				Host:             host,
@@ -325,8 +277,6 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 				UserAdminUser:    string(pass["MONGODB_USER_ADMIN_USER"]),
 				UserAdminPass:    string(pass["MONGODB_USER_ADMIN_PASSWORD"]),
 			}, nil
-			//msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
-			//return dbaas.ClusterStateReady, []string{msg}, nil
 		case AppStateError:
 			return dbaas.ClusterStateError, &OkMsg{Message: status.Message}, nil
 		default:
@@ -337,22 +287,6 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	switch status.Status {
 	case AppStateReady:
 		host := fmt.Sprintf("%[1]s-%[2]s-0.%[1]s-%[2]s", p.name, p.rsName)
-		/*if p.AnswerInJSON {
-			okJSONMsg := OkMsg{
-				Message:          "MomgoDB cluster started successfully",
-				Host:             host,
-				Port:             27017,
-				ClusterAdminUser: string(pass["MONGODB_CLUSTER_ADMIN_USER"]),
-				ClusterAdminPass: string(pass["MONGODB_CLUSTER_MONITOR_PASSWORD"]),
-				UserAdminUser:    string(pass["MONGODB_USER_ADMIN_USER"]),
-				UserAdminPass:    string(pass["MONGODB_USER_ADMIN_PASSWORD"]),
-			}
-			answer, err := json.Marshal(okJSONMsg)
-			if err != nil {
-				return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
-			}
-			return dbaas.ClusterStateReady, []string{string(answer)}, nil
-		}*/
 		return dbaas.ClusterStateReady, &OkMsg{
 			Message:          "MomgoDB cluster started successfully",
 			Host:             host,
@@ -362,8 +296,6 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 			UserAdminUser:    string(pass["MONGODB_USER_ADMIN_USER"]),
 			UserAdminPass:    string(pass["MONGODB_USER_ADMIN_PASSWORD"]),
 		}, nil
-		//msg := fmt.Sprintf(okmsg, host, pass["MONGODB_CLUSTER_ADMIN_USER"], pass["MONGODB_CLUSTER_MONITOR_PASSWORD"], pass["MONGODB_USER_ADMIN_USER"], pass["MONGODB_USER_ADMIN_PASSWORD"])
-		//return dbaas.ClusterStateReady, []string{msg}, nil
 	case AppStateError:
 		return dbaas.ClusterStateError, &OkMsg{Message: status.Message}, nil
 	default:
@@ -371,36 +303,84 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	}
 }
 
-const describeMsg = `
-Name:                                          %v
-Status:                                        %v
-Multi-AZ:                                      %v
-Labels:                                        %v
- 
-PSMDB Count:                                   %v
-PSMDB Image:                                   %v
-PSMDB CPU Requests:                            %v
-PSMDB Memory Requests:                         %v
-PSMDB PodDisruptionBudget:                     %v
-PSMDB AntiAffinityTopologyKey:                 %v
-PSMDB StorageType:                             %v
-PSMDB Allocated Storage:                       %v
- 
-Backup coordinator Image:                      %v
-Backup coordinator CPU Requests:               %v
-Backup coordinator Memory Requests:            %v
-Backup coordinator AntiAffinityTopologyKey:    %v
-Backup coordinator StorageType:                %v
-Backup coordinator Allocated Storage:          %v
- 
-Backup Schedule:                               %v
-`
+type DescribeMsg struct {
+	Name    string            `json:"name"`
+	Status  AppState          `json:"status"`
+	MultiAZ string            `json:"multiAZ"`
+	Labels  map[string]string `json:"labels"`
 
-func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
+	PSMDBCount                   int32             `json:"psmdbCount"`
+	PSMDBImage                   string            `json:"psmdbImage"`
+	PSMDBCPU                     string            `json:"psmdbCPU"`
+	PSMDBMemoryRequests          string            `json:"psmdbMemoryRequests"`
+	PSMDBPodDisruptionBudget     map[string]string `json:"psmdbPodDisruptionBudget"`
+	PSMDBAntiAffinityTopologyKey string            `json:"psmdbAntiAffinityTopologyKey"`
+	PSMDBStorageType             string            `json:"psmdbStorageType"`
+	PSMDBAllocatedStorage        string            `json:"psmdbAllocatedStorage"`
+
+	BackupImage                   string `json:"backupImage"`
+	BackupCPU                     string `json:"backupCPU"`
+	BackupMemoryRequests          string `json:"backupMemoryRequests"`
+	BackupAntiAffinityTopologyKey string `json:"backupAntiAffinityTopologyKey"`
+	BackupStorageType             string `json:"backupStorageType"`
+	BackupAllocatedStorage        string `json:"backupAllocatedStorageType"`
+	BackupSchedule                string `json:"backupSchedule"`
+}
+
+func (d *DescribeMsg) String() string {
+	var describeMsg = `
+	Name:                                          %v
+	Status:                                        %v
+	Multi-AZ:                                      %v
+	Labels:                                        %v
+	 
+	PSMDB Count:                                   %v
+	PSMDB Image:                                   %v
+	PSMDB CPU Requests:                            %v
+	PSMDB Memory Requests:                         %v
+	PSMDB PodDisruptionBudget:                     %v
+	PSMDB AntiAffinityTopologyKey:                 %v
+	PSMDB StorageType:                             %v
+	PSMDB Allocated Storage:                       %v
+	 
+	Backup coordinator Image:                      %v
+	Backup coordinator CPU Requests:               %v
+	Backup coordinator Memory Requests:            %v
+	Backup coordinator AntiAffinityTopologyKey:    %v
+	Backup coordinator StorageType:                %v
+	Backup coordinator Allocated Storage:          %v
+	 
+	Backup Schedule:                               %v
+	`
+
+	return fmt.Sprintf(describeMsg,
+		d.Name,
+		d.Status,
+		d.MultiAZ,
+		d.Labels,
+		d.PSMDBCount,
+		d.PSMDBImage,
+		d.PSMDBCPU,
+		d.PSMDBMemoryRequests,
+		d.PSMDBPodDisruptionBudget,
+		d.PSMDBAntiAffinityTopologyKey,
+		d.PSMDBStorageType,
+		d.PSMDBAllocatedStorage,
+		d.BackupImage,
+		d.BackupCPU,
+		d.BackupMemoryRequests,
+		d.BackupAntiAffinityTopologyKey,
+		d.BackupStorageType,
+		d.BackupAllocatedStorage,
+		d.BackupSchedule,
+	)
+}
+
+func (p *PSMDB) Describe(kubeInput []byte) (dbaas.Msg, error) {
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal([]byte(kubeInput), &cr)
 	if err != nil {
-		return "", errors.Wrapf(err, "json prase")
+		return &DescribeMsg{}, errors.Wrapf(err, "json prase")
 	}
 
 	multiAz := "yes"
@@ -428,11 +408,11 @@ func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
 
 	cpuSizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["cpu"].MarshalJSON()
 	if err != nil {
-		return "", err
+		return &DescribeMsg{}, err
 	}
 	memorySizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["memory"].MarshalJSON()
 	if err != nil {
-		return "", err
+		return &DescribeMsg{}, err
 	}
 
 	backupAffinity := "not set"
@@ -446,27 +426,27 @@ func (p *PSMDB) Describe(kubeInput []byte) (string, error) {
 		}
 		backupSchedule = strings.TrimSuffix(backupSchedule, ", ")
 	}
-
-	return fmt.Sprintf(describeMsg,
-		cr.ObjectMeta.Name,
-		cr.Status.Status,
-		multiAz,
-		dbaas.GetStringFromMap(cr.ObjectMeta.Labels),
-		cr.Spec.Replsets[0].Size,
-		cr.Spec.Image,
-		cr.Spec.Replsets[0].Resources.Requests.CPU,
-		cr.Spec.Replsets[0].Resources.Requests.Memory,
-		dbaas.GetStringFromMap(budgetPSMDB),
-		*cr.Spec.Replsets[0].Affinity.TopologyKey,
-		cr.StorageClassesAllocated.DataPod,
-		cr.StorageSizeAllocated.DataPod,
-		cr.Spec.Backup.Image,
-		string(cpuSizeBytes),
-		string(memorySizeBytes),
-		backupAffinity,
-		cr.StorageClassesAllocated.BackupCoordinator,
-		cr.StorageSizeAllocated.BackupCoordinator,
-		backupSchedule), nil
+	return &DescribeMsg{
+		Name:                          cr.ObjectMeta.Name,
+		Status:                        cr.Status.Status,
+		MultiAZ:                       multiAz,
+		Labels:                        cr.ObjectMeta.Labels,
+		PSMDBCount:                    cr.Spec.Replsets[0].Size,
+		PSMDBImage:                    cr.Spec.Image,
+		PSMDBCPU:                      cr.Spec.Replsets[0].Resources.Requests.CPU,
+		PSMDBMemoryRequests:           cr.Spec.Replsets[0].Resources.Requests.Memory,
+		PSMDBPodDisruptionBudget:      budgetPSMDB,
+		PSMDBAntiAffinityTopologyKey:  *cr.Spec.Replsets[0].Affinity.TopologyKey,
+		PSMDBStorageType:              cr.StorageClassesAllocated.DataPod,
+		PSMDBAllocatedStorage:         cr.StorageSizeAllocated.DataPod,
+		BackupImage:                   cr.Spec.Backup.Image,
+		BackupCPU:                     string(cpuSizeBytes),
+		BackupMemoryRequests:          string(memorySizeBytes),
+		BackupAntiAffinityTopologyKey: backupAffinity,
+		BackupStorageType:             cr.StorageClassesAllocated.BackupCoordinator,
+		BackupAllocatedStorage:        cr.StorageSizeAllocated.BackupCoordinator,
+		BackupSchedule:                backupSchedule,
+	}, nil
 }
 
 type operatorLog struct {

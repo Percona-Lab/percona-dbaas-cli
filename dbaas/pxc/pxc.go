@@ -225,9 +225,6 @@ type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
 
-const okmsg = `
-MySQL cluster started successfully, right endpoint for application: Host: %s, Port: 3306, User: root,Pass: %s`
-
 type OkMsg struct {
 	Message string `json:"message"`
 	Host    string `json:"host"`
