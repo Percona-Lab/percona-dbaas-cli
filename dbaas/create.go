@@ -43,9 +43,9 @@ type Deploy interface {
 	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, Msg, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
-	Edit(crRaw []byte, storage *BackupStorageSpec) (string, error)
+	Edit(crRaw []byte, storage *BackupStorageSpec) (Msg, error)
 	Upgrade(crRaw []byte, newImages map[string]string) error
-	Describe(crRaw []byte) (string, error)
+	Describe(crRaw []byte) (Msg, error)
 }
 
 type Msg interface {
