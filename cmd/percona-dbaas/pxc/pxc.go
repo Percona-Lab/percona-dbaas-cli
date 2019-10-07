@@ -23,10 +23,6 @@ import (
 
 var log *logrus.Logger
 
-func init() {
-	log = logrus.New()
-}
-
 // PXCCmd represents the pxc command
 var PXCCmd = &cobra.Command{
 	Use:   "pxc",
@@ -43,4 +39,21 @@ func parseArgs(args []string) []string {
 	}
 
 	return args
+
+}
+
+func init() {
+	log = logrus.New()
+}
+
+func detectFormat(cmd *cobra.Command) error {
+	format, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return err
+	}
+	switch format {
+	case "json":
+		log.Formatter = new(logrus.JSONFormatter)
+	}
+	return nil
 }

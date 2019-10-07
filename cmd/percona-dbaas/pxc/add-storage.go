@@ -102,7 +102,7 @@ var storageCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 

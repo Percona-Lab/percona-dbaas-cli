@@ -20,7 +20,6 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -46,25 +45,27 @@ var createCmd = &cobra.Command{
 
 		return nil
 	},
-	Run: func(cmd *cobra.Command, args []string) {
-		switch *createAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
 		}
-
+	},
+	Run: func(cmd *cobra.Command, args []string) {
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
-			log.Error("new dbservice: ", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				log.Errorln("label parse:", err.Error())
+				log.Error("label parse:", err)
 				return
 			}
 			if !match {
-				log.Errorln("Incorrect label format. Use key1=value1,key2=value2 syntax")
+				log.Error("Incorrect label format. Use key1=value1,key2=value2 syntax")
 				return
 			}
 		}
@@ -73,7 +74,7 @@ var createCmd = &cobra.Command{
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Errorln("parse flags to config:", err.Error())
+			log.Error("parse flags to config:", err)
 			return
 		}
 
@@ -86,7 +87,7 @@ var createCmd = &cobra.Command{
 				case dbaas.ErrNoS3Options:
 					log.Errorf(noS3backupWarn, err)
 				default:
-					log.Errorln("create S3 backup storage:", err.Error())
+					log.Error("create S3 backup storage:", err)
 				}
 				return
 			}
@@ -94,13 +95,13 @@ var createCmd = &cobra.Command{
 
 		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
 		if err != nil {
-			log.Errorln("set configuration:", err.Error())
+			log.Error("set configuration:", err)
 			return
 		}
 
-		log.Println(setupmsg)
+		log.WithField("data", setupmsg).Info("Creating cluster")
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -121,7 +122,7 @@ var createCmd = &cobra.Command{
 			case okmsg := <-created:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("Starting done!", okmsg)
+				log.WithField("data", okmsg).Info("Cluster ready")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -136,10 +137,10 @@ var createCmd = &cobra.Command{
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
-					log.Errorln("create pxc cluster:", err.Error())
+					log.Error("create pxc cluster:", err)
 					list, err := dbservice.List("pxc")
 					if err != nil {
-						log.Errorln("list pxc clusters:", err.Error())
+						log.Error("list pxc clusters:", err)
 						return
 					}
 					log.Println("Avaliable clusters:", list)
@@ -152,9 +153,9 @@ var createCmd = &cobra.Command{
 		}
 	},
 }
+
 var skipS3Storage *bool
 var envCrt *string
-var createAnswerFormat *string
 var labels *string
 var operatorImage *string
 
@@ -186,8 +187,6 @@ func init() {
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
 	labels = createCmd.Flags().String("labels", "", "PXC cluster labels inside kubernetes/openshift cluster")
 	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
-
-	createAnswerFormat = createCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(createCmd)
 }

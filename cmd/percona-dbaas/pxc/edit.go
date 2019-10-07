@@ -45,7 +45,7 @@ var editCmd = &cobra.Command{
 		}
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 
@@ -64,7 +64,7 @@ var editCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
@@ -87,7 +87,7 @@ var editCmd = &cobra.Command{
 		}
 		app.ClusterConfig = config
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		go dbservice.Edit("pxc", app, nil, created, msg, cerr)

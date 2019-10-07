@@ -33,12 +33,13 @@ var rootCmd = &cobra.Command{
 	Use:   "percona-dbaas",
 	Short: "The simplest DBaaS tool in the world",
 	Long: `    Hello, it is the simplest DBaaS tool in the world,
-    please use commands below to manage your DBaaS.`,
+	please use commands below to manage your DBaaS.`,
 }
 
 func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
+	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be only "json"`)
 
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)

@@ -16,14 +16,13 @@ package dbaas
 
 import (
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- Msg, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -65,10 +64,10 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 
 		switch state {
 		case ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- msgs
 			return
 		case ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(msgs.String())
 			return
 		case ClusterStateInit:
 		}

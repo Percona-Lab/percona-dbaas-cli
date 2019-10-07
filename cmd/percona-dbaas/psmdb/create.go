@@ -110,7 +110,7 @@ var createCmd = &cobra.Command{
 
 		log.Println(setupmsg)
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
