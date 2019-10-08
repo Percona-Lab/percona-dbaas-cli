@@ -23,7 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -43,15 +43,19 @@ var delCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		switch *deleteAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
+
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -67,16 +71,16 @@ var delCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find cluster pxc/" + name)
+			log.Error("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Errorln("pxc cluster list:", err.Error())
+				log.Error("pxc cluster list:", err)
 				return
 			}
 			log.Println("avaliable clusters:", list)
@@ -115,7 +119,7 @@ var delCmd = &cobra.Command{
 				log.Println("deleting done")
 				return
 			case err := <-cerr:
-				log.Errorln("delete pxc:", err.Error())
+				log.Error("delete pxc:", err)
 				return
 			}
 		}

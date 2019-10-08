@@ -19,7 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -37,12 +37,16 @@ var editCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		switch *editAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
+
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
 			log.Error("new dbservice:", err)
@@ -70,10 +74,10 @@ var editCmd = &cobra.Command{
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find cluster pxc/" + name)
+			log.Error("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Errorln("pxc clusters list:", err.Error())
+				log.Error("pxc clusters list:", err)
 				return
 			}
 			log.Println("Avaliable clusters:", list)
@@ -82,7 +86,7 @@ var editCmd = &cobra.Command{
 
 		config, err := pxc.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Errorln("parse flags to config:", err.Error())
+			log.Error("parse flags to config:", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -108,11 +112,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", omsg.String())
+					log.Error("operator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Errorln("edit pxc:", err.Error())
+				log.Error("edit pxc:", err)
 				sp.HideCursor = true
 				return
 			}

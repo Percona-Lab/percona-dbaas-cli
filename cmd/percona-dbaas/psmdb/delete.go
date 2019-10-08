@@ -23,7 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -43,15 +43,19 @@ var delCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		switch *deleteAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
+
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -67,19 +71,19 @@ var delCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find cluster psmdb/" + name)
+			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Errorln("psmdb cluster list:", err.Error())
+				log.Error("psmdb cluster list:", err)
 				return
 			}
-			log.Errorln("avaliable clusters:", list)
+			log.Error("avaliable clusters:", list)
 			return
 		}
 
@@ -114,7 +118,7 @@ var delCmd = &cobra.Command{
 				log.Println("Deleting done")
 				return
 			case err := <-cerr:
-				log.Errorln("delete psmdb:", err.Error())
+				log.Error("delete psmdb:", err)
 				return
 			}
 		}

@@ -17,11 +17,9 @@ package pxc
 import (
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
-
-var log *logrus.Logger
 
 // PXCCmd represents the pxc command
 var PXCCmd = &cobra.Command{
@@ -42,10 +40,6 @@ func parseArgs(args []string) []string {
 
 }
 
-func init() {
-	log = logrus.New()
-}
-
 func detectFormat(cmd *cobra.Command) error {
 	format, err := cmd.Flags().GetString("output")
 	if err != nil {
@@ -53,7 +47,13 @@ func detectFormat(cmd *cobra.Command) error {
 	}
 	switch format {
 	case "json":
-		log.Formatter = new(logrus.JSONFormatter)
+		log.SetFormatter(&log.JSONFormatter{
+			DisableTimestamp: true,
+		})
+	default:
+		log.SetFormatter(&log.TextFormatter{
+			DisableTimestamp: true,
+		})
 	}
 	return nil
 }

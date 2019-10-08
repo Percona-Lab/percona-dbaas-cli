@@ -19,7 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -37,15 +37,18 @@ var upgradeCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		switch *upgradeAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
-			log.Errorln("new dbservice:", err)
+			log.Error("new dbservice:", err)
 			return
 		}
 
@@ -64,16 +67,16 @@ var upgradeCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err)
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find cluster psmdb/" + name)
+			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Errorln("list psmdb clusters:", err)
+				log.Error("list psmdb clusters:", err)
 				return
 			}
 			log.Println("avaliable clusters:", list)
@@ -90,7 +93,7 @@ var upgradeCmd = &cobra.Command{
 		}
 		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
-			log.Errorln("setup images for upgrade:", err)
+			log.Error("setup images for upgrade:", err)
 			return
 		}
 
@@ -112,11 +115,11 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("perator log error:", omsg.String())
+					log.Error("perator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Errorln("upgrade psmdb:", err)
+				log.Error("upgrade psmdb:", err)
 				sp.HideCursor = true
 				return
 			}

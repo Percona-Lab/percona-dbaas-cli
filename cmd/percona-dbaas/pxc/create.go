@@ -20,6 +20,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -130,7 +131,7 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", err.Error())
+					log.Error("operator log error:", err)
 					sp.Start()
 				}
 			case err := <-cerr:
@@ -145,7 +146,7 @@ var createCmd = &cobra.Command{
 					}
 					log.Println("Avaliable clusters:", list)
 				default:
-					log.Errorln("create pxc:", err.Error())
+					log.Error("create pxc:", err)
 				}
 
 				return

@@ -19,7 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -37,17 +37,19 @@ var bcpCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
-		switch *backupCreateAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
-
 		dbservice, err := dbaas.New(*envBckpCrt)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -59,7 +61,7 @@ var bcpCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
@@ -68,7 +70,7 @@ var bcpCmd = &cobra.Command{
 			log.Errorf("Unable to find cluster \"%s/%s\"\n", "pxc", name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Errorln("list pxc clusters:", err.Error())
+				log.Error("list pxc clusters:", err)
 				return
 			}
 			log.Println("Available clusters:", list)
@@ -101,11 +103,11 @@ var bcpCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", err.Error())
+					log.Error("operator log error:", err)
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Errorln("create backup:", err.Error())
+				log.Error("create backup:", err)
 				return
 			}
 		}

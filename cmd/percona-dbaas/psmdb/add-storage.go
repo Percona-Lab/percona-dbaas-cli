@@ -19,7 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -39,16 +39,19 @@ var storageCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-		switch *addStorageAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
 		clusterName := args[0]
 		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		rsName := ""
@@ -71,16 +74,16 @@ var storageCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", clusterName)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find cluster psmdb/" + clusterName)
+			log.Error("unable to find cluster psmdb/" + clusterName)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Errorln("psmdb list:", err.Error())
+				log.Error("psmdb list:", err)
 				return
 			}
 
@@ -90,16 +93,16 @@ var storageCmd = &cobra.Command{
 
 		config, err := psmdb.ParseAddStorageFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Errorln("parsing flags", err.Error())
+			log.Error("parsing flags", err)
 		}
 
 		s3stor, err := dbservice.S3Storage(app, config.S3)
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
-				log.Printf(noS3backupOpts, err)
+				log.Errorf(noS3backupOpts, err)
 			default:
-				log.Println("create S3 backup storage:", err.Error)
+				log.Error("create S3 backup storage:", err)
 			}
 			return
 		}
@@ -118,7 +121,7 @@ var storageCmd = &cobra.Command{
 				okmsg, _ := dbservice.ListName("psmdb", clusterName)
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("adding the storage done.", okmsg)
+				log.WithField("data", okmsg).Info("adding the storage done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -126,11 +129,11 @@ var storageCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", omsg.String())
+					log.Error("operator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Println("add storage to psmdb:", err.Error())
+				log.Error("add storage to psmdb:", err)
 				sp.HideCursor = true
 				return
 			}

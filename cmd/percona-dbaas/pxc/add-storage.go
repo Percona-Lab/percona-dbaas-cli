@@ -19,7 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -39,12 +39,14 @@ var storageCmd = &cobra.Command{
 
 		return nil
 	},
-	Run: func(cmd *cobra.Command, args []string) {
-		switch *addStorageAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
 		}
-
+	},
+	Run: func(cmd *cobra.Command, args []string) {
 		clusterName := args[0]
 
 		dbservice, err := dbaas.New(*envStor)

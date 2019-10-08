@@ -23,7 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -41,15 +41,18 @@ var upgradeOperatorCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		switch *upgradeOperatorAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
 		dbservice, err := dbaas.New(*envUpgrdOprtr)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 
 		}
@@ -69,7 +72,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := dbservice.IsObjExists("psmdb", name)
 
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 
 		}
@@ -79,7 +82,7 @@ var upgradeOperatorCmd = &cobra.Command{
 			log.Println("unable to find cluster psmdb/", name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Errorln("db service list:", err.Error())
+				log.Error("db service list:", err)
 				return
 			}
 			log.Println("avaliable clusters:", list)
@@ -92,7 +95,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := dbservice.Instances("psmdb")
 			if err != nil {
-				log.Errorln("unable to get psmdb instances:", err.Error())
+				log.Error("unable to get psmdb instances:", err)
 				return
 			}
 			if len(num) > 1 {
@@ -124,7 +127,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				log.Println("upgrading cluster operator done.", okmsg)
 				return
 			case err := <-cerr:
-				log.Errorln("upgrade psmdb operator:", err.Error())
+				log.Error("upgrade psmdb operator:", err)
 				sp.HideCursor = true
 				return
 			}

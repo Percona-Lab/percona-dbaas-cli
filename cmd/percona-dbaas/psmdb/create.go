@@ -20,7 +20,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -50,15 +50,19 @@ var createCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-		switch *createAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
+
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
-			log.Error("new dbservice: ", err.Error())
+			log.Error("new dbservice: ", err)
 			return
 		}
 		clusterName := args[0]
@@ -70,11 +74,11 @@ var createCmd = &cobra.Command{
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				log.Errorln("label parse:", err.Error())
+				log.Error("label parse:", err)
 				return
 			}
 			if !match {
-				log.Errorln("Incorrect label format. Use key1=value1,key2=value2 syntax")
+				log.Error("Incorrect label format. Use key1=value1,key2=value2 syntax")
 				return
 			}
 		}
@@ -83,7 +87,7 @@ var createCmd = &cobra.Command{
 
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Errorln("parsing flags:", err.Error())
+			log.Error("parsing flags:", err)
 			return
 		}
 		var s3stor *dbaas.BackupStorageSpec
@@ -95,7 +99,7 @@ var createCmd = &cobra.Command{
 				case dbaas.ErrNoS3Options:
 					log.Errorf(noS3backupWarn, err)
 				default:
-					log.Errorln("create S3 backup storage:", err.Error())
+					log.Error("create S3 backup storage:", err)
 				}
 				return
 			}
@@ -104,11 +108,11 @@ var createCmd = &cobra.Command{
 		app.ClusterConfig = config
 		setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
 		if err != nil {
-			log.Errorln("set configuration:", err.Error())
+			log.Error("set configuration:", err)
 			return
 		}
 
-		log.Println(setupmsg)
+		log.WithField("data", setupmsg).Info("Creating cluster")
 
 		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
@@ -131,7 +135,7 @@ var createCmd = &cobra.Command{
 			case okmsg := <-created:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("starting done.", okmsg)
+				log.WithField("data", okmsg).Info("starting done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -139,22 +143,22 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", omsg.String())
+					log.Error("operator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
-					log.Errorln("cannot create:", err.Error())
+					log.Error("cannot create:", err)
 					list, err := dbservice.List("psmdb")
 					if err != nil {
-						log.Errorln("list clusters", err.Error())
+						log.Error("list clusters", err)
 						return
 					}
 					log.Println("avaliable clusters:", list)
 				default:
-					log.Errorln("create psmdb:", err.Error())
+					log.Error("create psmdb:", err)
 				}
 
 				return

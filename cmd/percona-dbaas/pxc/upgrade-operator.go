@@ -23,7 +23,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -41,15 +41,19 @@ var upgradeOperatorCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		switch *upgradeOperatorAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
+
 		dbservice, err := dbaas.New(*envUpgrdOprtr)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		app := pxc.New(name, defaultVersion, "")
@@ -68,7 +72,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
@@ -77,7 +81,7 @@ var upgradeOperatorCmd = &cobra.Command{
 			log.Errorf("unable to find cluster \"%s/%s\"\n", "pxc", name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Errorln("cluster list:", err.Error())
+				log.Error("cluster list:", err)
 				return
 			}
 
@@ -91,7 +95,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := dbservice.Instances("pxc")
 			if err != nil {
-				log.Errorln("unable to get pxc instances:", err.Error())
+				log.Error("unable to get pxc instances:", err)
 			}
 			if len(num) > 1 {
 				sp.Stop()
@@ -122,7 +126,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				log.Println("upgrading cluster operator done.", okmsg)
 				return
 			case err := <-cerr:
-				log.Errorln("upgrade pxc operator:", err.Error())
+				log.Error("upgrade pxc operator:", err)
 				sp.HideCursor = true
 				return
 			}

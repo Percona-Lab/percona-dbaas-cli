@@ -19,7 +19,7 @@ import (
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -37,20 +37,24 @@ var restoreCmd = &cobra.Command{
 
 		return nil
 	},
+	PreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect output format:", err)
+			return
+		}
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-		switch *backupRestoreAnswerFormat {
-		case "json":
-			log.Formatter = new(logrus.JSONFormatter)
-		}
+
 		dbservice, err := dbaas.New(*envBckpRstr)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 		name := args[0]
 		if len(args) < 2 || args[1] == "" {
-			log.Errorln("you have to specify psmdb-cluster-name and psmdb-backup-name")
+			log.Error("you have to specify psmdb-cluster-name and psmdb-backup-name")
 			return
 		}
 		bcpName := args[1]
@@ -64,16 +68,16 @@ var restoreCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find cluster psmdb/" + name)
+			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Errorln("psmdb cluster list:", err.Error())
+				log.Error("psmdb cluster list:", err)
 				return
 			}
 			log.Println("avaliable clusters:", list)
@@ -83,16 +87,16 @@ var restoreCmd = &cobra.Command{
 		sp.Prefix = "Looking for the backup..."
 		ext, err = dbservice.IsObjExists("psmdb-backup", bcpName)
 		if err != nil {
-			log.Errorln("check if backup exists:", err.Error())
+			log.Error("check if backup exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorln("unable to find backup psmdb-backup/" + bcpName)
+			log.Error("unable to find backup psmdb-backup/" + bcpName)
 			list, err := dbservice.List("psmdb-backup")
 			if err != nil {
-				log.Errorln("psmdb cluster list:", err.Error())
+				log.Error("psmdb cluster list:", err)
 				return
 			}
 			log.Println("avaliable backups:", list)
@@ -125,11 +129,11 @@ var restoreCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", omsg.String())
+					log.Error("operator log error:", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Errorln("psmdb cluster list:", err.Error())
+				log.Error("psmdb cluster list:", err)
 				return
 			}
 		}
