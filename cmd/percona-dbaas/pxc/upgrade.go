@@ -37,13 +37,6 @@ var upgradeCmd = &cobra.Command{
 
 		return nil
 	},
-	PreRun: func(cmd *cobra.Command, args []string) {
-		err := detectFormat(cmd)
-		if err != nil {
-			log.Error("detect output format:", err)
-			return
-		}
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
@@ -109,7 +102,7 @@ var upgradeCmd = &cobra.Command{
 				okmsg, _ := dbservice.ListName("pxc", name)
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("upgrade cluster done.", okmsg)
+				log.WithField("data", okmsg).Info("upgrade cluster done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {

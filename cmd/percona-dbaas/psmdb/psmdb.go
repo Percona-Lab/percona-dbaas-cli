@@ -17,7 +17,6 @@ package psmdb
 import (
 	"strings"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -37,22 +36,4 @@ func parseArgs(args []string) []string {
 	}
 
 	return args
-}
-
-func detectFormat(cmd *cobra.Command) error {
-	format, err := cmd.Flags().GetString("output")
-	if err != nil {
-		return err
-	}
-	switch format {
-	case "json":
-		log.SetFormatter(&log.JSONFormatter{
-			DisableTimestamp: true,
-		})
-	default:
-		log.SetFormatter(&log.TextFormatter{
-			DisableTimestamp: true,
-		})
-	}
-	return nil
 }

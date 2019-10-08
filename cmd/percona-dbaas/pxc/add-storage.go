@@ -39,19 +39,12 @@ var storageCmd = &cobra.Command{
 
 		return nil
 	},
-	PreRun: func(cmd *cobra.Command, args []string) {
-		err := detectFormat(cmd)
-		if err != nil {
-			log.Error("detect output format:", err)
-			return
-		}
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		clusterName := args[0]
 
 		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
-			log.Errorln("new dbservice:", err.Error())
+			log.Error("new dbservice:", err)
 			return
 		}
 
@@ -70,7 +63,7 @@ var storageCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", clusterName)
 		if err != nil {
-			log.Errorln("check if cluster exists:", err.Error())
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
@@ -79,7 +72,7 @@ var storageCmd = &cobra.Command{
 			log.Errorf("unable to find cluster \"%s/%s\"\n", "pxc", clusterName)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Errorln("list pxc clusters:", err.Error())
+				log.Error("list pxc clusters:", err)
 				return
 			}
 			log.Println("Avaliable clusters:", list)
@@ -88,7 +81,7 @@ var storageCmd = &cobra.Command{
 
 		config, err := pxc.ParseAddStorageFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Errorln("parse flags to config:", err.Error())
+			log.Error("parse flags to config:", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -97,9 +90,9 @@ var storageCmd = &cobra.Command{
 		if err != nil {
 			switch err.(type) {
 			case dbaas.ErrNoS3Options:
-				log.Errorln(noS3backupOpts, err.Error())
+				log.Error(noS3backupOpts, err)
 			default:
-				log.Errorln("create S3 backup storage:", err.Error())
+				log.Error("create S3 backup storage:", err)
 			}
 			return
 		}
@@ -126,11 +119,11 @@ var storageCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Errorln("operator log error:", err.Error())
+					log.Error("operator log error:", err)
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Errorln("add storage to pxc:", err.Error())
+				log.Error("add storage to pxc:", err)
 				sp.HideCursor = true
 				return
 			}

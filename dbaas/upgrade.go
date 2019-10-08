@@ -97,7 +97,15 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- M
 	}
 }
 
-func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc chan<- error) {
+type OkStatus struct {
+	Message string `json:"message"`
+}
+
+func (o *OkStatus) String() string {
+	return o.Message
+}
+
+func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- Msg, errc chan<- error) {
 	if newImage == "" {
 		return
 	}
@@ -135,7 +143,10 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 				pod := pods.Items[0]
 				switch pod.Status.Phase {
 				case corev1.PodRunning:
-					ok <- "Operator has been updated"
+					okMsg := OkStatus{
+						Message: "Operator has been updated",
+					}
+					ok <- &okMsg
 					return
 				case corev1.PodFailed:
 					errc <- errors.Errorf("failed to run: %s: %s", pod.Status.Message, pod.Status.Reason)

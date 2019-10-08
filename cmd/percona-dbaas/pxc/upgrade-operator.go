@@ -41,13 +41,6 @@ var upgradeOperatorCmd = &cobra.Command{
 
 		return nil
 	},
-	PreRun: func(cmd *cobra.Command, args []string) {
-		err := detectFormat(cmd)
-		if err != nil {
-			log.Error("detect output format:", err)
-			return
-		}
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
 
@@ -89,7 +82,7 @@ var upgradeOperatorCmd = &cobra.Command{
 			return
 		}
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		cerr := make(chan error)
 
 		if *oprtrImage != "" {
@@ -123,7 +116,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				okmsg, _ := dbservice.ListName("pxc", name)
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("upgrading cluster operator done.", okmsg)
+				log.WithField("data", okmsg).Info("upgrading cluster operator done.")
 				return
 			case err := <-cerr:
 				log.Error("upgrade pxc operator:", err)

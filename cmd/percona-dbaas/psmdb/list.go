@@ -26,13 +26,6 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "describe-db <db-cluster-name>",
 	Short: "Show either specific MongoDB cluster or all clusters on current Kubernetes environment",
-	PreRun: func(cmd *cobra.Command, args []string) {
-		err := detectFormat(cmd)
-		if err != nil {
-			log.Error("detect output format:", err)
-			return
-		}
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		dbservice, err := dbaas.New(*envLst)
 		if err != nil {

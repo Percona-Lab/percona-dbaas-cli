@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/gcloud"
@@ -34,13 +35,15 @@ var rootCmd = &cobra.Command{
 	Short: "The simplest DBaaS tool in the world",
 	Long: `    Hello, it is the simplest DBaaS tool in the world,
 	please use commands below to manage your DBaaS.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		detectFormat(cmd)
+	},
 }
 
 func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
 	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be only "json"`)
-
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)
 	rootCmd.AddCommand(broker.PxcBrokerCmd)
@@ -63,4 +66,22 @@ func rewriteKubectlArgs(db string) {
 	if path.Base(os.Args[0]) == "kubectl-"+db {
 		os.Args = append(os.Args[:1], append([]string{db}, os.Args[1:]...)...)
 	}
+}
+
+func detectFormat(cmd *cobra.Command) error {
+	format, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return err
+	}
+	switch format {
+	case "json":
+		log.SetFormatter(&log.JSONFormatter{
+			DisableTimestamp: true,
+		})
+	default:
+		log.SetFormatter(&log.TextFormatter{
+			DisableTimestamp: true,
+		})
+	}
+	return nil
 }
