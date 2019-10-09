@@ -36,7 +36,10 @@ var rootCmd = &cobra.Command{
 	Long: `    Hello, it is the simplest DBaaS tool in the world,
 	please use commands below to manage your DBaaS.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		detectFormat(cmd)
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect format:", err)
+		}
 	},
 }
 

@@ -103,12 +103,12 @@ func (c *CreateMsg) String() string {
 func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (dbaas.Msg, error) {
 	err := p.config.SetNew(p.Name(), c, s3, platform)
 	if err != nil {
-		return &CreateMsg{}, errors.Wrap(err, "parse options")
+		return nil, errors.Wrap(err, "parse options")
 	}
 
 	storage, err := p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return &CreateMsg{}, errors.Wrap(err, "marshal pxc volume requests")
+		return nil, errors.Wrap(err, "marshal pxc volume requests")
 	}
 
 	return &CreateMsg{
@@ -134,7 +134,7 @@ func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (dbaas.Msg, e
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
-		return &UpdateMsg{}, errors.Wrap(err, "unmarshal current cr")
+		return nil, errors.Wrap(err, "unmarshal current cr")
 	}
 
 	p.config.APIVersion = cr.APIVersion
@@ -146,7 +146,7 @@ func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (dbaas.Msg, e
 
 	err = p.config.UpdateWith(p.ClusterConfig, storage)
 	if err != nil {
-		return &UpdateMsg{}, errors.Wrap(err, "applay changes to cr")
+		return nil, errors.Wrap(err, "applay changes to cr")
 	}
 
 	return &UpdateMsg{
@@ -366,7 +366,7 @@ func (p *PXC) Describe(kubeInput []byte) (dbaas.Msg, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal([]byte(kubeInput), &cr)
 	if err != nil {
-		return &DescribeMsg{}, errors.Wrapf(err, "json prase")
+		return nil, errors.Wrapf(err, "json prase")
 	}
 
 	multiAz := "yes"
@@ -411,7 +411,7 @@ func (p *PXC) Describe(kubeInput []byte) (dbaas.Msg, error) {
 				volume := cr.Spec.Backup.Storages[item]
 				backupSizeBytes, err := volume.Volume.PersistentVolumeClaim.Resources.Requests["storage"].MarshalJSON()
 				if err != nil {
-					return &DescribeMsg{}, err
+					return nil, err
 				}
 				backupSize = string(backupSizeBytes)
 				backupStorageClassName = string(*volume.Volume.PersistentVolumeClaim.StorageClassName)

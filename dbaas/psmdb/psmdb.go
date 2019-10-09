@@ -112,12 +112,12 @@ func (p *PSMDB) Setup(s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) 
 	err := p.config.SetNew(p.Name(), p.rsName, p.ClusterConfig, s3, platform)
 
 	if err != nil {
-		return &CreateMsg{}, errors.Wrap(err, "parse options")
+		return nil, errors.Wrap(err, "parse options")
 	}
 
 	storage, err := p.config.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return &CreateMsg{}, errors.Wrap(err, "marshal psmdb volume requests")
+		return nil, errors.Wrap(err, "marshal psmdb volume requests")
 	}
 
 	return &CreateMsg{
@@ -146,7 +146,7 @@ func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (dbaas.Msg,
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
-		return &UpdateMsg{}, errors.Wrap(err, "unmarshal current cr")
+		return nil, errors.Wrap(err, "unmarshal current cr")
 	}
 
 	p.config.APIVersion = cr.APIVersion
@@ -157,7 +157,7 @@ func (p *PSMDB) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (dbaas.Msg,
 
 	err = p.config.UpdateWith(p.rsName, p.ClusterConfig, storage)
 	if err != nil {
-		return &UpdateMsg{}, errors.Wrap(err, "apply changes to cr")
+		return nil, errors.Wrap(err, "apply changes to cr")
 	}
 
 	return &UpdateMsg{
@@ -260,7 +260,7 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 
 	err := json.Unmarshal(data, st)
 	if err != nil {
-		return dbaas.ClusterStateUnknown, &OkMsg{}, errors.Wrap(err, "unmarshal status")
+		return dbaas.ClusterStateUnknown, nil, errors.Wrap(err, "unmarshal status")
 	}
 
 	status := st.Status.Replsets[p.rsName]
@@ -280,7 +280,7 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 		case AppStateError:
 			return dbaas.ClusterStateError, &OkMsg{Message: status.Message}, nil
 		default:
-			return dbaas.ClusterStateInit, &OkMsg{}, nil
+			return dbaas.ClusterStateInit, nil, nil
 		}
 	}
 
@@ -299,7 +299,7 @@ func (p *PSMDB) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterS
 	case AppStateError:
 		return dbaas.ClusterStateError, &OkMsg{Message: status.Message}, nil
 	default:
-		return dbaas.ClusterStateInit, &OkMsg{}, nil
+		return dbaas.ClusterStateInit, nil, nil
 	}
 }
 
@@ -380,7 +380,7 @@ func (p *PSMDB) Describe(kubeInput []byte) (dbaas.Msg, error) {
 	cr := &PerconaServerMongoDB{}
 	err := json.Unmarshal([]byte(kubeInput), &cr)
 	if err != nil {
-		return &DescribeMsg{}, errors.Wrapf(err, "json prase")
+		return nil, errors.Wrapf(err, "json prase")
 	}
 
 	multiAz := "yes"
@@ -408,11 +408,11 @@ func (p *PSMDB) Describe(kubeInput []byte) (dbaas.Msg, error) {
 
 	cpuSizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["cpu"].MarshalJSON()
 	if err != nil {
-		return &DescribeMsg{}, err
+		return nil, err
 	}
 	memorySizeBytes, err := cr.Spec.Backup.Coordinator.Resources.Requests["memory"].MarshalJSON()
 	if err != nil {
-		return &DescribeMsg{}, err
+		return nil, err
 	}
 
 	backupAffinity := "not set"
