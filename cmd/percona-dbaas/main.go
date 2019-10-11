@@ -100,6 +100,9 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 	} else {
 		b = &bytes.Buffer{}
 	}
+	if entry.Level == log.ErrorLevel {
+		b.WriteString("[Error] ")
+	}
 	if entry.Message != "" {
 		b.WriteString(entry.Message)
 	}
