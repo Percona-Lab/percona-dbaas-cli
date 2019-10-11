@@ -27,6 +27,8 @@ type ServiceInstance struct {
 	Context Context `json:"context"`
 
 	Credentials Credentials `json:"credentials"`
+
+	CredentialData interface{} `json:"credentialData"`
 }
 
 type Credentials struct {

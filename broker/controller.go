@@ -263,11 +263,6 @@ func (c *Controller) WrapWithServiceInstance(handler func(w http.ResponseWriter,
 		}
 
 		instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
-		if _, ok := c.instanceMap[instanceID]; ok {
-			log.Println(instanceID, "already exist")
-			w.WriteHeader(http.StatusConflict)
-			return
-		}
 
 		instance.InternalID = instanceID
 		instance.ID = instanceID
@@ -278,7 +273,11 @@ func (c *Controller) WrapWithServiceInstance(handler func(w http.ResponseWriter,
 
 func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request, instance ServiceInstance) {
 	log.Println("Create Service Instance...")
-
+	if _, ok := c.instanceMap[instance.ID]; ok {
+		log.Println(instance.ID, "already exist")
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
 	skipS3 := true
 
 	instance.LastOperation = &LastOperation{
@@ -436,7 +435,7 @@ func (c *Controller) RemoveServiceInstance(w http.ResponseWriter, r *http.Reques
 	}
 	delete(c.instanceMap, instance.ID)
 
-	WriteResponse(w, http.StatusOK, "{}")
+	WriteResponse(w, http.StatusOK, nil)
 }
 
 func (c *Controller) Bind(w http.ResponseWriter, r *http.Request) {
@@ -508,7 +507,9 @@ func WriteResponse(w http.ResponseWriter, code int, object interface{}) {
 	}
 
 	w.WriteHeader(code)
-	fmt.Fprintf(w, string(data))
+	if object != nil {
+		fmt.Fprintf(w, string(data))
+	}
 }
 
 func ExtractVarsFromRequest(r *http.Request, varName string) string {

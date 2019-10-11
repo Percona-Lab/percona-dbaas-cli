@@ -132,15 +132,10 @@ func (p *Controller) listenCreateChannels(created chan dbaas.Msg, msg chan dbaas
 	for {
 		select {
 		case okmsg := <-created:
-			//var credentials Credentials
-			/*err := json.Unmarshal([]byte(okmsg), &credentials)
-			if err != nil {
-				log.Println("Error unmarshal credentials:", err)
-			}*/
 			if _, ok := p.instanceMap[instanceID]; ok {
 				p.instanceMap[instanceID].LastOperation.State = SucceedOperationState
 				p.instanceMap[instanceID].LastOperation.Description = SucceedOperationDescription
-				//p.instanceMap[instanceID].Credentials = credentials
+				p.instanceMap[instanceID].CredentialData = okmsg
 				instance, err := json.Marshal(p.instanceMap[instanceID])
 				if err != nil {
 					log.Println("Error marshal instance", err)
