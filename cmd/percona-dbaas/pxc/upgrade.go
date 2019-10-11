@@ -32,7 +32,7 @@ var upgradeCmd = &cobra.Command{
 	Short: "Upgrade MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -61,7 +61,7 @@ var upgradeCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -70,11 +70,11 @@ var upgradeCmd = &cobra.Command{
 			log.Error("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("list pxc clusters:", err)
+				log.Error("list pxc clusters: ", err)
 				return
 			}
 
-			log.Println("avaliable clusters:", list)
+			log.Println("Avaliable clusters\n", list)
 			return
 		}
 
@@ -110,11 +110,11 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("perator log error:", omsg.String())
+					log.Error("perator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("upgrade pxc:", err)
+				log.Error("upgrade pxc: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -123,15 +123,12 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
-var upgradeAnswerFormat *string
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade pxc to")
 	upgradeCmd.Flags().String("proxysql-image", "", "Custom image to upgrade proxySQL to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
-	upgradeAnswerFormat = upgradeCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(upgradeCmd)
 }

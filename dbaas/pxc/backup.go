@@ -107,9 +107,21 @@ func (b *Backup) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	return msgs, nil
 }
 
-const okmsgbcp = `MySQL backup created successfully. Name: %s, Destination: %s`
+type BcpMsg struct {
+	Message     string `json:"message"`
+	Name        string `json:"name"`
+	Destination string `json:"destination"`
+}
 
-func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (b BcpMsg) String() string {
+	if len(b.Name) == 0 {
+		return b.Message
+	}
+	okmsgbcp := `%s. Name: %s, Destination: %s`
+	return fmt.Sprintf(okmsgbcp, b.Message, b.Name, b.Destination)
+}
+
+func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, dbaas.Msg, error) {
 	st := &PerconaXtraDBBackup{}
 
 	err := json.Unmarshal(data, st)
@@ -119,11 +131,15 @@ func (b *Backup) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) 
 
 	switch st.Status.State {
 	case BackupSucceeded:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgbcp, st.Name, st.Status.Destination)}, nil
+		return dbaas.ClusterStateReady, BcpMsg{
+			Message:     "MySQL backup created successfully",
+			Name:        st.Name,
+			Destination: st.Status.Destination,
+		}, nil
 	case BackupStarting, BackupRunning:
 		return dbaas.ClusterStateInit, nil, nil
 	case BackupFailed:
-		return dbaas.ClusterStateError, []string{"backup attempt has failed"}, nil
+		return dbaas.ClusterStateError, BcpMsg{Message: "backup attempt has failed"}, nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil

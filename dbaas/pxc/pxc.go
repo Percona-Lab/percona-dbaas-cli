@@ -86,8 +86,6 @@ func (p PXC) App() (string, error) {
 	return string(cr), nil
 }
 
-const createMsg = `Create MySQL cluster. PXC instances: %v, ProxySQL instances: %v, Storage: %v`
-
 type CreateMsg struct {
 	Message           string `json:"message"`
 	PXCInstances      int32  `json:"pxcInstances"`
@@ -96,7 +94,7 @@ type CreateMsg struct {
 }
 
 func (c *CreateMsg) String() string {
-	stringMsg := `%v. PXC instances: %v, ProxySQL instances: %v, Storage: %v`
+	stringMsg := "\n%v. PXC instances: %v, ProxySQL instances: %v, Storage: %v"
 	return fmt.Sprintf(stringMsg, c.Message, c.PXCInstances, c.ProxySQLInstances, c.Storage)
 }
 
@@ -126,7 +124,7 @@ type UpdateMsg struct {
 }
 
 func (u *UpdateMsg) String() string {
-	updateMsg := `%v. PXC instances: %v, ProxySQL instances: %v`
+	updateMsg := `\n%v. PXC instances: %v, ProxySQL instances: %v`
 	return fmt.Sprintf(updateMsg, u.Message, u.PXCInstances, u.ProxySQLInstances)
 }
 

@@ -36,7 +36,7 @@ var upgradeOperatorCmd = &cobra.Command{
 	Short: "Upgrade PSMDB operator",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -45,7 +45,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		name := args[0]
 		dbservice, err := dbaas.New(*envUpgrdOprtr)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 
 		}
@@ -65,7 +65,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := dbservice.IsObjExists("psmdb", name)
 
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 
 		}
@@ -75,10 +75,10 @@ var upgradeOperatorCmd = &cobra.Command{
 			log.Println("unable to find cluster psmdb/", name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Error("db service list:", err)
+				log.Error("db service list: ", err)
 				return
 			}
-			log.Println("avaliable clusters:", list)
+			log.Println("avaliable clusters:\n", list)
 			return
 		}
 
@@ -88,7 +88,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := dbservice.Instances("psmdb")
 			if err != nil {
-				log.Error("unable to get psmdb instances:", err)
+				log.Error("unable to get psmdb instances: ", err)
 				return
 			}
 			if len(num) > 1 {
@@ -120,7 +120,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				log.WithField("data", okmsg).Info("upgrading cluster operator done")
 				return
 			case err := <-cerr:
-				log.Error("upgrade psmdb operator:", err)
+				log.Error("upgrade psmdb operator: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -130,12 +130,10 @@ var upgradeOperatorCmd = &cobra.Command{
 
 var envUpgrdOprtr *string
 var oprtrImage *string
-var upgradeOperatorAnswerFormat *string
 
 func init() {
 	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	upgradeOperatorAnswerFormat = upgradeOperatorCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(upgradeOperatorCmd)
 }

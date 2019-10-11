@@ -32,7 +32,7 @@ var restoreCmd = &cobra.Command{
 	Short: "Restore MySQL backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name and pxc-backup-name")
+			return errors.New("you have to specify pxc-cluster-name and pxc-backup-name")
 		}
 
 		return nil
@@ -50,7 +50,7 @@ var restoreCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envBckpRstr)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -63,7 +63,7 @@ var restoreCmd = &cobra.Command{
 		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -72,17 +72,17 @@ var restoreCmd = &cobra.Command{
 			log.Error("unable to find cluster pxc/" + bcpName)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("check if clusters list:", err)
+				log.Error("get clusters list: ", err)
 				return
 			}
-			log.Error("avaliable clusters:", list)
+			log.Error("Avaliable clusters:\n", list)
 			return
 		}
 
 		sp.Prefix = "Looking for the backup..."
 		ext, err = dbservice.IsObjExists("pxc-backup", bcpName)
 		if err != nil {
-			log.Error("check if backup exists:", err)
+			log.Error("check if backup exists: ", err)
 			return
 		}
 
@@ -91,10 +91,10 @@ var restoreCmd = &cobra.Command{
 			log.Error("unable to find backup pxc-backup/" + bcpName)
 			list, err := dbservice.List("pxc-backup")
 			if err != nil {
-				log.Error("new dbservices", err)
+				log.Error("backups list: ", err)
 				return
 			}
-			log.Println("avaliable backups", list)
+			log.Println("Avaliable backups\n", list)
 			return
 		}
 		sp.Lock()
@@ -104,7 +104,7 @@ var restoreCmd = &cobra.Command{
 
 		bcp.Setup(bcpName)
 
-		ok := make(chan string)
+		ok := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -116,7 +116,7 @@ var restoreCmd = &cobra.Command{
 			case okmsg := <-ok:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("Restoring backup done.", okmsg)
+				log.WithField("data", okmsg).Info("Restoring backup done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -124,11 +124,11 @@ var restoreCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error", err)
+					log.Error("operator log error: ", err)
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("restore backup:", err)
+				log.Error("restore backup: ", err)
 				return
 			}
 		}
@@ -136,11 +136,9 @@ var restoreCmd = &cobra.Command{
 }
 
 var envBckpRstr *string
-var backupRestoreAnswerFormat *string
 
 func init() {
 	envBckpRstr = restoreCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupRestoreAnswerFormat = restoreCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(restoreCmd)
 }

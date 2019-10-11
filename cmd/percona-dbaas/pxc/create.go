@@ -49,13 +49,13 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		dbservice, err := dbaas.New(*envCrt)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				log.Error("label parse:", err)
+				log.Error("label parse: ", err)
 				return
 			}
 			if !match {
@@ -68,7 +68,7 @@ var createCmd = &cobra.Command{
 
 		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Error("parse flags to config:", err)
+			log.Error("parse flags to config: ", err)
 			return
 		}
 
@@ -81,7 +81,7 @@ var createCmd = &cobra.Command{
 				case dbaas.ErrNoS3Options:
 					log.Errorf(noS3backupWarn, err)
 				default:
-					log.Error("create S3 backup storage:", err)
+					log.Error("create S3 backup storage: ", err)
 				}
 				return
 			}
@@ -89,11 +89,11 @@ var createCmd = &cobra.Command{
 
 		setupmsg, err := app.Setup(config, s3stor, dbservice.GetPlatformType())
 		if err != nil {
-			log.Error("set configuration:", err)
+			log.Error("set configuration: ", err)
 			return
 		}
 
-		log.WithField("data", setupmsg).Info("Creating cluster")
+		log.WithField("data", setupmsg).Println("Creating cluster. ")
 
 		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
@@ -124,22 +124,22 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", err)
+					log.Error("operator log error: ", err)
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
-					log.Error("create pxc cluster:", err)
+					log.Error("create pxc cluster: ", err)
 					list, err := dbservice.List("pxc")
 					if err != nil {
-						log.Error("list pxc clusters:", err)
+						log.Error("list pxc clusters: ", err)
 						return
 					}
-					log.Println("Avaliable clusters:", list)
+					log.Println("Avaliable clusters:\n", list)
 				default:
-					log.Error("create pxc:", err)
+					log.Error("create pxc: ", err)
 				}
 
 				return

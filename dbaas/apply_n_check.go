@@ -15,7 +15,6 @@
 package dbaas
 
 import (
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -27,11 +26,11 @@ type ApplyChecker interface {
 	Name() string
 	OperatorName() string
 
-	CheckStatus(data []byte) (ClusterState, []string, error)
+	CheckStatus(data []byte) (ClusterState, Msg, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 }
 
-func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- Msg, msg chan<- OutuputMsg, errc chan<- error) {
 	cr, err := app.CR()
 	if err != nil {
 		errc <- errors.Wrap(err, "create cr")
@@ -62,10 +61,10 @@ func (p Cmd) ApplyCheck(typ string, app ApplyChecker, ok chan<- string, msg chan
 
 		switch state {
 		case ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- msgs
 			return
 		case ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(msgs.String())
 			return
 		case ClusterStateInit:
 		}

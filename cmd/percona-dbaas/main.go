@@ -15,6 +15,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -46,7 +47,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
-	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be only "json"`)
+	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be "json" or "text". "text" is set by default`)
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)
 	rootCmd.AddCommand(broker.PxcBrokerCmd)
@@ -82,9 +83,35 @@ func detectFormat(cmd *cobra.Command) error {
 			DisableTimestamp: true,
 		})
 	default:
-		log.SetFormatter(&log.TextFormatter{
-			DisableTimestamp: true,
-		})
+		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
 	}
 	return nil
+}
+
+type cliTextFormatter struct {
+	log.TextFormatter
+}
+
+func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
+	var b *bytes.Buffer
+
+	if entry.Buffer != nil {
+		b = entry.Buffer
+	} else {
+		b = &bytes.Buffer{}
+	}
+	if entry.Message != "" {
+		b.WriteString(entry.Message)
+	}
+
+	if len(entry.Data) == 0 {
+		b.WriteString("\n")
+		return b.Bytes(), nil
+	}
+
+	for _, v := range entry.Data {
+		fmt.Fprint(b, v)
+	}
+	b.WriteString("\n")
+	return b.Bytes(), nil
 }

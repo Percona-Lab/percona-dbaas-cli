@@ -32,7 +32,7 @@ var restoreCmd = &cobra.Command{
 	Short: "Restore MongoDB backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name and psmdb-backup-name")
+			return errors.New("you have to specify psmdb-cluster-name and psmdb-backup-name")
 		}
 
 		return nil
@@ -42,7 +42,7 @@ var restoreCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envBckpRstr)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		name := args[0]
@@ -61,7 +61,7 @@ var restoreCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -70,17 +70,17 @@ var restoreCmd = &cobra.Command{
 			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Error("psmdb cluster list:", err)
+				log.Error("psmdb cluster list: ", err)
 				return
 			}
-			log.Println("avaliable clusters:", list)
+			log.Println("avaliable clusters: ", list)
 			return
 		}
 
 		sp.Prefix = "Looking for the backup..."
 		ext, err = dbservice.IsObjExists("psmdb-backup", bcpName)
 		if err != nil {
-			log.Error("check if backup exists:", err)
+			log.Error("check if backup exists: ", err)
 			return
 		}
 
@@ -89,10 +89,10 @@ var restoreCmd = &cobra.Command{
 			log.Error("unable to find backup psmdb-backup/" + bcpName)
 			list, err := dbservice.List("psmdb-backup")
 			if err != nil {
-				log.Error("psmdb cluster list:", err)
+				log.Error("psmdb cluster list: ", err)
 				return
 			}
-			log.Println("avaliable backups:", list)
+			log.Println("avaliable backups:\n", list)
 			return
 		}
 		sp.Lock()
@@ -102,7 +102,7 @@ var restoreCmd = &cobra.Command{
 
 		bcp.Setup(bcpName)
 
-		ok := make(chan string)
+		ok := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -114,7 +114,7 @@ var restoreCmd = &cobra.Command{
 			case okmsg := <-ok:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("restoring backup done.", okmsg)
+				log.WithField("data", okmsg).Info("restoring backup done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -122,22 +122,20 @@ var restoreCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("psmdb cluster list:", err)
+				log.Error("psmdb cluster list: ", err)
 				return
 			}
 		}
 	},
 }
 var envBckpRstr *string
-var backupRestoreAnswerFormat *string
 
 func init() {
 	envBckpRstr = restoreCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupRestoreAnswerFormat = restoreCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(restoreCmd)
 }

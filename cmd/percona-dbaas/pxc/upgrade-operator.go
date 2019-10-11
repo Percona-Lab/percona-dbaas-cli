@@ -36,7 +36,7 @@ var upgradeOperatorCmd = &cobra.Command{
 	Short: "Upgrade PXC operator",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -46,7 +46,7 @@ var upgradeOperatorCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envUpgrdOprtr)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		app := pxc.New(name, defaultVersion, "")
@@ -65,7 +65,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		ext, err := dbservice.IsObjExists("pxc", name)
 
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -74,11 +74,11 @@ var upgradeOperatorCmd = &cobra.Command{
 			log.Errorf("unable to find cluster \"%s/%s\"\n", "pxc", name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("cluster list:", err)
+				log.Error("cluster list: ", err)
 				return
 			}
 
-			log.Println("avaliable clusters:", list)
+			log.Println("Avaliable clusters\n", list)
 			return
 		}
 
@@ -88,7 +88,7 @@ var upgradeOperatorCmd = &cobra.Command{
 		if *oprtrImage != "" {
 			num, err := dbservice.Instances("pxc")
 			if err != nil {
-				log.Error("unable to get pxc instances:", err)
+				log.Error("unable to get pxc instances: ", err)
 			}
 			if len(num) > 1 {
 				sp.Stop()
@@ -119,7 +119,7 @@ var upgradeOperatorCmd = &cobra.Command{
 				log.WithField("data", okmsg).Info("upgrading cluster operator done.")
 				return
 			case err := <-cerr:
-				log.Error("upgrade pxc operator:", err)
+				log.Error("upgrade pxc operator: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -129,12 +129,10 @@ var upgradeOperatorCmd = &cobra.Command{
 
 var envUpgrdOprtr *string
 var oprtrImage *string
-var upgradeOperatorAnswerFormat *string
 
 func init() {
 	oprtrImage = upgradeOperatorCmd.Flags().String("operator-image", "", "Custom image to upgrade operator to")
 	envUpgrdOprtr = upgradeOperatorCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	upgradeOperatorAnswerFormat = upgradeOperatorCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(upgradeOperatorCmd)
 }

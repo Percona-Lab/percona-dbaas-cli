@@ -26,7 +26,7 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
 )
 
-const noS3backupOpts = `[Error] S3 backup storage options doesn't set properly: %v.`
+const noS3backupOpts = `S3 backup storage options doesn't set properly: %v.`
 
 // storageCmd represents the edit command
 var storageCmd = &cobra.Command{
@@ -34,7 +34,7 @@ var storageCmd = &cobra.Command{
 	Short: "Add storage for MySQL backups",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -44,7 +44,7 @@ var storageCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 
@@ -63,7 +63,7 @@ var storageCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", clusterName)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -72,16 +72,16 @@ var storageCmd = &cobra.Command{
 			log.Errorf("unable to find cluster \"%s/%s\"\n", "pxc", clusterName)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("list pxc clusters:", err)
+				log.Error("list pxc clusters: ", err)
 				return
 			}
-			log.Println("Avaliable clusters:", list)
+			log.Println("Avaliable clusters:\n", list)
 			return
 		}
 
 		config, err := pxc.ParseAddStorageFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Error("parse flags to config:", err)
+			log.Error("parse flags to config: ", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -92,7 +92,7 @@ var storageCmd = &cobra.Command{
 			case dbaas.ErrNoS3Options:
 				log.Error(noS3backupOpts, err)
 			default:
-				log.Error("create S3 backup storage:", err)
+				log.Error("create S3 backup storage: ", err)
 			}
 			return
 		}
@@ -111,7 +111,7 @@ var storageCmd = &cobra.Command{
 				okmsg, _ := dbservice.ListName("pxc", clusterName)
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Printf("adding the storage...[done]\n\n%s", okmsg)
+				log.WithField("data", okmsg).Info("adding the storage...[done]\n\n%s")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -119,11 +119,11 @@ var storageCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", err)
+					log.Error("operator log error: ", err)
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("add storage to pxc:", err)
+				log.Error("add storage to pxc: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -132,7 +132,6 @@ var storageCmd = &cobra.Command{
 }
 
 var envStor *string
-var addStorageAnswerFormat *string
 
 func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
@@ -145,8 +144,6 @@ func init() {
 	storageCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	storageCmd.Flags().Int32("proxy-instances", 0, "Number of ProxySQL nodes in cluster")
 	envStor = storageCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
-	addStorageAnswerFormat = storageCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(storageCmd)
 }

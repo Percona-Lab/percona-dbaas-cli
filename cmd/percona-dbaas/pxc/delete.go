@@ -38,7 +38,7 @@ var delCmd = &cobra.Command{
 	Short: "Delete MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -48,7 +48,7 @@ var delCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envDlt)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -64,7 +64,7 @@ var delCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -73,10 +73,10 @@ var delCmd = &cobra.Command{
 			log.Error("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("pxc cluster list:", err)
+				log.Error("pxc cluster list: ", err)
 				return
 			}
-			log.Println("avaliable clusters:", list)
+			log.Println("Avaliable clusters\n", list)
 			return
 		}
 
@@ -109,10 +109,10 @@ var delCmd = &cobra.Command{
 			case <-ok:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("deleting done")
+				log.Println("Deleting done")
 				return
 			case err := <-cerr:
-				log.Error("delete pxc:", err)
+				log.Error("delete pxc: ", err)
 				return
 			}
 		}
@@ -120,12 +120,10 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
-var deleteAnswerFormat *string
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	deleteAnswerFormat = delCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(delCmd)
 }

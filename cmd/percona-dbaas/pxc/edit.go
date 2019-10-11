@@ -32,7 +32,7 @@ var editCmd = &cobra.Command{
 	Short: "Modify MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -42,7 +42,7 @@ var editCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 
@@ -61,7 +61,7 @@ var editCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -70,16 +70,16 @@ var editCmd = &cobra.Command{
 			log.Error("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("pxc clusters list:", err)
+				log.Error("pxc clusters list: ", err)
 				return
 			}
-			log.Println("Avaliable clusters:", list)
+			log.Println("Avaliable clusters:\n", list)
 			return
 		}
 
 		config, err := pxc.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Error("parse flags to config:", err)
+			log.Error("parse flags to config: ", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -97,7 +97,7 @@ var editCmd = &cobra.Command{
 				okmsg, _ := dbservice.ListName("pxc", name)
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("Applying changes done.", okmsg)
+				log.WithField("data", okmsg).Info("Applying changes done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -105,11 +105,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("edit pxc:", err)
+				log.Error("edit pxc: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -118,13 +118,11 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
-var editAnswerFormat *string
 
 func init() {
 	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	editAnswerFormat = editCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(editCmd)
 }

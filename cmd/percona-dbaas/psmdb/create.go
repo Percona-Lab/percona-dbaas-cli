@@ -41,11 +41,11 @@ var createCmd = &cobra.Command{
 	Short: "Create MongoDB cluster on current Kubernetes cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		if len(args) > 2 {
-			return errors.Errorf("Unknow arguments %v", args[2:])
+			return errors.Errorf("unknow arguments %v", args[2:])
 		}
 
 		return nil
@@ -67,11 +67,11 @@ var createCmd = &cobra.Command{
 		if len(*labels) > 0 {
 			match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", *labels)
 			if err != nil {
-				log.Error("label parse:", err)
+				log.Error("label parse: ", err)
 				return
 			}
 			if !match {
-				log.Error("Incorrect label format. Use key1=value1,key2=value2 syntax")
+				log.Error("incorrect label format. Use key1=value1,key2=value2 syntax")
 				return
 			}
 		}
@@ -80,7 +80,7 @@ var createCmd = &cobra.Command{
 
 		config, err := psmdb.ParseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Error("parsing flags:", err)
+			log.Error("parsing flags: ", err)
 			return
 		}
 		var s3stor *dbaas.BackupStorageSpec
@@ -92,7 +92,7 @@ var createCmd = &cobra.Command{
 				case dbaas.ErrNoS3Options:
 					log.Errorf(noS3backupWarn, err)
 				default:
-					log.Error("create S3 backup storage:", err)
+					log.Error("create S3 backup storage: ", err)
 				}
 				return
 			}
@@ -101,7 +101,7 @@ var createCmd = &cobra.Command{
 		app.ClusterConfig = config
 		setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
 		if err != nil {
-			log.Error("set configuration:", err)
+			log.Error("set configuration: ", err)
 			return
 		}
 
@@ -136,22 +136,22 @@ var createCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
 				sp.Stop()
 				switch err.(type) {
 				case dbaas.ErrAlreadyExists:
-					log.Error("cannot create:", err)
+					log.Error("cannot create: ", err)
 					list, err := dbservice.List("psmdb")
 					if err != nil {
-						log.Error("list clusters", err)
+						log.Error("list clusters: ", err)
 						return
 					}
-					log.Println("avaliable clusters:", list)
+					log.Println("avaliable clusters:\n", list)
 				default:
-					log.Error("create psmdb:", err)
+					log.Error("create psmdb: ", err)
 				}
 
 				return
@@ -162,7 +162,6 @@ var createCmd = &cobra.Command{
 
 var skipS3Storage *bool
 var envCrt *string
-var createAnswerFormat *string
 var labels *string
 var operatorImage *string
 
@@ -186,8 +185,6 @@ func init() {
 	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
 
 	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
-
-	createAnswerFormat = createCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(createCmd)
 }

@@ -76,7 +76,7 @@ var bcpCmd = &cobra.Command{
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)
 
-		ok := make(chan string)
+		ok := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -88,7 +88,7 @@ var bcpCmd = &cobra.Command{
 			case okmsg := <-ok:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("Creating backup done.", okmsg)
+				log.WithField("data", okmsg).Info("Creating backup done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -96,11 +96,11 @@ var bcpCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("create backup:", err)
+				log.Error("create backup: ", err)
 				return
 			}
 		}
@@ -108,10 +108,9 @@ var bcpCmd = &cobra.Command{
 }
 
 var envBckpCrt *string
-var backupCreateAnswerFormat *string
 
 func init() {
 	envBckpCrt = bcpCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupCreateAnswerFormat = bcpCmd.Flags().String("output", "", "Answers format")
+
 	PSMDBCmd.AddCommand(bcpCmd)
 }

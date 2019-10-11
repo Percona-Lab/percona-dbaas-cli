@@ -113,7 +113,19 @@ MongoDB backup restored successfully:
 Name: %s
 `
 
-func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+type RestoreMsg struct {
+	Message string `json:"message"`
+	Name    string `json:"Name"`
+}
+
+func (r RestoreMsg) String() string {
+	if len(r.Name) == 0 {
+		return r.Message
+	}
+	okmsgbcp := `%s. Name: %s`
+	return fmt.Sprintf(okmsgbcp, r.Message, r.Name)
+}
+func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, dbaas.Msg, error) {
 	st := &PerconaServerMongoDBRestore{}
 
 	err := json.Unmarshal(data, st)
@@ -123,11 +135,14 @@ func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error)
 
 	switch st.Status.State {
 	case RestoreStateReady:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgrestore, st.Name)}, nil
+		return dbaas.ClusterStateReady, RestoreMsg{
+			Message: "MongoDB backup restored successfully",
+			Name:    st.Name,
+		}, nil
 	case RestoreStateRequested:
 		return dbaas.ClusterStateInit, nil, nil
 	case RestoreStateRejected:
-		return dbaas.ClusterStateError, []string{"restore attempt has failed"}, nil
+		return dbaas.ClusterStateError, RestoreMsg{Message: "restore attempt has failed"}, nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil

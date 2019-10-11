@@ -32,7 +32,7 @@ var upgradeCmd = &cobra.Command{
 	Short: "Upgrade Percona Server for MongoDB",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -41,7 +41,7 @@ var upgradeCmd = &cobra.Command{
 		name := args[0]
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 
@@ -60,7 +60,7 @@ var upgradeCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -69,10 +69,10 @@ var upgradeCmd = &cobra.Command{
 			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Error("list psmdb clusters:", err)
+				log.Error("list psmdb clusters: ", err)
 				return
 			}
-			log.Println("avaliable clusters:", list)
+			log.Println("avaliable clusters:\n", list)
 			return
 		}
 
@@ -108,11 +108,11 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("perator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("upgrade psmdb:", err)
+				log.Error("upgrade psmdb: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -121,14 +121,11 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
-var upgradeAnswerFormat *string
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade psmdb to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
-	upgradeAnswerFormat = upgradeCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(upgradeCmd)
 }

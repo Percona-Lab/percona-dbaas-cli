@@ -34,7 +34,7 @@ var storageCmd = &cobra.Command{
 	Short: "Add storage for MongoDB backups",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -44,7 +44,7 @@ var storageCmd = &cobra.Command{
 		clusterName := args[0]
 		dbservice, err := dbaas.New(*envStor)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		rsName := ""
@@ -67,7 +67,7 @@ var storageCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", clusterName)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -76,11 +76,11 @@ var storageCmd = &cobra.Command{
 			log.Error("unable to find cluster psmdb/" + clusterName)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Error("psmdb list:", err)
+				log.Error("psmdb list: ", err)
 				return
 			}
 
-			log.Println("avaliable clusters:", list)
+			log.Println("avaliable clusters:\n", list)
 			return
 		}
 
@@ -95,7 +95,7 @@ var storageCmd = &cobra.Command{
 			case dbaas.ErrNoS3Options:
 				log.Errorf(noS3backupOpts, err)
 			default:
-				log.Error("create S3 backup storage:", err)
+				log.Error("create S3 backup storage: ", err)
 			}
 			return
 		}
@@ -122,11 +122,11 @@ var storageCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("add storage to psmdb:", err)
+				log.Error("add storage to psmdb: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -135,7 +135,6 @@ var storageCmd = &cobra.Command{
 }
 
 var envStor *string
-var addStorageAnswerFormat *string
 
 func init() {
 	storageCmd.Flags().String("s3-endpoint-url", "", "Endpoing URL of S3 compatible storage to store backup at")
@@ -147,8 +146,6 @@ func init() {
 	envStor = storageCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	storageCmd.Flags().Int32("replset-size", 0, "Number of nodes in replset")
-
-	addStorageAnswerFormat = storageCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(storageCmd)
 }

@@ -108,12 +108,20 @@ func (b *Restore) CheckOperatorLogs(data []byte) ([]dbaas.OutuputMsg, error) {
 	return msgs, nil
 }
 
-const okmsgrestore = `
-MySQL backup restored successfully:
-Name: %s
-`
+type RestoreMsg struct {
+	Message string `json:"message"`
+	Name    string `json:"Name"`
+}
 
-func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error) {
+func (r RestoreMsg) String() string {
+	if len(r.Name) == 0 {
+		return r.Message
+	}
+	okmsgbcp := `%s. Name: %s`
+	return fmt.Sprintf(okmsgbcp, r.Message, r.Name)
+}
+
+func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, dbaas.Msg, error) {
 	st := &PerconaXtraDBClusterRestore{}
 
 	err := json.Unmarshal(data, st)
@@ -123,9 +131,12 @@ func (b *Restore) CheckStatus(data []byte) (dbaas.ClusterState, []string, error)
 
 	switch st.Status.State {
 	case RestoreSucceeded:
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsgrestore, st.Name)}, nil
+		return dbaas.ClusterStateReady, RestoreMsg{
+			Message: "MySQL backup restored successfully",
+			Name:    st.Name,
+		}, nil
 	case RestoreFailed:
-		return dbaas.ClusterStateError, []string{"restore attempt has failed"}, nil
+		return dbaas.ClusterStateError, RestoreMsg{Message: "restore attempt has failed"}, nil
 	default:
 		return dbaas.ClusterStateInit, nil, nil
 	}

@@ -32,7 +32,7 @@ var editCmd = &cobra.Command{
 	Short: "Modify MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		return nil
@@ -43,7 +43,7 @@ var editCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		rsName := ""
@@ -66,7 +66,7 @@ var editCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", clusterName)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
@@ -75,10 +75,10 @@ var editCmd = &cobra.Command{
 			log.Error("unable to find cluster psmdb/" + clusterName)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				log.Error("psmdb cluster list:", err)
+				log.Error("psmdb cluster list: ", err)
 				return
 			}
-			log.Println("avaliable clusters:", list)
+			log.Println("avaliable clusters: ", list)
 			return
 		}
 
@@ -87,7 +87,7 @@ var editCmd = &cobra.Command{
 		cerr := make(chan error)
 		config, err := psmdb.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			log.Error("parsing flags:", err)
+			log.Error("parsing flags: ", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -101,7 +101,7 @@ var editCmd = &cobra.Command{
 				okmsg, _ := dbservice.ListName("psmdb", clusterName)
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.WithField("data", okmsg).Info("applying changes done")
+				log.WithField("data", okmsg).Info("Applying changes done")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -109,11 +109,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", omsg.String())
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("edit psmdb:", err)
+				log.Error("edit psmdb: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -122,12 +122,10 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
-var editAnswerFormat *string
 
 func init() {
 	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	editAnswerFormat = editCmd.Flags().String("output", "", "Answers format")
 
 	PSMDBCmd.AddCommand(editCmd)
 }

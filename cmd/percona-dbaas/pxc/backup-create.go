@@ -32,7 +32,7 @@ var bcpCmd = &cobra.Command{
 	Short: "Create MySQL backup",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -42,7 +42,7 @@ var bcpCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envBckpCrt)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -54,19 +54,19 @@ var bcpCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			log.Error("check if cluster exists:", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			log.Errorf("Unable to find cluster \"%s/%s\"\n", "pxc", name)
+			log.Errorf("unable to find cluster \"%s/%s\"\n", "pxc", name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				log.Error("list pxc clusters:", err)
+				log.Error("list pxc clusters: ", err)
 				return
 			}
-			log.Println("Available clusters:", list)
+			log.Println("Available clusters:\n", list)
 			return
 		}
 		sp.Lock()
@@ -76,7 +76,7 @@ var bcpCmd = &cobra.Command{
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)
 
-		ok := make(chan string)
+		ok := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -88,7 +88,7 @@ var bcpCmd = &cobra.Command{
 			case okmsg := <-ok:
 				sp.FinalMSG = ""
 				sp.Stop()
-				log.Println("Creating backup done", okmsg)
+				log.WithField("data", okmsg).Info("Creating backup done")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -96,11 +96,11 @@ var bcpCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					log.Error("operator log error:", err)
+					log.Error("operator log error: ", err)
 					sp.Start()
 				}
 			case err := <-cerr:
-				log.Error("create backup:", err)
+				log.Error("create backup: ", err)
 				return
 			}
 		}
@@ -108,11 +108,9 @@ var bcpCmd = &cobra.Command{
 }
 
 var envBckpCrt *string
-var backupCreateAnswerFormat *string
 
 func init() {
 	envBckpCrt = bcpCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupCreateAnswerFormat = bcpCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(bcpCmd)
 }

@@ -29,36 +29,34 @@ var listCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		dbservice, err := dbaas.New(*envLst)
 		if err != nil {
-			log.Error("new dbservice:", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		if len(args) > 0 {
 			app := pxc.New(args[0], defaultVersion, "")
 			info, err := dbservice.Describe(app)
 			if err != nil {
-				log.Error("describe:", err)
+				log.Error("describe: ", err)
 				return
 			}
 
-			log.Println(info)
+			log.WithField("data", info).Info("Cluster data")
 			return
 		}
 		list, err := dbservice.List("pxc")
 		if err != nil {
-			log.Error("pxc list:", err)
+			log.Error("pxc list: ", err)
 			return
 		}
 
-		log.Println(list)
+		log.WithField("data", list).Info("List")
 	},
 }
 
 var envLst *string
-var listAnswerFormat *string
 
 func init() {
 	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	listAnswerFormat = listCmd.Flags().String("output", "", "Answers format")
 
 	PXCCmd.AddCommand(listCmd)
 }
