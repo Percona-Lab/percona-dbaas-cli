@@ -15,13 +15,12 @@
 package dbaas
 
 import (
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 )
 
-func (p Cmd) Edit(typ string, app Deploy, storage *BackupStorageSpec, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Edit(typ string, app Deploy, storage *BackupStorageSpec, ok chan<- Msg, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -63,10 +62,10 @@ func (p Cmd) Edit(typ string, app Deploy, storage *BackupStorageSpec, ok chan<- 
 
 		switch state {
 		case ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- msgs
 			return
 		case ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(msgs.String())
 			return
 		case ClusterStateInit:
 		}

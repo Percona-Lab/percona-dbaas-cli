@@ -15,12 +15,11 @@
 package psmdb
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -40,13 +39,10 @@ var bcpCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
+
 		dbservice, err := dbaas.New(*envBckpCrt)
 		if err != nil {
-			if *backupCreateAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Error("new dbservice:", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
@@ -58,27 +54,19 @@ var bcpCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			if *backupCreateAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Error("check if cluster exists:", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				if *backupCreateAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb clusters list", err))
-					return
-				}
+				log.Error("psmdb clusters list:", err)
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+			log.Println("avaliable clusters:", list)
 			return
 		}
 		sp.Lock()
@@ -88,7 +76,7 @@ var bcpCmd = &cobra.Command{
 
 		bcp.Setup(dbaas.DefaultBcpStorageName)
 
-		ok := make(chan string)
+		ok := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -98,7 +86,9 @@ var bcpCmd = &cobra.Command{
 		for {
 			select {
 			case okmsg := <-ok:
-				sp.FinalMSG = fmt.Sprintf("Creating backup...[done]\n%s\n", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.WithField("data", okmsg).Info("Creating backup done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -106,19 +96,11 @@ var bcpCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *backupCreateAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *backupCreateAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb clusters list", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] create backup: %v\n", err)
+				log.Error("create backup: ", err)
 				return
 			}
 		}
@@ -126,10 +108,9 @@ var bcpCmd = &cobra.Command{
 }
 
 var envBckpCrt *string
-var backupCreateAnswerInJSON *bool
 
 func init() {
 	envBckpCrt = bcpCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	backupCreateAnswerInJSON = bcpCmd.Flags().Bool("json", false, "Answers in JSON format")
+
 	PSMDBCmd.AddCommand(bcpCmd)
 }

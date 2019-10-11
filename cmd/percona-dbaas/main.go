@@ -15,10 +15,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas/gcloud"
@@ -33,13 +35,19 @@ var rootCmd = &cobra.Command{
 	Use:   "percona-dbaas",
 	Short: "The simplest DBaaS tool in the world",
 	Long: `    Hello, it is the simplest DBaaS tool in the world,
-    please use commands below to manage your DBaaS.`,
+	please use commands below to manage your DBaaS.`,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		err := detectFormat(cmd)
+		if err != nil {
+			log.Error("detect format:", err)
+		}
+	},
 }
 
 func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
-
+	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be "json" or "text". "text" is set by default`)
 	rootCmd.AddCommand(pxc.PXCCmd)
 	rootCmd.AddCommand(psmdb.PSMDBCmd)
 	rootCmd.AddCommand(broker.PxcBrokerCmd)
@@ -62,4 +70,51 @@ func rewriteKubectlArgs(db string) {
 	if path.Base(os.Args[0]) == "kubectl-"+db {
 		os.Args = append(os.Args[:1], append([]string{db}, os.Args[1:]...)...)
 	}
+}
+
+func detectFormat(cmd *cobra.Command) error {
+	format, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return err
+	}
+	switch format {
+	case "json":
+		log.SetFormatter(&log.JSONFormatter{
+			DisableTimestamp: true,
+		})
+	default:
+		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
+	}
+	return nil
+}
+
+type cliTextFormatter struct {
+	log.TextFormatter
+}
+
+func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
+	var b *bytes.Buffer
+
+	if entry.Buffer != nil {
+		b = entry.Buffer
+	} else {
+		b = &bytes.Buffer{}
+	}
+	if entry.Level == log.ErrorLevel {
+		b.WriteString("[Error] ")
+	}
+	if entry.Message != "" {
+		b.WriteString(entry.Message)
+	}
+
+	if len(entry.Data) == 0 {
+		b.WriteString("\n")
+		return b.Bytes(), nil
+	}
+
+	for _, v := range entry.Data {
+		fmt.Fprint(b, v)
+	}
+	b.WriteString("\n")
+	return b.Bytes(), nil
 }

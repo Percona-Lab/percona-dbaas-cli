@@ -16,14 +16,13 @@ package dbaas
 
 import (
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- Msg, msg chan<- OutuputMsg, errc chan<- error) {
 	acr, err := p.GetObject(typ, app.Name())
 	if err != nil {
 		errc <- errors.Wrap(err, "get config")
@@ -65,10 +64,10 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 
 		switch state {
 		case ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- msgs
 			return
 		case ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(msgs.String())
 			return
 		case ClusterStateInit:
 		}
@@ -98,7 +97,15 @@ func (p Cmd) Upgrade(typ string, app Deploy, apps map[string]string, ok chan<- s
 	}
 }
 
-func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc chan<- error) {
+type OkStatus struct {
+	Message string `json:"message"`
+}
+
+func (o *OkStatus) String() string {
+	return o.Message
+}
+
+func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- Msg, errc chan<- error) {
 	if newImage == "" {
 		return
 	}
@@ -136,7 +143,10 @@ func (p Cmd) UpgradeOperator(app Deploy, newImage string, ok chan<- string, errc
 				pod := pods.Items[0]
 				switch pod.Status.Phase {
 				case corev1.PodRunning:
-					ok <- "Operator has been updated"
+					okMsg := OkStatus{
+						Message: "Operator has been updated",
+					}
+					ok <- &okMsg
 					return
 				case corev1.PodFailed:
 					errc <- errors.Errorf("failed to run: %s: %s", pod.Status.Message, pod.Status.Reason)

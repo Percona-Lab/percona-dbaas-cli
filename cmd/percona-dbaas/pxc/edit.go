@@ -15,12 +15,11 @@
 package pxc
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -33,7 +32,7 @@ var editCmd = &cobra.Command{
 	Short: "Modify MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify pxc-cluster-name")
+			return errors.New("you have to specify pxc-cluster-name")
 		}
 
 		return nil
@@ -43,15 +42,11 @@ var editCmd = &cobra.Command{
 
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 
-		app := pxc.New(name, defaultVersion, *editAnswerInJSON, "")
+		app := pxc.New(name, defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -66,46 +61,30 @@ var editCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("pxc", name)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("Unable to find cluster pxc/"+name, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "pxc", name)
-			}
+			log.Error("unable to find cluster pxc/" + name)
 			list, err := dbservice.List("pxc")
 			if err != nil {
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc clusters list", err))
-					return
-				}
+				log.Error("pxc clusters list: ", err)
 				return
 			}
-			fmt.Fprint(os.Stderr, "Avaliable clusters:")
-			fmt.Print(list)
+			log.Println("Avaliable clusters:\n", list)
 			return
 		}
 
 		config, err := pxc.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("parse flags to config", err))
-				return
-			}
-			fmt.Fprint(os.Stderr, "[Error] parse flags to config:", err)
+			log.Error("parse flags to config: ", err)
 			return
 		}
 		app.ClusterConfig = config
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		go dbservice.Edit("pxc", app, nil, created, msg, cerr)
@@ -116,7 +95,9 @@ var editCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("pxc", name)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.WithField("data", okmsg).Info("Applying changes done.")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -124,19 +105,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *editAnswerInJSON {
-						fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("operator log error", err))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("edit pxc", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit pxc: %v\n", err)
+				log.Error("edit pxc: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -145,13 +118,11 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
-var editAnswerInJSON *bool
 
 func init() {
 	editCmd.Flags().Int32("pxc-instances", 0, "Number of PXC nodes in cluster")
 	editCmd.Flags().Int32("proxy-instances", -1, "Number of ProxySQL nodes in cluster")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(editCmd)
 }

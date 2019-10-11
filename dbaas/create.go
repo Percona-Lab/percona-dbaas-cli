@@ -40,12 +40,16 @@ type Deploy interface {
 	OperatorName() string
 	OperatorType() string
 
-	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, []string, error)
+	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, Msg, error)
 	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
 
-	Edit(crRaw []byte, storage *BackupStorageSpec) (string, error)
+	Edit(crRaw []byte, storage *BackupStorageSpec) (Msg, error)
 	Upgrade(crRaw []byte, newImages map[string]string) error
-	Describe(crRaw []byte) (string, error)
+	Describe(crRaw []byte) (Msg, error)
+}
+
+type Msg interface {
+	String() string
 }
 
 type ClusterState string
@@ -93,7 +97,7 @@ oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
-func (p Cmd) Create(typ string, app Deploy, operatorVersion string, ok chan<- string, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) Create(typ string, app Deploy, operatorVersion string, ok chan<- Msg, msg chan<- OutuputMsg, errc chan<- error) {
 	p.runCmd(p.execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
 	err := p.applyBundles(app.Bundle(operatorVersion))
@@ -153,10 +157,10 @@ func (p Cmd) Create(typ string, app Deploy, operatorVersion string, ok chan<- st
 
 		switch state {
 		case ClusterStateReady:
-			ok <- strings.Join(msgs, "\n")
+			ok <- msgs
 			return
 		case ClusterStateError:
-			errc <- errors.New(strings.Join(msgs, "\n"))
+			errc <- errors.New(strings.Join([]string{msgs.String()}, "\n"))
 			return
 		case ClusterStateInit:
 		}

@@ -15,12 +15,11 @@
 package psmdb
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -33,23 +32,18 @@ var editCmd = &cobra.Command{
 	Short: "Modify MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		args = parseArgs(args)
-
 		clusterName := args[0]
 
 		dbservice, err := dbaas.New(*envEdt)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		rsName := ""
@@ -57,7 +51,7 @@ var editCmd = &cobra.Command{
 			rsName = args[1]
 		}
 
-		app := psmdb.New(clusterName, rsName, defaultVersion, *editAnswerInJSON, "")
+		app := psmdb.New(clusterName, rsName, defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -72,44 +66,28 @@ var editCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", clusterName)
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("Unable to find cluster psmdb/"+clusterName, nil))
-			} else {
-				fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", clusterName)
-			}
+			log.Error("unable to find cluster psmdb/" + clusterName)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster", err))
-					return
-				}
+				log.Error("psmdb cluster list: ", err)
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+			log.Println("avaliable clusters: ", list)
 			return
 		}
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 		config, err := psmdb.ParseEditFlagsToConfig(cmd.Flags())
 		if err != nil {
-			if *editAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("parsing flags", err))
-				return
-			}
-			fmt.Println("Parsing flags", err)
+			log.Error("parsing flags: ", err)
 			return
 		}
 		app.ClusterConfig = config
@@ -121,7 +99,9 @@ var editCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("psmdb", clusterName)
-				sp.FinalMSG = fmt.Sprintf("Applying changes...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.WithField("data", okmsg).Info("Applying changes done")
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -129,19 +109,11 @@ var editCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *editAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *editAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("edit psmdb", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] edit psmdb: %v\n", err)
+				log.Error("edit psmdb: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -150,12 +122,10 @@ var editCmd = &cobra.Command{
 }
 
 var envEdt *string
-var editAnswerInJSON *bool
 
 func init() {
 	editCmd.Flags().Int32("replset-size", 3, "Number of nodes in replset")
 	envEdt = editCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	editAnswerInJSON = editCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(editCmd)
 }

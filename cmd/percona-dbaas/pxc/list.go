@@ -15,9 +15,7 @@
 package pxc
 
 import (
-	"fmt"
-	"os"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -28,47 +26,37 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "describe-db <db-cluster-name>",
 	Short: "Show either specific MySQL cluster or all clusters on current Kubernetes environment",
-
 	Run: func(cmd *cobra.Command, args []string) {
 		dbservice, err := dbaas.New(*envLst)
 		if err != nil {
-			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 		if len(args) > 0 {
-			app := pxc.New(args[0], defaultVersion, *listAnswerInJSON, "")
+			app := pxc.New(args[0], defaultVersion, "")
 			info, err := dbservice.Describe(app)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+				log.Error("describe: ", err)
 				return
 			}
-			fmt.Print(info)
+
+			log.WithField("data", info).Info("Cluster data")
 			return
 		}
 		list, err := dbservice.List("pxc")
 		if err != nil {
-			if *listAnswerInJSON {
-				fmt.Fprint(os.Stderr, pxc.JSONErrorMsg("pxc list", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "\n[error] %s\n", err)
+			log.Error("pxc list: ", err)
 			return
 		}
 
-		fmt.Print(list)
+		log.WithField("data", list).Info("List")
 	},
 }
 
 var envLst *string
-var listAnswerInJSON *bool
 
 func init() {
 	envLst = listCmd.Flags().String("environment", "", "Target kubernetes cluster")
-	listAnswerInJSON = listCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PXCCmd.AddCommand(listCmd)
 }

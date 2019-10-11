@@ -40,11 +40,10 @@ type PXC struct {
 	config        *PerconaXtraDBCluster
 	obj           dbaas.Objects
 	opLogsLastTS  float64
-	AnswerInJSON  bool
 	ClusterConfig ClusterConfig
 }
 
-func New(name string, version Version, answerInJSON bool, labels string) *PXC {
+func New(name string, version Version, labels string) *PXC {
 	config := &PerconaXtraDBCluster{}
 	if len(labels) > 0 {
 		config.ObjectMeta.Labels = make(map[string]string)
@@ -55,10 +54,9 @@ func New(name string, version Version, answerInJSON bool, labels string) *PXC {
 		}
 	}
 	return &PXC{
-		name:         name,
-		obj:          Objects[version],
-		config:       config,
-		AnswerInJSON: answerInJSON,
+		name:   name,
+		obj:    Objects[version],
+		config: config,
 	}
 }
 
@@ -88,13 +86,6 @@ func (p PXC) App() (string, error) {
 	return string(cr), nil
 }
 
-const createMsg = `Create MySQL cluster.
- 
-PXC instances           | %v
-ProxySQL instances      | %v
-Storage                 | %v
-`
-
 type CreateMsg struct {
 	Message           string `json:"message"`
 	PXCInstances      int32  `json:"pxcInstances"`
@@ -102,39 +93,29 @@ type CreateMsg struct {
 	Storage           string `json:"storage"`
 }
 
-func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (string, error) {
+func (c *CreateMsg) String() string {
+	stringMsg := "\n%v. PXC instances: %v, ProxySQL instances: %v, Storage: %v"
+	return fmt.Sprintf(stringMsg, c.Message, c.PXCInstances, c.ProxySQLInstances, c.Storage)
+}
+
+func (p *PXC) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) (dbaas.Msg, error) {
 	err := p.config.SetNew(p.Name(), c, s3, platform)
 	if err != nil {
-		return "", errors.Wrap(err, "parse options")
+		return nil, errors.Wrap(err, "parse options")
 	}
 
 	storage, err := p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	if err != nil {
-		return "", errors.Wrap(err, "marshal pxc volume requests")
+		return nil, errors.Wrap(err, "marshal pxc volume requests")
 	}
 
-	if p.AnswerInJSON {
-		createJSONMsg := CreateMsg{
-			Message:           "Create MySQL cluster",
-			PXCInstances:      p.config.Spec.PXC.Size,
-			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
-			Storage:           string(storage),
-		}
-		answer, err := json.Marshal(createJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
-	return fmt.Sprintf(createMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size, string(storage)), nil
+	return &CreateMsg{
+		Message:           "Create MySQL cluster",
+		PXCInstances:      p.config.Spec.PXC.Size,
+		ProxySQLInstances: p.config.Spec.ProxySQL.Size,
+		Storage:           string(storage),
+	}, nil
 }
-
-const updateMsg = `Update MySQL cluster.
- 
-PXC instances           | %v
-ProxySQL instances      | %v
-`
 
 type UpdateMsg struct {
 	Message           string `json:"message"`
@@ -142,11 +123,16 @@ type UpdateMsg struct {
 	ProxySQLInstances int32  `json:"proxySQLInstances"`
 }
 
-func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, error) {
+func (u *UpdateMsg) String() string {
+	updateMsg := `\n%v. PXC instances: %v, ProxySQL instances: %v`
+	return fmt.Sprintf(updateMsg, u.Message, u.PXCInstances, u.ProxySQLInstances)
+}
+
+func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (dbaas.Msg, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal(crRaw, cr)
 	if err != nil {
-		return "", errors.Wrap(err, "unmarshal current cr")
+		return nil, errors.Wrap(err, "unmarshal current cr")
 	}
 
 	p.config.APIVersion = cr.APIVersion
@@ -158,23 +144,14 @@ func (p *PXC) Edit(crRaw []byte, storage *dbaas.BackupStorageSpec) (string, erro
 
 	err = p.config.UpdateWith(p.ClusterConfig, storage)
 	if err != nil {
-		return "", errors.Wrap(err, "applay changes to cr")
+		return nil, errors.Wrap(err, "applay changes to cr")
 	}
 
-	if p.AnswerInJSON {
-		updateJSONMsg := CreateMsg{
-			Message:           "Update MySQL cluster",
-			PXCInstances:      p.config.Spec.PXC.Size,
-			ProxySQLInstances: p.config.Spec.ProxySQL.Size,
-		}
-		answer, err := json.Marshal(updateJSONMsg)
-		if err != nil {
-			return "", errors.Wrap(err, "marshal answer")
-		}
-		return string(answer), nil
-	}
-
-	return fmt.Sprintf(updateMsg, p.config.Spec.PXC.Size, p.config.Spec.ProxySQL.Size), nil
+	return &UpdateMsg{
+		Message:           "Update MySQL cluster",
+		PXCInstances:      p.config.Spec.PXC.Size,
+		ProxySQLInstances: p.config.Spec.ProxySQL.Size,
+	}, nil
 }
 
 func (p *PXC) Upgrade(crRaw []byte, newImages map[string]string) error {
@@ -246,15 +223,6 @@ type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
 
-const okmsg = `
-MySQL cluster started successfully, right endpoint for application:
-Host: %s
-Port: 3306
-User: root
-Pass: %s
-
-Enjoy!`
-
 type OkMsg struct {
 	Message string `json:"message"`
 	Host    string `json:"host"`
@@ -263,7 +231,20 @@ type OkMsg struct {
 	Pass    string `json:"pass"`
 }
 
-func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, []string, error) {
+func (o OkMsg) String() string {
+	stringMsg := `Host: %s, Port: 3306, User: root, Pass: %s`
+	return fmt.Sprintf(stringMsg, o.Host, o.Pass)
+}
+
+type StatusMsgs struct {
+	Messages []string `json:"messages"`
+}
+
+func (s *StatusMsgs) String() string {
+	return strings.Join(s.Messages, ", ")
+}
+
+func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterState, dbaas.Msg, error) {
 	st := &k8sStatus{}
 
 	err := json.Unmarshal(data, st)
@@ -273,31 +254,56 @@ func (p *PXC) CheckStatus(data []byte, pass map[string][]byte) (dbaas.ClusterSta
 
 	switch st.Status.Status {
 	case AppStateReady:
-		if p.AnswerInJSON {
-			okJSONMsg := OkMsg{
-				Message: "MySQL cluster started successfully",
-				Host:    st.Status.Host,
-				Port:    3306,
-				User:    "root",
-				Pass:    string(pass["root"]),
-			}
-			answer, err := json.Marshal(okJSONMsg)
-			if err != nil {
-				return dbaas.ClusterStateError, []string{}, errors.Wrap(err, "marshal answer")
-			}
-			return dbaas.ClusterStateReady, []string{string(answer)}, nil
-		}
-		return dbaas.ClusterStateReady, []string{fmt.Sprintf(okmsg, st.Status.Host, pass["root"])}, nil
+		return dbaas.ClusterStateReady, OkMsg{
+			Message: "MySQL cluster started successfully",
+			Host:    st.Status.Host,
+			Port:    3306,
+			User:    "root",
+			Pass:    string(pass["root"]),
+		}, nil
 	case AppStateInit:
 		return dbaas.ClusterStateInit, nil, nil
 	case AppStateError:
-		return dbaas.ClusterStateError, alterStatusMgs(st.Status.Messages), nil
+		s := StatusMsgs{
+			Messages: alterStatusMgs(st.Status.Messages),
+		}
+		return dbaas.ClusterStateError, &s, nil
 	}
 
 	return dbaas.ClusterStateInit, nil, nil
 }
 
-const describeMsg = `
+type DescribeMsg struct {
+	Name                       string            `json:"name"`
+	Status                     AppState          `json:"status"`
+	MultiAZ                    string            `json:"multiAZ"`
+	Labels                     map[string]string `json:"labels"`
+	PXCCount                   int32             `json:"pxcCount"`
+	PXCImage                   string            `json:"pxcImage"`
+	PXCCPU                     string            `json:"pxcCPU"`
+	PXCMemoryRequests          string            `json:"pxcMemoryRequests"`
+	PXCPodDisruptionBudget     map[string]string `json:"pxcPodDisruptionBudget"`
+	PXCAntiAffinityTopologyKey string            `json:"pxcAntiAffinityTopologyKey"`
+	PXCStorageType             string            `json:"pxcStorageType"`
+	PXCAllocatedStorage        string            `json:"pxcAllocatedStorage"`
+
+	ProxySQLCount                   int32             `json:"proxySQLCount"`
+	ProxySQLImage                   string            `json:"proxySQLImage"`
+	ProxySQLCPURequests             string            `json:"proxySQLCPURequests"`
+	ProxySQLMemoryRequests          string            `json:"proxySQLMemoryRequests"`
+	ProxySQLPodDisruptionBudget     map[string]string `json:"proxySQLPodDisruptionBudget"`
+	ProxySQLAntiAffinityTopologyKey string            `json:"proxySQLAntiAffinityTopologyKey"`
+	ProxySQLStorageType             string            `json:"proxySQLStorageType"`
+	ProxySQLAllocatedStorage        string            `json:"proxySQLAllocatedStorage"`
+
+	BackupImage            string `json:"backupImage"`
+	BackupStorageType      string `json:"backupStorageType"`
+	BackupAllocatedStorage string `json:"backupStorageType"`
+	BackupSchedule         string `json:"backupSchedule"`
+}
+
+func (d *DescribeMsg) String() string {
+	var describeMsg = `
 Name:                                %v
 Status:                              %v
 Multi-AZ:                            %v
@@ -326,12 +332,39 @@ Backup StorageType:                  %v
 Backup Allocated Storage:            %v
 Backup Schedule:                     %v
 `
+	return fmt.Sprintf(describeMsg,
+		d.Name,
+		d.Status,
+		d.MultiAZ,
+		d.Labels,
+		d.PXCCount,
+		d.PXCImage,
+		d.PXCCPU,
+		d.PXCMemoryRequests,
+		d.PXCPodDisruptionBudget,
+		d.PXCAntiAffinityTopologyKey,
+		d.PXCStorageType,
+		d.PXCAllocatedStorage,
+		d.ProxySQLCount,
+		d.ProxySQLImage,
+		d.ProxySQLCPURequests,
+		d.ProxySQLMemoryRequests,
+		d.ProxySQLPodDisruptionBudget,
+		d.ProxySQLAntiAffinityTopologyKey,
+		d.ProxySQLStorageType,
+		d.ProxySQLAllocatedStorage,
+		d.BackupImage,
+		d.BackupStorageType,
+		d.BackupAllocatedStorage,
+		d.BackupSchedule,
+	)
+}
 
-func (p *PXC) Describe(kubeInput []byte) (string, error) {
+func (p *PXC) Describe(kubeInput []byte) (dbaas.Msg, error) {
 	cr := &PerconaXtraDBCluster{}
 	err := json.Unmarshal([]byte(kubeInput), &cr)
 	if err != nil {
-		return "", errors.Wrapf(err, "json prase")
+		return nil, errors.Wrapf(err, "json prase")
 	}
 
 	multiAz := "yes"
@@ -376,7 +409,7 @@ func (p *PXC) Describe(kubeInput []byte) (string, error) {
 				volume := cr.Spec.Backup.Storages[item]
 				backupSizeBytes, err := volume.Volume.PersistentVolumeClaim.Resources.Requests["storage"].MarshalJSON()
 				if err != nil {
-					return "", err
+					return nil, err
 				}
 				backupSize = string(backupSizeBytes)
 				backupStorageClassName = string(*volume.Volume.PersistentVolumeClaim.StorageClassName)
@@ -385,31 +418,32 @@ func (p *PXC) Describe(kubeInput []byte) (string, error) {
 		}
 	}
 
-	return fmt.Sprintf(describeMsg,
-		cr.ObjectMeta.Name,
-		cr.Status.Status,
-		multiAz,
-		dbaas.GetStringFromMap(cr.ObjectMeta.Labels),
-		cr.Spec.PXC.Size,
-		cr.Spec.PXC.Image,
-		cr.Spec.PXC.Resources.Requests.CPU,
-		cr.Spec.PXC.Resources.Requests.Memory,
-		dbaas.GetStringFromMap(budgetPXC),
-		*cr.Spec.PXC.Affinity.TopologyKey,
-		cr.StorageClassesAllocated.PXC,
-		cr.StorageSizeAllocated.PXC,
-		cr.Spec.ProxySQL.Size,
-		cr.Spec.ProxySQL.Image,
-		cr.Spec.ProxySQL.Resources.Requests.CPU,
-		cr.Spec.ProxySQL.Resources.Requests.Memory,
-		dbaas.GetStringFromMap(budgetSQL),
-		*cr.Spec.ProxySQL.Affinity.TopologyKey,
-		cr.StorageClassesAllocated.ProxySQL,
-		cr.StorageSizeAllocated.ProxySQL,
-		backupImage,
-		backupSize,
-		backupStorageClassName,
-		backupSchedule), nil
+	return &DescribeMsg{
+		Name:                            cr.ObjectMeta.Name,
+		Status:                          cr.Status.Status,
+		MultiAZ:                         multiAz,
+		Labels:                          cr.ObjectMeta.Labels,
+		PXCCount:                        cr.Spec.PXC.Size,
+		PXCImage:                        cr.Spec.PXC.Image,
+		PXCCPU:                          cr.Spec.PXC.Resources.Requests.CPU,
+		PXCMemoryRequests:               cr.Spec.PXC.Resources.Requests.Memory,
+		PXCPodDisruptionBudget:          budgetPXC,
+		PXCAntiAffinityTopologyKey:      *cr.Spec.PXC.Affinity.TopologyKey,
+		PXCStorageType:                  cr.StorageClassesAllocated.PXC,
+		PXCAllocatedStorage:             cr.StorageSizeAllocated.PXC,
+		ProxySQLCount:                   cr.Spec.ProxySQL.Size,
+		ProxySQLImage:                   cr.Spec.ProxySQL.Image,
+		ProxySQLCPURequests:             cr.Spec.ProxySQL.Resources.Requests.CPU,
+		ProxySQLMemoryRequests:          cr.Spec.ProxySQL.Resources.Requests.Memory,
+		ProxySQLPodDisruptionBudget:     budgetSQL,
+		ProxySQLAntiAffinityTopologyKey: *cr.Spec.ProxySQL.Affinity.TopologyKey,
+		ProxySQLStorageType:             cr.StorageClassesAllocated.ProxySQL,
+		ProxySQLAllocatedStorage:        cr.StorageSizeAllocated.ProxySQL,
+		BackupImage:                     backupImage,
+		BackupStorageType:               backupSize,
+		BackupAllocatedStorage:          backupStorageClassName,
+		BackupSchedule:                  backupSchedule,
+	}, nil
 }
 
 type operatorLog struct {

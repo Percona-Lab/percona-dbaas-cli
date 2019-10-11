@@ -15,12 +15,11 @@
 package psmdb
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
@@ -33,25 +32,20 @@ var upgradeCmd = &cobra.Command{
 	Short: "Upgrade Percona Server for MongoDB",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify psmdb-cluster-name")
+			return errors.New("you have to specify psmdb-cluster-name")
 		}
 
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
 		dbservice, err := dbaas.New(*envUpgrd)
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("new dbservice", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err)
+			log.Error("new dbservice: ", err)
 			return
 		}
 
-		app := psmdb.New(name, "doesnotMatter", defaultVersion, *upgradeAnswerInJSON, "")
+		app := psmdb.New(name, "doesnotMatter", defaultVersion, "")
 
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -66,31 +60,23 @@ var upgradeCmd = &cobra.Command{
 
 		ext, err := dbservice.IsObjExists("psmdb", name)
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("check if cluster exists", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] check if cluster exists: %v\n", err)
+			log.Error("check if cluster exists: ", err)
 			return
 		}
 
 		if !ext {
 			sp.Stop()
-			fmt.Fprintf(os.Stderr, "Unable to find cluster \"%s/%s\"\n", "psmdb", name)
+			log.Error("unable to find cluster psmdb/" + name)
 			list, err := dbservice.List("psmdb")
 			if err != nil {
-				if *upgradeAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("psmdb cluster list", err))
-					return
-				}
+				log.Error("list psmdb clusters: ", err)
 				return
 			}
-			fmt.Println("Avaliable clusters:")
-			fmt.Print(list)
+			log.Println("avaliable clusters:\n", list)
 			return
 		}
 
-		created := make(chan string)
+		created := make(chan dbaas.Msg)
 		msg := make(chan dbaas.OutuputMsg)
 		cerr := make(chan error)
 
@@ -100,11 +86,7 @@ var upgradeCmd = &cobra.Command{
 		}
 		appsImg, err := app.Images(oparg, cmd.Flags())
 		if err != nil {
-			if *upgradeAnswerInJSON {
-				fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("setup images for upgrade", err))
-				return
-			}
-			fmt.Fprintf(os.Stderr, "[ERROR] setup images for upgrade: %v\n", err)
+			log.Error("setup images for upgrade:", err)
 			return
 		}
 
@@ -116,7 +98,9 @@ var upgradeCmd = &cobra.Command{
 			select {
 			case <-created:
 				okmsg, _ := dbservice.ListName("psmdb", name)
-				sp.FinalMSG = fmt.Sprintf("Upgrading cluster...[done]\n\n%s", okmsg)
+				sp.FinalMSG = ""
+				sp.Stop()
+				log.Println("upgrade cluster done.", okmsg)
 				return
 			case omsg := <-msg:
 				switch omsg.(type) {
@@ -124,19 +108,11 @@ var upgradeCmd = &cobra.Command{
 					// fmt.Printf("\n[debug] %s\n", omsg)
 				case dbaas.OutuputMsgError:
 					sp.Stop()
-					if *upgradeAnswerInJSON {
-						fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("operator log error", fmt.Errorf(omsg.String())))
-					} else {
-						fmt.Printf("[operator log error] %s\n", omsg)
-					}
+					log.Error("operator log error: ", omsg.String())
 					sp.Start()
 				}
 			case err := <-cerr:
-				if *upgradeAnswerInJSON {
-					fmt.Fprint(os.Stderr, psmdb.JSONErrorMsg("upgrade psmdb", err))
-					return
-				}
-				fmt.Fprintf(os.Stderr, "\n[ERROR] upgrade psmdb: %v\n", err)
+				log.Error("upgrade psmdb: ", err)
 				sp.HideCursor = true
 				return
 			}
@@ -145,14 +121,11 @@ var upgradeCmd = &cobra.Command{
 }
 
 var envUpgrd *string
-var upgradeAnswerInJSON *bool
 
 func init() {
 	upgradeCmd.Flags().String("database-image", "", "Custom image to upgrade psmdb to")
 	upgradeCmd.Flags().String("backup-image", "", "Custom image to upgrade backup to")
 	envUpgrd = upgradeCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
-	upgradeAnswerInJSON = upgradeCmd.Flags().Bool("json", false, "Answers in JSON format")
 
 	PSMDBCmd.AddCommand(upgradeCmd)
 }
