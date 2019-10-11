@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/pkg/errors"
+
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/pxc"
@@ -21,7 +23,7 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "marshal instance")
 	}
 
 	app := pxc.New(instance.Parameters.ClusterName, defaultVersion, "")
@@ -53,7 +55,7 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 	setupmsg, err := app.Setup(conf, s3stor, dbservice.GetPlatformType())
 	if err != nil {
 		log.Println("[Error] set configuration:", err)
-		return nil
+		return errors.Wrap(err, "set configuration")
 	}
 
 	log.Println(setupmsg)
@@ -70,12 +72,12 @@ func (p *Controller) DeployPXCCluster(instance ServiceInstance, skipS3Storage *b
 func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage *bool, instanceID string) error {
 	dbservice, err := p.createDbservice(&instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create dbservice")
 	}
 
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
-		return err
+		errors.Wrap(err, "marshal instance")
 	}
 
 	app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, "")
@@ -98,7 +100,7 @@ func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage 
 	setupmsg, err := app.Setup(s3stor, dbservice.GetPlatformType())
 	if err != nil {
 		log.Println("[Error] set configuration:", err)
-		return nil
+		return errors.Wrap(err, "set configuration")
 	}
 
 	log.Println(setupmsg)
@@ -116,12 +118,12 @@ func (p *Controller) getClusterSecret(clusterName string) (Secret, error) {
 	var secret Secret
 	dbservice, err := dbaas.New(p.EnvName)
 	if err != nil {
-		return secret, err
+		return secret, errors.Wrap(err, "create dbservice")
 	}
 
 	s, err := dbservice.GetObject("secret", clusterName+"-secrets")
 	if err != nil {
-		return secret, err
+		return secret, errors.Wrap(err, "get secret")
 	}
 	err = json.Unmarshal(s, &secret)
 
@@ -171,7 +173,7 @@ func (p *Controller) DeletePXCCluster(instance *ServiceInstance) error {
 	name := instance.Parameters.ClusterName
 	dbservice, err := p.createDbservice(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create dbservice")
 	}
 
 	go dbservice.Delete("pxc", pxc.New(name, defaultVersion, ""), delePVC, ok, cerr)
@@ -187,7 +189,7 @@ func (p *Controller) DeletePSMDBCluster(instance *ServiceInstance) error {
 	name := instance.Parameters.ClusterName
 	dbservice, err := p.createDbservice(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create dbservice")
 	}
 
 	go dbservice.Delete("psmdb", psmdb.New(name, name, defaultVersion, ""), delePVC, ok, cerr)
@@ -212,12 +214,12 @@ func (p *Controller) listenDeleteChannels(ok chan string, cerr chan error) {
 func (p *Controller) UpdatePXCCluster(instance *ServiceInstance) error {
 	dbservice, err := p.createDbservice(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create dbservice")
 	}
 
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "marshal instance")
 	}
 
 	created := make(chan dbaas.Msg)
@@ -243,12 +245,12 @@ func (p *Controller) UpdatePXCCluster(instance *ServiceInstance) error {
 func (p *Controller) UpdatePSMDBCluster(instance *ServiceInstance) error {
 	dbservice, err := p.createDbservice(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create dbservice")
 	}
 
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "marshal instance")
 	}
 
 	created := make(chan dbaas.Msg)
@@ -306,7 +308,7 @@ func (p *Controller) listenUpdateChannels(created chan dbaas.Msg, msg chan dbaas
 func (p *Controller) createDbservice(instance *ServiceInstance) (*dbaas.Cmd, error) {
 	dbservice, err := dbaas.New(p.EnvName)
 	if err != nil {
-		return &dbaas.Cmd{}, err
+		return nil, errors.Wrap(err, "create dbservice")
 	}
 	dbservice.Namespace = instance.Context.Namespace
 
