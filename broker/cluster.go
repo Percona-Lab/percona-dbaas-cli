@@ -77,7 +77,7 @@ func (p *Controller) DeployPSMDBCluster(instance ServiceInstance, skipS3Storage 
 
 	brokerInstance, err := json.Marshal(instance)
 	if err != nil {
-		errors.Wrap(err, "marshal instance")
+		return errors.Wrap(err, "marshal instance")
 	}
 
 	app := psmdb.New(instance.Parameters.ClusterName, instance.Parameters.ClusterName, defaultVersion, "")
