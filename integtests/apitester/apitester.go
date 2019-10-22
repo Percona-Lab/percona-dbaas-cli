@@ -3,28 +3,21 @@ package apitester
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/http/httptest"
 	"time"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/broker"
 	"github.com/Percona-Lab/percona-dbaas-cli/integtests/datafactory"
+	"github.com/Percona-Lab/percona-dbaas-cli/integtests/structs"
 )
 
 // Config describes apitester configuration
 type Config struct {
 	Address string
-	Cases   []Case
-}
-
-type Case struct {
-	Endpoint string
-	ReqType  string
-	ReqData  []byte
-	RespData string
+	Cases   []structs.CaseData
 }
 
 // New return new apitester
@@ -50,54 +43,98 @@ func (c *Config) Run() error {
 	return nil
 }
 
-func (c *Config) check(testCase Case) error {
-	controller, err := broker.New()
-	ts := httptest.NewServer(http.HandlerFunc(controller.CreateServiceInstance))
-	defer ts.Close()
-
-	if testCase.Endpoint == datafactory.GetGetPXCInstanceData().Endpoint {
-		return c.checkStatus(ts, testCase)
+func (c *Config) check(testCase structs.CaseData) error {
+	if testCase.ReqType == "GET" && testCase.RespStatus == 200 {
+		return c.checkStatus(testCase)
 	}
-	respData, respStatus, err := c.Request(ts.URL, testCase.ReqType, testCase.ReqData)
+	respData, respStatus, err := c.Request(c.Address+testCase.Endpoint, testCase.ReqType, testCase.ReqData)
 	if err != nil {
 		return err
 	}
-	if respStatus != http.StatusOK || respStatus != http.StatusAccepted {
-		log.Println(respStatus)
+	if respStatus != testCase.RespStatus {
 		return fmt.Errorf("Wrong status")
 	}
-	log.Println(respStatus, string(respData))
-	if len(testCase.ReqData) > 0 && string(respData) != testCase.RespData {
-		return fmt.Errorf("Wrong responce")
+	err = checkRespData(testCase.RespData, respData)
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
-func (c *Config) checkStatus(ts *httptest.Server, testCase Case) error {
+type GetInstanceResp struct {
+	LastOperatiom struct {
+		State       string `json:"state"`
+		Description string `json:"description"`
+	} `json:"last_operation"`
+}
+
+func (c *Config) checkStatus(testCase structs.CaseData) error {
 	startTime := time.Now()
-	endTime := startTime.Local().Add(time.Second * time.Duration(180))
+	endTime := startTime.Local().Add(time.Second * time.Duration(250))
 	ticker := time.NewTicker(2 * time.Second)
 
 	var instResp GetInstanceResp
 	for t := range ticker.C {
-		respData, _, err := c.Request(ts.URL, testCase.ReqType, testCase.ReqData)
+		respData, status, err := c.Request(c.Address+testCase.Endpoint, testCase.ReqType, testCase.ReqData)
 		if err != nil {
 			return err
 		}
 		err = json.Unmarshal(respData, &instResp)
 		if err != nil {
-			return err
+			log.Println(err)
+			continue
 		}
-		if instResp.State != "succeeded" {
+
+		if instResp.LastOperatiom.State == "succeeded" {
+			fmt.Println()
+			ticker.Stop()
+			if status != testCase.RespStatus {
+				return errors.New("Wrong resp status")
+			}
+			err := checkRespData(testCase.RespData, respData)
+			if err != nil {
+				return err
+			}
 			return nil
 		}
+		fmt.Printf("\r Wait for cluster. %v tries left  ", (endTime.Unix()-t.Unix())/2)
 		if t.Unix() >= endTime.Unix() {
 			ticker.Stop()
+			fmt.Println()
 			return fmt.Errorf("cluster not started")
 		}
 	}
-	ticker.Stop()
 
+	return nil
+}
+
+func checkRespData(waitData, respData []byte) error {
+	if len(waitData) == 0 && len(respData) == 0 {
+		return nil
+	}
+	var respInst structs.ServiceInstance
+	var waitInst structs.ServiceInstance
+	err := json.Unmarshal(waitData, &waitInst)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(respData, &respInst)
+	if err != nil {
+		return err
+	}
+	if respInst.LastOperation.State != waitInst.LastOperation.State {
+		return errors.New("wrong state")
+	}
+	if respInst.Parameters.Replicas != waitInst.Parameters.Replicas {
+		return errors.New("wrong replicas number")
+	}
+	if respInst.Parameters.ClusterName != waitInst.Parameters.ClusterName {
+		return errors.New("wrong cluster name")
+	}
+	if respInst.ID != waitInst.ID {
+		return errors.New("wrong ID")
+	}
 	return nil
 }
 
@@ -117,83 +154,22 @@ func (c *Config) Request(address, reqType string, reqBody []byte) ([]byte, int, 
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return body, resp.StatusCode, nil
 }
 
 func (t *Config) setCases() {
-	createPXCInstanceData := datafactory.GetCreatePXCInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: createPXCInstanceData.Endpoint,
-		ReqType:  createPXCInstanceData.ReqType,
-		ReqData:  createPXCInstanceData.ReqData,
-		RespData: createPXCInstanceData.RespData,
-	})
-	getPXCInstanceData := datafactory.GetGetPXCInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: getPXCInstanceData.Endpoint,
-		ReqType:  getPXCInstanceData.ReqType,
-		ReqData:  getPXCInstanceData.ReqData,
-		RespData: getPXCInstanceData.RespData,
-	})
-	updatePXCInstanceData := datafactory.GetGetPXCInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: updatePXCInstanceData.Endpoint,
-		ReqType:  updatePXCInstanceData.ReqType,
-		ReqData:  updatePXCInstanceData.ReqData,
-		RespData: updatePXCInstanceData.RespData,
-	})
-	getPXCInstanceData = datafactory.GetGetPXCInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: getPXCInstanceData.Endpoint,
-		ReqType:  getPXCInstanceData.ReqType,
-		ReqData:  getPXCInstanceData.ReqData,
-		RespData: getPXCInstanceData.RespData,
-	})
-	deletePXCInstanceData := datafactory.GetDeletePXCInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: deletePXCInstanceData.Endpoint,
-		ReqType:  deletePXCInstanceData.ReqType,
-		ReqData:  deletePXCInstanceData.ReqData,
-		RespData: deletePXCInstanceData.RespData,
-	})
-	createPSMDBInstanceData := datafactory.GetCreatePSMDBInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: createPSMDBInstanceData.Endpoint,
-		ReqType:  createPSMDBInstanceData.ReqType,
-		ReqData:  createPSMDBInstanceData.ReqData,
-		RespData: createPSMDBInstanceData.RespData,
-	})
-	getPSMDBInstanceData := datafactory.GetGetPSMDBInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: getPSMDBInstanceData.Endpoint,
-		ReqType:  getPSMDBInstanceData.ReqType,
-		ReqData:  getPSMDBInstanceData.ReqData,
-		RespData: getPSMDBInstanceData.RespData,
-	})
-	updatePSMDBInstanceData := datafactory.GetGetPSMDBInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: updatePSMDBInstanceData.Endpoint,
-		ReqType:  updatePSMDBInstanceData.ReqType,
-		ReqData:  updatePSMDBInstanceData.ReqData,
-		RespData: updatePSMDBInstanceData.RespData,
-	})
-	getPSMDBInstanceData = datafactory.GetGetPSMDBInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: getPSMDBInstanceData.Endpoint,
-		ReqType:  getPSMDBInstanceData.ReqType,
-		ReqData:  getPSMDBInstanceData.ReqData,
-		RespData: getPSMDBInstanceData.RespData,
-	})
-	deletePSMDBInstanceData := datafactory.GetDeletePSMDBInstanceData()
-	t.Cases = append(t.Cases, Case{
-		Endpoint: deletePSMDBInstanceData.Endpoint,
-		ReqType:  deletePSMDBInstanceData.ReqType,
-		ReqData:  deletePSMDBInstanceData.ReqData,
-		RespData: deletePSMDBInstanceData.RespData,
-	})
-}
+	t.Cases = append(t.Cases, datafactory.GetCreatePXCInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetGetPXCInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetUpdatePXCInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetGetPXCInstanceUpdatedData())
+	t.Cases = append(t.Cases, datafactory.GetDeletePXCInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetGetDeletedPXCInstanceData())
 
-type GetInstanceResp struct {
-	State       string `json:"state"`
-	Description string `json:"description"`
+	t.Cases = append(t.Cases, datafactory.GetCreatePSMDBInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetGetPSMDBInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetUpdatePSMDBInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetGetPSMDBInstanceUpdatedData())
+	t.Cases = append(t.Cases, datafactory.GetDeletePSMDBInstanceData())
+	t.Cases = append(t.Cases, datafactory.GetGetDeletedPSMDBInstanceData())
 }
