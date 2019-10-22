@@ -237,7 +237,7 @@ func (p *Controller) UpdatePXCCluster(instance *ServiceInstance) error {
 	app.ClusterConfig = conf
 
 	go dbservice.Edit("pxc", app, nil, created, msg, cerr)
-	p.listenUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
+	go p.listenUpdateChannels(created, msg, cerr, instance.ID, "pxc", p.dbaas)
 
 	return nil
 }
@@ -267,7 +267,7 @@ func (p *Controller) UpdatePSMDBCluster(instance *ServiceInstance) error {
 	app.ClusterConfig = conf
 
 	go dbservice.Edit("psmdb", app, nil, created, msg, cerr)
-	p.listenUpdateChannels(created, msg, cerr, instance.ID, "psmdb", p.dbaas)
+	go p.listenUpdateChannels(created, msg, cerr, instance.ID, "psmdb", p.dbaas)
 
 	return nil
 }
