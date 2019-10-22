@@ -38,7 +38,7 @@ func (s *Server) Start() {
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}/last_operation", s.controller.GetServiceInstanceLastOperation).Methods("GET")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.WrapWithServiceInstance(s.controller.CreateServiceInstance)).Methods("PUT")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.WrapWithServiceInstance(s.controller.UpdateServiceInstance)).Methods("UPDATE")
-	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.WrapWithServiceInstance(s.controller.RemoveServiceInstance)).Methods("DELETE")
+	router.HandleFunc("/v2/service_instances/{service_instance_guid}", s.controller.WrapWithServiceInstanceByID(s.controller.RemoveServiceInstance)).Methods("DELETE")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}/service_bindings/{service_binding_guid}", s.controller.Bind).Methods("PUT")
 	router.HandleFunc("/v2/service_instances/{service_instance_guid}/service_bindings/{service_binding_guid}", s.controller.UnBind).Methods("DELETE")
 	router.HandleFunc("/v2/gcloud", s.controller.Gcloud).Methods("POST")
