@@ -271,6 +271,15 @@ func (c *Controller) WrapWithServiceInstance(handler func(w http.ResponseWriter,
 	}
 }
 
+func (c *Controller) WrapWithServiceInstanceByID(handler func(w http.ResponseWriter, r *http.Request, instance ServiceInstance)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		instanceID := ExtractVarsFromRequest(r, "service_instance_guid")
+		instance := c.instanceMap[instanceID]
+
+		handler(w, r, *instance)
+	}
+}
+
 func (c *Controller) CreateServiceInstance(w http.ResponseWriter, r *http.Request, instance ServiceInstance) {
 	log.Println("Create Service Instance...")
 	if _, ok := c.instanceMap[instance.ID]; ok {
