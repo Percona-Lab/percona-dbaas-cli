@@ -18,17 +18,41 @@ func GetCreatePXCInstanceData() structs.CaseData {
 				}
 			}`),
 		RespStatus: 202,
-		RespData:   []byte(`{"dashboard_url":"","last_operation":{"state":"in progress","description":"creating service instance...","async_poll_interval_seconds":10}}`),
+		RespData: structs.ServiceInstance{
+			LastOperation: &structs.LastOperation{
+				State:                    "in progress",
+				Description:              "creating service instance...",
+				AsyncPollIntervalSeconds: 10,
+			},
+		},
 	}
 }
 
+type parameters struct {
+	structs.Parameters
+}
+
 func GetGetPXCInstanceData() structs.CaseData {
+	var params parameters
+	params.ClusterName = "test-pxc"
+	params.Replicas = 3
+
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-pxc-instance",
 		ReqType:    "GET",
 		ReqData:    []byte(``),
 		RespStatus: 200,
-		RespData:   []byte(`{"id":"test-pxc-instance","dashboard_url":"","internalId":"test-pxc-instance","service_id":"percona-xtradb-cluster-id","plan_id":"percona-xtradb-id","organization_guid":"","space_guid":"","last_operation":{"state":"succeeded","description":"successfully created service instance","async_poll_interval_seconds":10},"parameters":{"cluster_name":"test-pxc","replicas":3,"proxy_sql_replicas":1,"topology_key":"none","size":"1Gi"},"context":{},"credentials":{"host":"","port":0,"users":{"clustercheck":"dkpPNjNYTUZUYmJyaldRRkNz","monitor":"MDU3QWFjcDJZOXdTMjg5M0pz","proxyadmin":"UlFQWUg1dTNjdWpSU0FaUzFKMQ==","root":"djBSOENpeUk3TWU0T1pBOVlR","xtrabackup":"anlRMVZiUkdyT09GRXJIdHRDWA=="}},"credentialData":{"message":"MySQL cluster started successfully","host":"test-pxc-proxysql","port":3306,"user":"root","pass":"v0R8CiyI7Me4OZA9YQ"}}`),
+		RespData: structs.ServiceInstance{
+			ID:        "test-pxc-instance",
+			ServiceID: "percona-xtradb-cluster-id",
+			PlanID:    "percona-xtradb-id",
+			LastOperation: &structs.LastOperation{
+				State:                    "succeeded",
+				Description:              "successfully created service instance",
+				AsyncPollIntervalSeconds: 10,
+			},
+			Parameters: params,
+		},
 	}
 }
 
@@ -45,16 +69,35 @@ func GetUpdatePXCInstanceData() structs.CaseData {
 				}
 			}`),
 		RespStatus: 202,
-		RespData:   []byte(`{"dashboard_url":"","last_operation":{"state":"in progress","description":"creating service instance...","async_poll_interval_seconds":10}}`),
+		RespData: structs.ServiceInstance{
+			LastOperation: &structs.LastOperation{
+				State:                    "in progress",
+				Description:              "creating service instance...",
+				AsyncPollIntervalSeconds: 10,
+			},
+		},
 	}
 }
 func GetGetPXCInstanceUpdatedData() structs.CaseData {
+	var params parameters
+	params.ClusterName = "test-pxc"
+	params.Replicas = 5
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-pxc-instance",
 		ReqType:    "GET",
 		ReqData:    []byte(``),
 		RespStatus: 200,
-		RespData:   []byte(`{"id":"test-pxc-instance","dashboard_url":"","internalId":"test-pxc-instance","service_id":"percona-xtradb-cluster-id","plan_id":"percona-xtradb-id","organization_guid":"","space_guid":"","last_operation":{"state":"succeeded","description":"successfully created service instance","async_poll_interval_seconds":10},"parameters":{"cluster_name":"test-pxc","replicas":5},"context":{},"credentials":{"host":"","port":0,"users":{"clustercheck":"dkpPNjNYTUZUYmJyaldRRkNz","monitor":"MDU3QWFjcDJZOXdTMjg5M0pz","proxyadmin":"UlFQWUg1dTNjdWpSU0FaUzFKMQ==","root":"djBSOENpeUk3TWU0T1pBOVlR","xtrabackup":"anlRMVZiUkdyT09GRXJIdHRDWA=="}},"credentialData":null}`),
+		RespData: structs.ServiceInstance{
+			ID:        "test-pxc-instance",
+			ServiceID: "percona-xtradb-cluster-id",
+			PlanID:    "percona-xtradb-id",
+			LastOperation: &structs.LastOperation{
+				State:                    "succeeded",
+				Description:              "successfully created service instance",
+				AsyncPollIntervalSeconds: 10,
+			},
+			Parameters: params,
+		},
 	}
 }
 
@@ -64,7 +107,6 @@ func GetDeletePXCInstanceData() structs.CaseData {
 		ReqType:    "DELETE",
 		ReqData:    []byte(``),
 		RespStatus: 200,
-		RespData:   []byte(""),
 	}
 }
 
@@ -74,7 +116,6 @@ func GetGetDeletedPXCInstanceData() structs.CaseData {
 		ReqType:    "GET",
 		ReqData:    []byte(``),
 		RespStatus: 404,
-		RespData:   []byte(""),
 	}
 }
 
@@ -93,17 +134,36 @@ func GetCreatePSMDBInstanceData() structs.CaseData {
 				}
 			}`),
 		RespStatus: 202,
-		RespData:   []byte(`{"dashboard_url":"","last_operation":{"state":"in progress","description":"creating service instance...","async_poll_interval_seconds":10}}`),
+		RespData: structs.ServiceInstance{
+			LastOperation: &structs.LastOperation{
+				State:                    "in progress",
+				Description:              "creating service instance...",
+				AsyncPollIntervalSeconds: 10,
+			},
+		},
 	}
 }
 
 func GetGetPSMDBInstanceData() structs.CaseData {
+	var params parameters
+	params.ClusterName = "test-psmdb"
+	params.Replicas = 3
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-psmdb-instance",
 		ReqType:    "GET",
 		ReqData:    []byte(``),
 		RespStatus: 200,
-		RespData:   []byte(`{"id":"test-psmdb-instance","dashboard_url":"","internalId":"test-psmdb-instance","service_id":"percona-server-for-mongodb-id","plan_id":"percona-server-for-mongodb-id","organization_guid":"","space_guid":"","last_operation":{"state":"succeeded","description":"successfully created service instance","async_poll_interval_seconds":10},"parameters":{"cluster_name":"test-psmdb","replicas":3,"topology_key":"none","size":"1Gi"},"context":{},"credentials":{"host":"","port":0,"users":{"MONGODB_BACKUP_PASSWORD":"T1UxQnRWV2s3dGdyZVdsUQ==","MONGODB_BACKUP_USER":"YmFja3Vw","MONGODB_CLUSTER_ADMIN_PASSWORD":"eU1pZnVPOEpjMmY5Y2RjdGs=","MONGODB_CLUSTER_ADMIN_USER":"Y2x1c3RlckFkbWlu","MONGODB_CLUSTER_MONITOR_PASSWORD":"NVYxdzZCcm4zVFhSZEdkV283QQ==","MONGODB_CLUSTER_MONITOR_USER":"Y2x1c3Rlck1vbml0b3I=","MONGODB_USER_ADMIN_PASSWORD":"S0c3ZVlmQ0EzRFoxQlRtSQ==","MONGODB_USER_ADMIN_USER":"dXNlckFkbWlu"}},"credentialData":{"message":"MomgoDB cluster started successfully","host":"test-psmdb-test-psmdb-0.test-psmdb-test-psmdb","port":27017,"clusterAdminUser":"clusterAdmin","clusterAdminPass":"5V1w6Brn3TXRdGdWo7A","userAdminUser":"userAdmin","userAdminPass":"KG7eYfCA3DZ1BTmI"}}`),
+		RespData: structs.ServiceInstance{
+			ID:        "test-psmdb-instance",
+			ServiceID: "percona-server-for-mongodb-id",
+			PlanID:    "percona-server-for-mongodb-id",
+			LastOperation: &structs.LastOperation{
+				State:                    "succeeded",
+				Description:              "successfully created service instance",
+				AsyncPollIntervalSeconds: 10,
+			},
+			Parameters: params,
+		},
 	}
 }
 
@@ -120,17 +180,36 @@ func GetUpdatePSMDBInstanceData() structs.CaseData {
 				}
 			}`),
 		RespStatus: 202,
-		RespData:   []byte(`{"dashboard_url":"","last_operation":{"state":"in progress","description":"creating service instance...","async_poll_interval_seconds":10}}`),
+		RespData: structs.ServiceInstance{
+			LastOperation: &structs.LastOperation{
+				State:                    "in progress",
+				Description:              "creating service instance...",
+				AsyncPollIntervalSeconds: 10,
+			},
+		},
 	}
 }
 
 func GetGetPSMDBInstanceUpdatedData() structs.CaseData {
+	var params parameters
+	params.ClusterName = "test-psmdb"
+	params.Replicas = 5
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-psmdb-instance",
 		ReqType:    "GET",
 		ReqData:    []byte(``),
 		RespStatus: 200,
-		RespData:   []byte(`{"id":"test-psmdb-instance","dashboard_url":"","internalId":"test-psmdb-instance","service_id":"percona-server-for-mongodb-id","plan_id":"percona-server-for-mongodb-id","organization_guid":"","space_guid":"","last_operation":{"state":"succeeded","description":"successfully created service instance","async_poll_interval_seconds":10},"parameters":{"cluster_name":"test-psmdb","replicas":5},"context":{},"credentials":{"host":"","port":0,"users":{"MONGODB_BACKUP_PASSWORD":"T1UxQnRWV2s3dGdyZVdsUQ==","MONGODB_BACKUP_USER":"YmFja3Vw","MONGODB_CLUSTER_ADMIN_PASSWORD":"eU1pZnVPOEpjMmY5Y2RjdGs=","MONGODB_CLUSTER_ADMIN_USER":"Y2x1c3RlckFkbWlu","MONGODB_CLUSTER_MONITOR_PASSWORD":"NVYxdzZCcm4zVFhSZEdkV283QQ==","MONGODB_CLUSTER_MONITOR_USER":"Y2x1c3Rlck1vbml0b3I=","MONGODB_USER_ADMIN_PASSWORD":"S0c3ZVlmQ0EzRFoxQlRtSQ==","MONGODB_USER_ADMIN_USER":"dXNlckFkbWlu"}},"credentialData":null}`),
+		RespData: structs.ServiceInstance{
+			ID:        "test-psmdb-instance",
+			ServiceID: "percona-server-for-mongodb-id",
+			PlanID:    "percona-server-for-mongodb-id",
+			LastOperation: &structs.LastOperation{
+				State:                    "succeeded",
+				Description:              "successfully created service instance",
+				AsyncPollIntervalSeconds: 10,
+			},
+			Parameters: params,
+		},
 	}
 }
 
@@ -140,7 +219,6 @@ func GetDeletePSMDBInstanceData() structs.CaseData {
 		ReqType:    "DELETE",
 		ReqData:    []byte(``),
 		RespStatus: 200,
-		RespData:   []byte(""),
 	}
 }
 
@@ -150,6 +228,5 @@ func GetGetDeletedPSMDBInstanceData() structs.CaseData {
 		ReqType:    "GET",
 		ReqData:    []byte(``),
 		RespStatus: 404,
-		RespData:   []byte(""),
 	}
 }

@@ -550,7 +550,7 @@ PRODUCT=percona-dbaas-cli
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 PSM_BRANCH=${BRANCH}
 
-
+ echo 'start'
 check_workdir
 get_system
 install_deps
