@@ -3,7 +3,6 @@ package apitester
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/Percona-Lab/percona-dbaas-cli/integtests/datafactory"
 	"github.com/Percona-Lab/percona-dbaas-cli/integtests/structs"
+	"github.com/pkg/errors"
 )
 
 // Config describes apitester configuration
@@ -101,14 +101,14 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 }
 
 func checkRespData(expected structs.ServiceInstance, respData []byte) error {
-	if &expected == nil && len(respData) == 0 {
+	if expected.LastOperation == nil && len(respData) == 0 {
 		return nil
 	}
 	var respInst structs.ServiceInstance
 
 	err := json.Unmarshal(respData, &respInst)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "check responce unmarshal")
 	}
 	if respInst.LastOperation.State != expected.LastOperation.State {
 		return errors.New("wrong state")
