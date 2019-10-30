@@ -2,7 +2,7 @@ package datafactory
 
 import "github.com/Percona-Lab/percona-dbaas-cli/integtests/structs"
 
-func GetCreatePXCInstanceData() structs.CaseData {
+func CreatePXCInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint: "/v2/service_instances/test-pxc-instance",
 		ReqType:  "PUT",
@@ -32,7 +32,7 @@ type parameters struct {
 	structs.Parameters
 }
 
-func GetGetPXCInstanceData() structs.CaseData {
+func GetPXCInstanceData() structs.CaseData {
 	var params parameters
 	params.ClusterName = "test-pxc"
 	params.Replicas = 3
@@ -56,7 +56,7 @@ func GetGetPXCInstanceData() structs.CaseData {
 	}
 }
 
-func GetUpdatePXCInstanceData() structs.CaseData {
+func UpdatePXCInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint: "/v2/service_instances/test-pxc-instance",
 		ReqType:  "UPDATE",
@@ -78,7 +78,7 @@ func GetUpdatePXCInstanceData() structs.CaseData {
 		},
 	}
 }
-func GetGetPXCInstanceUpdatedData() structs.CaseData {
+func GetPXCInstanceUpdatedData() structs.CaseData {
 	var params parameters
 	params.ClusterName = "test-pxc"
 	params.Replicas = 5
@@ -101,7 +101,7 @@ func GetGetPXCInstanceUpdatedData() structs.CaseData {
 	}
 }
 
-func GetDeletePXCInstanceData() structs.CaseData {
+func DeletePXCInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-pxc-instance",
 		ReqType:    "DELETE",
@@ -110,7 +110,7 @@ func GetDeletePXCInstanceData() structs.CaseData {
 	}
 }
 
-func GetGetDeletedPXCInstanceData() structs.CaseData {
+func GetDeletedPXCInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-pxc-instance",
 		ReqType:    "GET",
@@ -119,7 +119,7 @@ func GetGetDeletedPXCInstanceData() structs.CaseData {
 	}
 }
 
-func GetCreatePSMDBInstanceData() structs.CaseData {
+func CreatePSMDBInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint: "/v2/service_instances/test-psmdb-instance",
 		ReqType:  "PUT",
@@ -144,7 +144,7 @@ func GetCreatePSMDBInstanceData() structs.CaseData {
 	}
 }
 
-func GetGetPSMDBInstanceData() structs.CaseData {
+func GetPSMDBInstanceData() structs.CaseData {
 	var params parameters
 	params.ClusterName = "test-psmdb"
 	params.Replicas = 3
@@ -167,7 +167,7 @@ func GetGetPSMDBInstanceData() structs.CaseData {
 	}
 }
 
-func GetUpdatePSMDBInstanceData() structs.CaseData {
+func UpdatePSMDBInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint: "/v2/service_instances/test-psmdb-instance",
 		ReqType:  "UPDATE",
@@ -190,7 +190,7 @@ func GetUpdatePSMDBInstanceData() structs.CaseData {
 	}
 }
 
-func GetGetPSMDBInstanceUpdatedData() structs.CaseData {
+func GetPSMDBInstanceUpdatedData() structs.CaseData {
 	var params parameters
 	params.ClusterName = "test-psmdb"
 	params.Replicas = 5
@@ -213,7 +213,7 @@ func GetGetPSMDBInstanceUpdatedData() structs.CaseData {
 	}
 }
 
-func GetDeletePSMDBInstanceData() structs.CaseData {
+func DeletePSMDBInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-psmdb-instance",
 		ReqType:    "DELETE",
@@ -222,7 +222,7 @@ func GetDeletePSMDBInstanceData() structs.CaseData {
 	}
 }
 
-func GetGetDeletedPSMDBInstanceData() structs.CaseData {
+func GetDeletedPSMDBInstanceData() structs.CaseData {
 	return structs.CaseData{
 		Endpoint:   "/v2/service_instances/test-psmdb-instance",
 		ReqType:    "GET",

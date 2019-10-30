@@ -146,17 +146,17 @@ func (c *Config) Request(address, reqType string, reqBody []byte) ([]byte, int, 
 }
 
 func (c *Config) setCases() {
-	c.Cases = append(c.Cases, datafactory.GetCreatePXCInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetGetPXCInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetUpdatePXCInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetGetPXCInstanceUpdatedData())
-	c.Cases = append(c.Cases, datafactory.GetDeletePXCInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetGetDeletedPXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.CreatePXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetPXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.UpdatePXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetPXCInstanceUpdatedData())
+	c.Cases = append(c.Cases, datafactory.DeletePXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetDeletedPXCInstanceData())
 
-	c.Cases = append(c.Cases, datafactory.GetCreatePSMDBInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetGetPSMDBInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetUpdatePSMDBInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetGetPSMDBInstanceUpdatedData())
-	c.Cases = append(c.Cases, datafactory.GetDeletePSMDBInstanceData())
-	c.Cases = append(c.Cases, datafactory.GetGetDeletedPSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.CreatePSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetPSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.UpdatePSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetPSMDBInstanceUpdatedData())
+	c.Cases = append(c.Cases, datafactory.DeletePSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetDeletedPSMDBInstanceData())
 }
