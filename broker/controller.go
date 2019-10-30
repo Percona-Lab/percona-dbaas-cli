@@ -141,6 +141,7 @@ type EnvironmentRequest struct {
 }
 
 func (c *Controller) Environment(w http.ResponseWriter, r *http.Request) {
+	log.Println("Set environment...")
 	var envReq EnvironmentRequest
 	err := ProvisionDataFromRequest(r, &envReq)
 	if err != nil {
