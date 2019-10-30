@@ -5,5 +5,5 @@ type CaseData struct {
 	ReqType    string
 	ReqData    []byte
 	RespStatus int
-	RespData   []byte
+	RespData   ServiceInstance
 }

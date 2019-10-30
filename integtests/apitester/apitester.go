@@ -70,7 +70,7 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 	startTime := time.Now()
 	endTime := startTime.Add(time.Second * 250)
 	ticker := time.NewTicker(2 * time.Second)
-
+	defer ticker.Stop()
 	var instResp GetInstanceResp
 	for t := range ticker.C {
 		respData, status, err := c.Request(c.Address+testCase.Endpoint, testCase.ReqType, testCase.ReqData)
@@ -85,7 +85,6 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 
 		if instResp.LastOperation.State == "succeeded" {
 			fmt.Println() // just for create new line after ticker
-			ticker.Stop()
 			if status != testCase.RespStatus {
 				return errors.New("Wrong resp status. Have '" + instResp.LastOperation.State + "', want 'succeeded'")
 			}
@@ -93,7 +92,6 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 		}
 		fmt.Printf("\r Wait for cluster. %v tries left  ", (endTime.Unix()-t.Unix())/2)
 		if t.Unix() >= endTime.Unix() {
-			ticker.Stop()
 			fmt.Println() // just for create new line after ticker
 			return fmt.Errorf("cluster not started")
 		}
@@ -102,30 +100,26 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 	return nil
 }
 
-func checkRespData(expected, respData []byte) error {
-	if len(expected) == 0 && len(respData) == 0 {
+func checkRespData(expected structs.ServiceInstance, respData []byte) error {
+	if &expected == nil && len(respData) == 0 {
 		return nil
 	}
 	var respInst structs.ServiceInstance
-	var expectInst structs.ServiceInstance
-	err := json.Unmarshal(expected, &expectInst)
+
+	err := json.Unmarshal(respData, &respInst)
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(respData, &respInst)
-	if err != nil {
-		return err
-	}
-	if respInst.LastOperation.State != expectInst.LastOperation.State {
+	if respInst.LastOperation.State != expected.LastOperation.State {
 		return errors.New("wrong state")
 	}
-	if respInst.Parameters.Replicas != expectInst.Parameters.Replicas {
+	if respInst.Parameters.Replicas != expected.Parameters.Replicas {
 		return errors.New("wrong replicas number")
 	}
-	if respInst.Parameters.ClusterName != expectInst.Parameters.ClusterName {
+	if respInst.Parameters.ClusterName != expected.Parameters.ClusterName {
 		return errors.New("wrong cluster name")
 	}
-	if respInst.ID != expectInst.ID {
+	if respInst.ID != expected.ID {
 		return errors.New("wrong ID")
 	}
 	return nil
@@ -151,18 +145,18 @@ func (c *Config) Request(address, reqType string, reqBody []byte) ([]byte, int, 
 	return body, resp.StatusCode, nil
 }
 
-func (t *Config) setCases() {
-	t.Cases = append(t.Cases, datafactory.GetCreatePXCInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetGetPXCInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetUpdatePXCInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetGetPXCInstanceUpdatedData())
-	t.Cases = append(t.Cases, datafactory.GetDeletePXCInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetGetDeletedPXCInstanceData())
+func (c *Config) setCases() {
+	c.Cases = append(c.Cases, datafactory.GetCreatePXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetGetPXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetUpdatePXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetGetPXCInstanceUpdatedData())
+	c.Cases = append(c.Cases, datafactory.GetDeletePXCInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetGetDeletedPXCInstanceData())
 
-	t.Cases = append(t.Cases, datafactory.GetCreatePSMDBInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetGetPSMDBInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetUpdatePSMDBInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetGetPSMDBInstanceUpdatedData())
-	t.Cases = append(t.Cases, datafactory.GetDeletePSMDBInstanceData())
-	t.Cases = append(t.Cases, datafactory.GetGetDeletedPSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetCreatePSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetGetPSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetUpdatePSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetGetPSMDBInstanceUpdatedData())
+	c.Cases = append(c.Cases, datafactory.GetDeletePSMDBInstanceData())
+	c.Cases = append(c.Cases, datafactory.GetGetDeletedPSMDBInstanceData())
 }
