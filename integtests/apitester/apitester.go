@@ -44,8 +44,9 @@ func (c *Config) Run() error {
 }
 
 func (c *Config) check(testCase structs.CaseData) error {
+	// Here we waitning
 	if testCase.ReqType == "GET" && testCase.RespStatus == 200 {
-		return c.checkStatus(testCase)
+		return c.waitForSucceed(testCase)
 	}
 	respData, respStatus, err := c.Request(c.Address+testCase.Endpoint, testCase.ReqType, testCase.ReqData)
 	if err != nil {
@@ -54,24 +55,20 @@ func (c *Config) check(testCase structs.CaseData) error {
 	if respStatus != testCase.RespStatus {
 		return fmt.Errorf("Wrong status")
 	}
-	err = checkRespData(testCase.RespData, respData)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return checkRespData(testCase.RespData, respData)
 }
 
 type GetInstanceResp struct {
-	LastOperatiom struct {
+	LastOperation struct {
 		State       string `json:"state"`
 		Description string `json:"description"`
 	} `json:"last_operation"`
 }
 
-func (c *Config) checkStatus(testCase structs.CaseData) error {
+func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 	startTime := time.Now()
-	endTime := startTime.Local().Add(time.Second * time.Duration(250))
+	endTime := startTime.Add(time.Second * 250)
 	ticker := time.NewTicker(2 * time.Second)
 
 	var instResp GetInstanceResp
@@ -86,22 +83,18 @@ func (c *Config) checkStatus(testCase structs.CaseData) error {
 			continue
 		}
 
-		if instResp.LastOperatiom.State == "succeeded" {
-			fmt.Println()
+		if instResp.LastOperation.State == "succeeded" {
+			fmt.Println() // just for create new line after ticker
 			ticker.Stop()
 			if status != testCase.RespStatus {
-				return errors.New("Wrong resp status")
+				return errors.New("Wrong resp status. Have '" + instResp.LastOperation.State + "', want 'succeeded'")
 			}
-			err := checkRespData(testCase.RespData, respData)
-			if err != nil {
-				return err
-			}
-			return nil
+			return checkRespData(testCase.RespData, respData)
 		}
 		fmt.Printf("\r Wait for cluster. %v tries left  ", (endTime.Unix()-t.Unix())/2)
 		if t.Unix() >= endTime.Unix() {
 			ticker.Stop()
-			fmt.Println()
+			fmt.Println() // just for create new line after ticker
 			return fmt.Errorf("cluster not started")
 		}
 	}
@@ -109,13 +102,13 @@ func (c *Config) checkStatus(testCase structs.CaseData) error {
 	return nil
 }
 
-func checkRespData(waitData, respData []byte) error {
-	if len(waitData) == 0 && len(respData) == 0 {
+func checkRespData(expected, respData []byte) error {
+	if len(expected) == 0 && len(respData) == 0 {
 		return nil
 	}
 	var respInst structs.ServiceInstance
-	var waitInst structs.ServiceInstance
-	err := json.Unmarshal(waitData, &waitInst)
+	var expectInst structs.ServiceInstance
+	err := json.Unmarshal(expected, &expectInst)
 	if err != nil {
 		return err
 	}
@@ -123,16 +116,16 @@ func checkRespData(waitData, respData []byte) error {
 	if err != nil {
 		return err
 	}
-	if respInst.LastOperation.State != waitInst.LastOperation.State {
+	if respInst.LastOperation.State != expectInst.LastOperation.State {
 		return errors.New("wrong state")
 	}
-	if respInst.Parameters.Replicas != waitInst.Parameters.Replicas {
+	if respInst.Parameters.Replicas != expectInst.Parameters.Replicas {
 		return errors.New("wrong replicas number")
 	}
-	if respInst.Parameters.ClusterName != waitInst.Parameters.ClusterName {
+	if respInst.Parameters.ClusterName != expectInst.Parameters.ClusterName {
 		return errors.New("wrong cluster name")
 	}
-	if respInst.ID != waitInst.ID {
+	if respInst.ID != expectInst.ID {
 		return errors.New("wrong ID")
 	}
 	return nil
