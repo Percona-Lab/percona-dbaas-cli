@@ -46,6 +46,26 @@ void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
         rm -rf $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
     """
 }
+
+void runIntegTest(String TEST_NAME, String CLUSTER_PREFIX) {
+    popArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
+    sh """
+         if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
+            echo Skip $TEST_NAME test
+        else
+            export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
+            source $HOME/google-cloud-sdk/path.bash.inc
+            go run integtests/main.go
+            touch $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
+        fi
+    """
+    pushArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
+
+    sh """
+        rm -rf $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
+    """
+}
+
 void installRpms() {
     sh """
         sudo yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
@@ -138,6 +158,12 @@ pipeline {
                     steps {
                         CreateCluster('pxc')
                         runTest('pxc', 'pxc')
+                    }
+                }
+                stage('Broker Tests') {
+                    steps {
+                        CreateCluster('service-broker')
+                        runIntegTest('service-broker', 'service-broker')
                     }
                 }
             }
