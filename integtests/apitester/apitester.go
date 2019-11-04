@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/integtests/datafactory"
@@ -35,7 +36,7 @@ func (c *Config) Run() error {
 		log.Println(testCase.Endpoint, testCase.ReqType)
 		err := c.check(testCase)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "check failed")
 		}
 		time.Sleep(5 * time.Second)
 	}
@@ -53,7 +54,7 @@ func (c *Config) check(testCase structs.CaseData) error {
 		return err
 	}
 	if respStatus != testCase.RespStatus {
-		return fmt.Errorf("Wrong status")
+		return errors.New("wrong resp status. Have '" + strconv.Itoa(respStatus) + "', want " + strconv.Itoa(testCase.RespStatus))
 	}
 
 	return checkRespData(testCase.RespData, respData)
@@ -67,15 +68,14 @@ type GetInstanceResp struct {
 }
 
 func (c *Config) waitForSucceed(testCase structs.CaseData) error {
-	startTime := time.Now()
-	endTime := startTime.Add(time.Second * 250)
+	endTime := time.Now().Add(time.Second * 250)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	var instResp GetInstanceResp
 	for t := range ticker.C {
 		respData, status, err := c.Request(c.Address+testCase.Endpoint, testCase.ReqType, testCase.ReqData)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "request")
 		}
 		err = json.Unmarshal(respData, &instResp)
 		if err != nil {
@@ -84,16 +84,16 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 		}
 
 		if instResp.LastOperation.State == "succeeded" {
-			fmt.Println() // just for create new line after ticker
+			fmt.Println() // print a new line after the ticker
 			if status != testCase.RespStatus {
-				return errors.New("Wrong resp status. Have '" + instResp.LastOperation.State + "', want 'succeeded'")
+				return errors.New("wrong resp status. Have '" + strconv.Itoa(status) + "', want " + strconv.Itoa(testCase.RespStatus))
 			}
 			return checkRespData(testCase.RespData, respData)
 		}
 		fmt.Printf("\r Wait for cluster. %v tries left  ", (endTime.Unix()-t.Unix())/2)
 		if t.Unix() >= endTime.Unix() {
-			fmt.Println() // just for create new line after ticker
-			return fmt.Errorf("cluster not started")
+			fmt.Println() // print a new line after the ticker
+			return errors.New("cluster not started")
 		}
 	}
 
@@ -111,16 +111,16 @@ func checkRespData(expected structs.ServiceInstance, respData []byte) error {
 		return errors.Wrap(err, "check responce unmarshal")
 	}
 	if respInst.LastOperation.State != expected.LastOperation.State {
-		return errors.New("wrong state")
+		return errors.New(fmt.Sprintf("wrong state. Have %s, want %s", respInst.LastOperation.State, expected.LastOperation.State))
 	}
 	if respInst.Parameters.Replicas != expected.Parameters.Replicas {
-		return errors.New("wrong replicas number")
+		return errors.New(fmt.Sprintf("wrong replicas number. Have %d, want %d", respInst.Parameters.Replicas, expected.Parameters.Replicas))
 	}
 	if respInst.Parameters.ClusterName != expected.Parameters.ClusterName {
-		return errors.New("wrong cluster name")
+		return errors.New(fmt.Sprintf("wrong cluster name. Have %s, want %s", respInst.Parameters.ClusterName, expected.Parameters.ClusterName))
 	}
 	if respInst.ID != expected.ID {
-		return errors.New("wrong ID")
+		return errors.New(fmt.Sprintf("wrong ID. Have %s, want %s", respInst.ID, expected.ID))
 	}
 	return nil
 }
@@ -130,16 +130,16 @@ func (c *Config) Request(address, reqType string, reqBody []byte) ([]byte, int, 
 	client := http.Client{}
 	req, err := http.NewRequest(reqType, address, bytes.NewReader(reqBody))
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "new request")
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "do request")
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "read body")
 	}
 
 	return body, resp.StatusCode, nil
