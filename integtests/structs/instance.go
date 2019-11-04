@@ -2,11 +2,11 @@ package structs
 
 const (
 	InProgressOperationSate        OperationState       = "in progress"
+	SucceedOperationState                               = "succeeded"
+	FailedOperationState                                = "failed"
 	InProgressOperationDescription OperationDescription = "creating service instance..."
-	SucceedOperationState          OperationState       = "succeeded"
-	SucceedOperationDescription    OperationDescription = "successfully created service instance"
-	FailedOperationState           OperationState       = "failed"
-	FailedOperationDescription     OperationDescription = "failed to create service instance"
+	SucceedOperationDescription                         = "successfully created service instance"
+	FailedOperationDescription                          = "failed to create service instance"
 )
 
 type ServiceInstance struct {
