@@ -28,7 +28,19 @@ void popArtifactFile(String FILE_NAME) {
         """
     }
 }
+
+TestsReport = '| Test name  | Status |\\r\\n| ------------- | ------------- |'
+testsReportMap = [:]
+
+void makeReport() {
+    for ( test in testsReportMap ) {
+        TestsReport = TestsReport + "\\r\\n| ${test.key} | ${test.value} |"
+    }
+}
+
 void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
+    testsReportMap[TEST_NAME] = 'failed'
+
     popArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
     sh """
          if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
@@ -40,6 +52,7 @@ void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
             touch $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
         fi
     """
+    testsReportMap[TEST_NAME] = 'passed'
     pushArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
 
     sh """
@@ -48,20 +61,31 @@ void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
 }
 
 void runIntegTest(String TEST_NAME, String CLUSTER_PREFIX) {
+    testsReportMap[TEST_NAME] = 'failed'
     popArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
     sh '''
-         if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
+         if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-'''+TEST_NAME+'''" ]; then
             echo Skip $TEST_NAME test
         else
-            export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
+            export KUBECONFIG=/tmp/'''+CLUSTER_NAME+'''-'''+CLUSTER_PREFIX+'''
+            export GOPATH=$(pwd)/go
+            export GO111MODULE="on"
             source $HOME/google-cloud-sdk/path.bash.inc
+
+            kubectl create namespace integtest
+            kubectl config set-context $(kubectl config current-context) --namespace=integtest
+
+            mkdir -p go/src/github.com/Percona-Lab/percona-dbaas-cli
+            cp -r broker cmd dbaas gcloud integtests packaging vendor go/src/github.com/Percona-Lab/percona-dbaas-cli
+            cd go/src/github.com/Percona-Lab/percona-dbaas-cli
             go run cmd/percona-dbaas/main.go service-broker &
             BROKER_PID="${!}"
-            go run integtests/main.go
-            touch $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
+            go run integtests/main.go -wait 30
+            touch $GIT_BRANCH-$GIT_SHORT_COMMIT-'''+TEST_NAME+'''
             kill -9 ${BROKER_PID}
         fi
     '''
+    testsReportMap[TEST_NAME] = 'passed'
     pushArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
 
     sh """
@@ -74,6 +98,7 @@ void installRpms() {
         sudo yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm || true
         sudo percona-release enable-only tools
         sudo yum install -y percona-xtrabackup-80 jq | true
+        sudo yum install -y golang
     """
 }
 
@@ -192,12 +217,21 @@ pipeline {
             }
             script {
                 if (env.CHANGE_URL) {
+                    withCredentials([string(credentialsId: 'GITHUB_API_TOKEN', variable: 'GITHUB_API_TOKEN')]) {
+                        makeReport()
+                        sh """
+                            curl -v -X POST \
+                                -H "Authorization: token ${GITHUB_API_TOKEN}" \
+                                -d "{\\"body\\":\\"${TestsReport}\\"}" \
+                                "https://api.github.com/repos/\$(echo $CHANGE_URL | cut -d '/' -f 4-5)/issues/${CHANGE_ID}/comments"
+                        """
+                    }
                     withCredentials([string(credentialsId: 'GCP_PROJECT_ID', variable: 'GCP_PROJECT'), file(credentialsId: 'gcloud-key-file', variable: 'CLIENT_SECRET_FILE')]) {
                     sh '''
                         source $HOME/google-cloud-sdk/path.bash.inc
                         gcloud auth activate-service-account --key-file $CLIENT_SECRET_FILE
                         gcloud config set project $GCP_PROJECT
-                        gcloud container clusters delete --zone us-central1-a $CLUSTER_NAME-pxc $CLUSTER_NAME-psmdb
+                        gcloud container clusters delete --zone us-central1-a $CLUSTER_NAME-pxc $CLUSTER_NAME-psmdb $CLUSTER_NAME-service-broker
                         sudo docker rmi -f \$(sudo docker images -q) || true
 
                         sudo rm -rf $HOME/google-cloud-sdk
