@@ -49,16 +49,19 @@ void runTest(String TEST_NAME, String CLUSTER_PREFIX) {
 
 void runIntegTest(String TEST_NAME, String CLUSTER_PREFIX) {
     popArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
-    sh """
+    sh '''
          if [ -f "$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME" ]; then
             echo Skip $TEST_NAME test
         else
             export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
             source $HOME/google-cloud-sdk/path.bash.inc
+            go run cmd/percona-dbaas/main.go service-broker &
+            BROKER_PID="${!}"
             go run integtests/main.go
             touch $GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME
+            kill -9 ${BROKER_PID}
         fi
-    """
+    '''
     pushArtifactFile("$GIT_BRANCH-$GIT_SHORT_COMMIT-$TEST_NAME")
 
     sh """
