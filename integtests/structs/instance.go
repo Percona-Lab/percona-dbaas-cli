@@ -3,10 +3,8 @@ package structs
 const (
 	InProgressOperationSate        OperationState       = "in progress"
 	SucceedOperationState                               = "succeeded"
-	FailedOperationState                                = "failed"
 	InProgressOperationDescription OperationDescription = "creating service instance..."
 	SucceedOperationDescription                         = "successfully created service instance"
-	FailedOperationDescription                          = "failed to create service instance"
 )
 
 type ServiceInstance struct {
