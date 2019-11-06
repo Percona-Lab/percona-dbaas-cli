@@ -20,8 +20,8 @@ func CreatePXCInstanceData() structs.CaseData {
 		RespStatus: 202,
 		RespData: structs.ServiceInstance{
 			LastOperation: &structs.LastOperation{
-				State:                    "in progress",
-				Description:              "creating service instance...",
+				State:                    structs.InProgressOperationSate,
+				Description:              structs.InProgressOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 		},
@@ -47,8 +47,8 @@ func GetPXCInstanceData() structs.CaseData {
 			ServiceID: "percona-xtradb-cluster-id",
 			PlanID:    "percona-xtradb-id",
 			LastOperation: &structs.LastOperation{
-				State:                    "succeeded",
-				Description:              "successfully created service instance",
+				State:                    structs.SucceedOperationState,
+				Description:              structs.SucceedOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 			Parameters: params,
@@ -71,8 +71,8 @@ func UpdatePXCInstanceData() structs.CaseData {
 		RespStatus: 202,
 		RespData: structs.ServiceInstance{
 			LastOperation: &structs.LastOperation{
-				State:                    "in progress",
-				Description:              "creating service instance...",
+				State:                    structs.InProgressOperationSate,
+				Description:              structs.InProgressOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 		},
@@ -92,8 +92,8 @@ func GetPXCInstanceUpdatedData() structs.CaseData {
 			ServiceID: "percona-xtradb-cluster-id",
 			PlanID:    "percona-xtradb-id",
 			LastOperation: &structs.LastOperation{
-				State:                    "succeeded",
-				Description:              "successfully created service instance",
+				State:                    structs.SucceedOperationState,
+				Description:              structs.SucceedOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 			Parameters: params,
@@ -136,8 +136,8 @@ func CreatePSMDBInstanceData() structs.CaseData {
 		RespStatus: 202,
 		RespData: structs.ServiceInstance{
 			LastOperation: &structs.LastOperation{
-				State:                    "in progress",
-				Description:              "creating service instance...",
+				State:                    structs.InProgressOperationSate,
+				Description:              structs.InProgressOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 		},
@@ -158,8 +158,8 @@ func GetPSMDBInstanceData() structs.CaseData {
 			ServiceID: "percona-server-for-mongodb-id",
 			PlanID:    "percona-server-for-mongodb-id",
 			LastOperation: &structs.LastOperation{
-				State:                    "succeeded",
-				Description:              "successfully created service instance",
+				State:                    structs.SucceedOperationState,
+				Description:              structs.SucceedOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 			Parameters: params,
@@ -182,8 +182,8 @@ func UpdatePSMDBInstanceData() structs.CaseData {
 		RespStatus: 202,
 		RespData: structs.ServiceInstance{
 			LastOperation: &structs.LastOperation{
-				State:                    "in progress",
-				Description:              "creating service instance...",
+				State:                    structs.InProgressOperationSate,
+				Description:              structs.InProgressOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 		},
@@ -204,8 +204,8 @@ func GetPSMDBInstanceUpdatedData() structs.CaseData {
 			ServiceID: "percona-server-for-mongodb-id",
 			PlanID:    "percona-server-for-mongodb-id",
 			LastOperation: &structs.LastOperation{
-				State:                    "succeeded",
-				Description:              "successfully created service instance",
+				State:                    structs.SucceedOperationState,
+				Description:              structs.SucceedOperationDescription,
 				AsyncPollIntervalSeconds: 10,
 			},
 			Parameters: params,
