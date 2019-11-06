@@ -54,7 +54,7 @@ func (c *Config) check(testCase structs.CaseData) error {
 		return err
 	}
 	if respStatus != testCase.RespStatus {
-		return errors.New("wrong resp status. Have '" + strconv.Itoa(respStatus) + "', want " + strconv.Itoa(testCase.RespStatus))
+		return errors.Errorf("wrong resp status. Have '%d', want %d", respStatus, testCase.RespStatus)
 	}
 
 	return checkRespData(testCase.RespData, respData)
@@ -83,7 +83,7 @@ func (c *Config) waitForSucceed(testCase structs.CaseData) error {
 			continue
 		}
 
-		if instResp.LastOperation.State == "succeeded" {
+		if instResp.LastOperation.State == structs.SucceedOperationState {
 			fmt.Println() // print a new line after the ticker
 			if status != testCase.RespStatus {
 				return errors.New("wrong resp status. Have '" + strconv.Itoa(status) + "', want " + strconv.Itoa(testCase.RespStatus))
@@ -111,16 +111,16 @@ func checkRespData(expected structs.ServiceInstance, respData []byte) error {
 		return errors.Wrap(err, "check responce unmarshal")
 	}
 	if respInst.LastOperation.State != expected.LastOperation.State {
-		return errors.New(fmt.Sprintf("wrong state. Have %s, want %s", respInst.LastOperation.State, expected.LastOperation.State))
+		return errors.Errorf("wrong state. Have %s, want %s", respInst.LastOperation.State, expected.LastOperation.State)
 	}
 	if respInst.Parameters.Replicas != expected.Parameters.Replicas {
-		return errors.New(fmt.Sprintf("wrong replicas number. Have %d, want %d", respInst.Parameters.Replicas, expected.Parameters.Replicas))
+		return errors.Errorf("wrong replicas number. Have %d, want %d", respInst.Parameters.Replicas, expected.Parameters.Replicas)
 	}
 	if respInst.Parameters.ClusterName != expected.Parameters.ClusterName {
-		return errors.New(fmt.Sprintf("wrong cluster name. Have %s, want %s", respInst.Parameters.ClusterName, expected.Parameters.ClusterName))
+		return errors.Errorf("wrong cluster name. Have %s, want %s", respInst.Parameters.ClusterName, expected.Parameters.ClusterName)
 	}
 	if respInst.ID != expected.ID {
-		return errors.New(fmt.Sprintf("wrong ID. Have %s, want %s", respInst.ID, expected.ID))
+		return errors.Errorf("wrong ID. Have %s, want %s", respInst.ID, expected.ID)
 	}
 	return nil
 }
