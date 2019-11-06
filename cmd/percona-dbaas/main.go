@@ -85,6 +85,7 @@ func detectFormat(cmd *cobra.Command) error {
 	default:
 		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
 	}
+	log.SetOutput(os.Stdout)
 	return nil
 }
 
