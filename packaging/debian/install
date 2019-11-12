@@ -1,4 +1,0 @@
-percona-dbaas /usr/bin/
-kubectl-pxc /usr/bin/
-kubectl-psmdb /usr/bin/
-percona-kubectl /usr/bin/

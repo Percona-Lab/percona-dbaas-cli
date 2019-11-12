@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -o xtrace
-set -o errexit
-
-dir=$(realpath $(dirname $0))
-
-${dir}/psmdb/run
-${dir}/pxc/run
