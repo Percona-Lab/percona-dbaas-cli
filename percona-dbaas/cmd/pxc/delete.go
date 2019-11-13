@@ -26,7 +26,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc"
 )
 
@@ -45,40 +44,17 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-
-		dbservice, err := dbaas.New(*envDlt)
+		dbOperator, err := pxc.NewController("", *envDlt, name)
 		if err != nil {
-			log.Error("new dbservice: ", err)
+			log.Error("new pxc operator: ", err)
 			return
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
-		demo, err := cmd.Flags().GetBool("demo")
-		if demo && err == nil {
-			sp.UpdateCharSet([]string{""})
-		}
 		sp.Prefix = "Looking for the cluster..."
 		sp.FinalMSG = ""
 		sp.Start()
 		defer sp.Stop()
-
-		ext, err := dbservice.IsObjExists("pxc", name)
-		if err != nil {
-			log.Error("check if cluster exists: ", err)
-			return
-		}
-
-		if !ext {
-			sp.Stop()
-			log.Error("unable to find cluster pxc/" + name)
-			list, err := dbservice.List("pxc")
-			if err != nil {
-				log.Error("pxc cluster list: ", err)
-				return
-			}
-			log.Println("Avaliable clusters\n", list)
-			return
-		}
 
 		if *delePVC {
 			sp.Stop()
@@ -97,25 +73,14 @@ var delCmd = &cobra.Command{
 		sp.Lock()
 		sp.Prefix = "Deleting..."
 		sp.Unlock()
-		ok := make(chan string)
-		cerr := make(chan error)
 
-		go dbservice.Delete("pxc", pxc.New(name, defaultVersion, ""), *delePVC, ok, cerr)
-
-		tckr := time.NewTicker(1 * time.Second)
-		defer tckr.Stop()
-		for {
-			select {
-			case <-ok:
-				sp.FinalMSG = ""
-				sp.Stop()
-				log.Println("Deleting done")
-				return
-			case err := <-cerr:
-				log.Error("delete pxc: ", err)
-				return
-			}
+		err = dbOperator.DeleteCluster(name, *delePVC)
+		if err != nil {
+			log.Println("delete cluster: ", err)
+			return
 		}
+		sp.Stop()
+		log.Println("Deleting done")
 	},
 }
 

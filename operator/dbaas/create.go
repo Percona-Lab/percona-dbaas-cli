@@ -32,20 +32,11 @@ func init() {
 
 type Deploy interface {
 	// Bundle returns crd, rbac and operator manifests
-	Bundle(operatorVersion string) []BundleObject
+	bundle(operatorVersion string) []BundleObject
 	// App returns application (custom resource) manifest
-	App() (string, error)
+	getCR() (string, error)
 
-	Name() string
-	OperatorName() string
 	OperatorType() string
-
-	CheckStatus(data []byte, secrets map[string][]byte) (ClusterState, Msg, error)
-	CheckOperatorLogs(data []byte) ([]OutuputMsg, error)
-
-	Edit(crRaw []byte, storage *BackupStorageSpec) (Msg, error)
-	Upgrade(crRaw []byte, newImages map[string]string) error
-	Describe(crRaw []byte) (Msg, error)
 }
 
 type Msg interface {
@@ -97,101 +88,32 @@ oc create clusterrole pxc-admin --verb="*" --resource=perconaxtradbclusters.pxc.
 oc adm policy add-cluster-role-to-user pxc-admin %s
 `
 
-func (p Cmd) Create(typ string, app Deploy, operatorVersion string, ok chan<- Msg, msg chan<- OutuputMsg, errc chan<- error) {
+func (p Cmd) CreateCluster(typ, operatorVersion, clusterName, cr string, bundle []BundleObject) error {
 	p.runCmd(p.execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
-	err := p.applyBundles(app.Bundle(operatorVersion))
+	err := p.applyBundles(bundle)
 	if err != nil {
-		errc <- errors.Wrap(err, "apply bundles")
-		return
+		return errors.Wrap(err, "apply bundles")
 	}
 
-	ext, err := p.IsObjExists(typ, app.Name())
+	ext, err := p.IsObjExists(typ, clusterName)
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			errc <- errors.Errorf(osRightsMsg, p.execCommand, p.osUser(), p.execCommand, osAdminBundle(app.Bundle(operatorVersion)), p.osUser())
+			return errors.Errorf(osRightsMsg, p.execCommand, p.osUser(), p.execCommand, osAdminBundle(bundle), p.osUser())
 		}
-		errc <- errors.Wrap(err, "check if cluster exists")
-		return
+		return errors.Wrap(err, "check if cluster exists")
 	}
-
 	if ext {
-		errc <- ErrAlreadyExists{Typ: typ, Cluster: app.Name()}
-		return
+		return ErrAlreadyExists{Typ: typ, Cluster: clusterName}
 	}
 
-	cr, err := app.App()
-	if err != nil {
-		errc <- errors.Wrap(err, "get cr")
-		return
-	}
 	err = p.apply(cr)
 	if err != nil {
-		errc <- errors.Wrap(err, "apply cr")
-		return
+		return errors.Wrap(err, "apply cr")
 	}
 
-	// give a time for operator to start
-	time.Sleep(1 * time.Minute)
-
-	tries := 0
-	tckr := time.NewTicker(500 * time.Millisecond)
-	defer tckr.Stop()
-	for range tckr.C {
-		secrets, err := p.getSecrets(app)
-		if err != nil {
-			errc <- errors.Wrap(err, "get cluster secrets")
-			return
-		}
-		status, err := p.GetObject(typ, app.Name())
-		if err != nil {
-			errc <- errors.Wrap(err, "get cluster status")
-			return
-		}
-		state, msgs, err := app.CheckStatus(status, secrets)
-		if err != nil {
-			errc <- errors.Wrap(err, "parse cluster status")
-			return
-		}
-
-		switch state {
-		case ClusterStateReady:
-			ok <- msgs
-			return
-		case ClusterStateError:
-			errc <- errors.New(strings.Join([]string{msgs.String()}, "\n"))
-			return
-		case ClusterStateInit:
-		}
-
-		opLogsStream, err := p.readOperatorLogs(app.OperatorName())
-		if err != nil {
-			// waiting for the operator to start
-			if tries < getStatusMaxTries/2 {
-				continue
-			}
-			errc <- errors.Wrap(err, "get operator logs")
-			return
-		}
-
-		opLogs, err := app.CheckOperatorLogs(opLogsStream)
-		if err != nil {
-			errc <- errors.Wrap(err, "parse operator logs")
-			return
-		}
-
-		for _, entry := range opLogs {
-			msg <- entry
-		}
-
-		if tries >= getStatusMaxTries {
-			errc <- errors.Wrap(err, "unable to start cluster")
-			return
-		}
-
-		tries++
-	}
+	return nil
 }
 
 // CreateSecret creates k8s secret object with the given name and data
@@ -276,8 +198,8 @@ func (p Cmd) gkeUser() (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-func (p Cmd) getSecrets(app Deploy) (map[string][]byte, error) {
-	data, err := p.GetObject("secrets", app.Name()+"-secrets")
+func (p Cmd) GetSecrets(appName string) (map[string][]byte, error) {
+	data, err := p.GetObject("secrets", appName+"-secrets")
 	if err != nil {
 		return nil, errors.Wrap(err, "get object")
 	}

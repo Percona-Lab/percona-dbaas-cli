@@ -17,12 +17,12 @@ package pxc
 import (
 	"time"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/dbaas"
 	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc"
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -51,7 +51,7 @@ var createCmd = &cobra.Command{
 			return
 		}
 
-		config, err := pxc.ParseCreateFlagsToConfig(cmd.Flags())
+		config, err := parseCreateFlagsToConfig(cmd.Flags())
 		if err != nil {
 			log.Error("parse flags to config: ", err)
 			return
@@ -64,27 +64,20 @@ var createCmd = &cobra.Command{
 		sp.Unlock()
 		sp.Start()
 		defer sp.Stop()
-		msg, err := dbOperator.CreatDB(config, *skipS3Storage, *operatorImage)
+		//msg, err := dbOperator.CreatDB(config, *skipS3Storage, *operatorImage)
+		err = dbOperator.CreateCluster(config, *skipS3Storage, *operatorImage)
 		if err != nil {
-			switch err.(type) {
-			case dbaas.ErrAlreadyExists:
-				log.Error("create pxc cluster: ", err)
-				list, err := dbOperator.Cmd.List("pxc")
-				if err != nil {
-					log.Error("list pxc clusters: ", err)
-					return
-				}
-				log.Println("Avaliable clusters:\n", list)
-				return
-			default:
-				log.Error(errors.Wrap(err, "create DB"))
-				return
-			}
+			log.Error(errors.Wrap(err, "create DB"))
+			return
+		}
+
+		cluster, err := dbOperator.CheckClusterReady()
+		if err != nil {
+			log.Println(err)
+			return
 		}
 		sp.Stop()
-		log.WithField("data", msg).Info("Cluster ready")
-
-		return
+		log.WithField("data", cluster).Info("Cluster ready")
 	},
 }
 
@@ -123,4 +116,108 @@ func init() {
 	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
 
 	PXCCmd.AddCommand(createCmd)
+}
+
+func parseCreateFlagsToConfig(f *pflag.FlagSet) (config pxc.ClusterConfig, err error) {
+	config.PXC.StorageSize, err = f.GetString("storage-size")
+	if err != nil {
+		return config, errors.New("undefined `storage size`")
+	}
+	config.PXC.StorageClass, err = f.GetString("storage-class")
+	if err != nil {
+		return config, errors.New("undefined `storage class`")
+	}
+	config.PXC.Instances, err = f.GetInt32("pxc-instances")
+	if err != nil {
+		return config, errors.New("undefined `pxc-instances`")
+	}
+	config.PXC.RequestCPU, err = f.GetString("pxc-request-cpu")
+	if err != nil {
+		return config, errors.New("undefined `pxc-request-cpu`")
+	}
+	config.PXC.RequestMem, err = f.GetString("pxc-request-mem")
+	if err != nil {
+		return config, errors.New("undefined `pxc-request-mem`")
+	}
+	config.PXC.AntiAffinityKey, err = f.GetString("pxc-anti-affinity-key")
+	if err != nil {
+		return config, errors.New("undefined `pxc-anti-affinity-key`")
+	}
+
+	config.ProxySQL.Instances, err = f.GetInt32("proxy-instances")
+	if err != nil {
+		return config, errors.New("undefined `proxy-instances`")
+	}
+	if config.ProxySQL.Instances > 0 {
+		config.ProxySQL.RequestCPU, err = f.GetString("proxy-request-cpu")
+		if err != nil {
+			return config, errors.New("undefined `proxy-request-cpu`")
+		}
+		config.ProxySQL.RequestMem, err = f.GetString("proxy-request-mem")
+		if err != nil {
+			return config, errors.New("undefined `proxy-request-mem`")
+		}
+		config.ProxySQL.AntiAffinityKey, err = f.GetString("proxy-anti-affinity-key")
+		if err != nil {
+			return config, errors.New("undefined `proxy-anti-affinity-key`")
+		}
+	}
+
+	skipS3Storage, err := f.GetBool("s3-skip-storage")
+	if err != nil {
+		return config, errors.New("undefined `s3-skip-storage`")
+	}
+
+	if !skipS3Storage {
+		config.S3.EndpointURL, err = f.GetString("s3-endpoint-url")
+		if err != nil {
+			return config, errors.New("undefined `s3-endpoint-url`")
+		}
+		config.S3.Bucket, err = f.GetString("s3-bucket")
+		if err != nil {
+			return config, errors.New("undefined `s3-bucket`")
+		}
+		config.S3.Region, err = f.GetString("s3-region")
+		if err != nil {
+			return config, errors.New("undefined `s3-region`")
+		}
+		config.S3.CredentialsSecret, err = f.GetString("s3-credentials-secret")
+		if err != nil {
+			return config, errors.New("undefined `s3-credentials-secret`")
+		}
+		config.S3.KeyID, err = f.GetString("s3-access-key-id")
+		if err != nil {
+			return config, errors.New("undefined `s3-access-key-id`")
+		}
+		config.S3.Key, err = f.GetString("s3-secret-access-key")
+		if err != nil {
+			return config, errors.New("undefined `s3-secret-access-key`")
+		}
+	}
+
+	config.PMM.Enabled, err = f.GetBool("pmm-enabled")
+	if err != nil {
+		return config, errors.New("undefined `pmm-enabled`")
+	}
+
+	if config.PMM.Enabled {
+		config.PMM.Image, err = f.GetString("pmm-image")
+		if err != nil {
+			return config, errors.New("undefined `pmm-image`")
+		}
+		config.PMM.ServerHost, err = f.GetString("pmm-server-host")
+		if err != nil {
+			return config, errors.New("undefined `pmm-server-host`")
+		}
+		config.PMM.ServerUser, err = f.GetString("pmm-server-user")
+		if err != nil {
+			return config, errors.New("undefined `pmm-server-user`")
+		}
+		config.PMM.ServerPass, err = f.GetString("pmm-server-password")
+		if err != nil {
+			return config, errors.New("undefined `pmm-server-password`")
+		}
+	}
+
+	return
 }

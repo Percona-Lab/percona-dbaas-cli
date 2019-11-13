@@ -88,7 +88,7 @@ func (e ErrNoS3Options) Error() string {
 	return "not enough options to set S3 backup storage: " + string(e)
 }
 
-func (p Cmd) S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStorageSpec, error) {
+func (p Cmd) S3Storage(appName string, c S3StorageConfig /*f *pflag.FlagSet*/) (*BackupStorageSpec, error) {
 	bucket := c.Bucket
 	if bucket == "" {
 		return nil, ErrNoS3Options("no bucket defined")
@@ -105,7 +105,7 @@ func (p Cmd) S3Storage(app Deploy, c S3StorageConfig /*f *pflag.FlagSet*/) (*Bac
 			return nil, ErrNoS3Options("neither s3-credentials-secret nor s3-access-key-id and s3-secret-access-key defined")
 		}
 
-		secretName = "s3-" + app.Name() + "-" + GenRandString(5)
+		secretName = "s3-" + appName + "-" + GenRandString(5)
 		secretData := map[string][]byte{
 			"AWS_ACCESS_KEY_ID":     []byte(keyid),
 			"AWS_SECRET_ACCESS_KEY": []byte(key),
