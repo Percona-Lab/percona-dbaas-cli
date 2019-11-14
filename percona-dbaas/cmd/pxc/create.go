@@ -15,8 +15,10 @@
 package pxc
 
 import (
+	"strings"
 	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc"
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
@@ -45,13 +47,21 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		dbOperator, err := pxc.NewController(*labels, *envCrt, args[0])
+		labelsMap := make(map[string]string)
+		if len(*labels) > 0 {
+			keyValues := strings.Split(*labels, ",")
+			for index := range keyValues {
+				itemSlice := strings.Split(keyValues[index], "=")
+				labelsMap[itemSlice[0]] = itemSlice[1]
+			}
+		}
+		dbOperator, err := pxc.NewController(labelsMap, *envCrt)
 		if err != nil {
 			log.Error("new pxc operator: ", err)
 			return
 		}
 
-		config, err := parseCreateFlagsToConfig(cmd.Flags())
+		config, err := parseCreateFlagsToConfig(cmd.Flags(), args[0])
 		if err != nil {
 			log.Error("parse flags to config: ", err)
 			return
@@ -64,20 +74,41 @@ var createCmd = &cobra.Command{
 		sp.Unlock()
 		sp.Start()
 		defer sp.Stop()
-		//msg, err := dbOperator.CreatDB(config, *skipS3Storage, *operatorImage)
-		err = dbOperator.CreateCluster(config, *skipS3Storage, *operatorImage)
+		err = dbOperator.CreateCluster(config, *operatorImage)
 		if err != nil {
 			log.Error(errors.Wrap(err, "create DB"))
 			return
 		}
 
-		cluster, err := dbOperator.CheckClusterReady()
-		if err != nil {
-			log.Println(err)
-			return
+		time.Sleep(1 * time.Minute)
+		getStatusMaxTries := 1200
+		tries := 0
+		tckr := time.NewTicker(500 * time.Millisecond)
+		defer tckr.Stop()
+		for range tckr.C {
+			cluster, err := dbOperator.CheckClusterStatus()
+			if err != nil {
+				log.Error("check status: ", err)
+				return
+			}
+			switch cluster.State {
+			case k8s.ClusterStateReady:
+				sp.Stop()
+				log.WithField("data", cluster).Info("Cluster ready")
+				return
+
+			case k8s.ClusterStateInit:
+			}
+
+			if tries >= getStatusMaxTries {
+				log.Error("unable to start cluster")
+				return
+			}
+			tries++
 		}
+
 		sp.Stop()
-		log.WithField("data", cluster).Info("Cluster ready")
+
 	},
 }
 
@@ -118,7 +149,8 @@ func init() {
 	PXCCmd.AddCommand(createCmd)
 }
 
-func parseCreateFlagsToConfig(f *pflag.FlagSet) (config pxc.ClusterConfig, err error) {
+func parseCreateFlagsToConfig(f *pflag.FlagSet, ClusterName string) (config pxc.ClusterConfig, err error) {
+	config.Name = ClusterName
 	config.PXC.StorageSize, err = f.GetString("storage-size")
 	if err != nil {
 		return config, errors.New("undefined `storage size`")

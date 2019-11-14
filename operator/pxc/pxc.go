@@ -16,49 +16,19 @@ package pxc
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
 )
 
-type Version string
-
 const (
-	CurrentVersion Version = "default"
-
 	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.1.0"
 )
 
-type pxc struct {
-	name          string
-	config        *PerconaXtraDBCluster
-	obj           dbaas.Objects
-	opLogsLastTS  float64
-	ClusterConfig ClusterConfig
-}
-
-func new(name string, version Version, labels string) *pxc {
-	config := &PerconaXtraDBCluster{}
-	if len(labels) > 0 {
-		config.ObjectMeta.Labels = make(map[string]string)
-		keyValues := strings.Split(labels, ",")
-		for index := range keyValues {
-			itemSlice := strings.Split(keyValues[index], "=")
-			config.ObjectMeta.Labels[itemSlice[0]] = itemSlice[1]
-		}
-	}
-	return &pxc{
-		name:   name,
-		obj:    Objects[version],
-		config: config,
-	}
-}
-
-func (p pxc) bundle(operatorVersion string) []dbaas.BundleObject {
+func (p PXC) bundle(operatorVersion string) []k8s.BundleObject {
 	if operatorVersion == "" {
 		operatorVersion = defaultOperatorVersion
 	}
@@ -71,11 +41,7 @@ func (p pxc) bundle(operatorVersion string) []dbaas.BundleObject {
 	return p.obj.Bundle
 }
 
-func (p pxc) getName() string {
-	return p.name
-}
-
-func (p pxc) getCr() (string, error) {
+func (p PXC) getCR() (string, error) {
 	cr, err := json.Marshal(p.config)
 	if err != nil {
 		return "", errors.Wrap(err, "marshal cr template")
@@ -88,47 +54,8 @@ type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
 
-type Cluster struct {
-	Host  string `json:"host,omitempty"`
-	Port  int    `json:"port,omitempty"`
-	User  string `json:"user,omitempty"`
-	Pass  string `json:"pass,omitempty"`
-	State string `json:"state,omitempty"`
-}
-
-func (c Cluster) String() string {
-	stringMsg := `Host: %s, Port: 3306, User: root, Pass: %s`
-	return fmt.Sprintf(stringMsg, c.Host, c.Pass)
-}
-
-func (p *pxc) CheckClusterStatus(data []byte, pass map[string][]byte) (Cluster, error) {
-	st := &k8sStatus{}
-	cluster := Cluster{}
-	err := json.Unmarshal(data, st)
-	if err != nil {
-		return cluster, errors.Wrap(err, "unmarshal status")
-	}
-
-	switch st.Status.Status {
-	case AppStateReady:
-		cluster.Host = st.Status.Host
-		cluster.Port = 3306
-		cluster.User = "root"
-		cluster.Pass = string(pass["root"])
-		cluster.State = dbaas.ClusterStateReady
-		return cluster, nil
-	case AppStateInit:
-		cluster.State = dbaas.ClusterStateInit
-		return cluster, nil
-	case AppStateError:
-		cluster.State = dbaas.ClusterStateError
-		return cluster, errors.New(st.Status.Messages[0])
-	}
-	return cluster, nil
-}
-
-func (p *pxc) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas.PlatformType) error {
-	err := p.config.SetNew(p.name, c, s3, platform)
+func (p *PXC) Setup(c ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
+	err := p.config.SetNew(c, s3, platform)
 	if err != nil {
 		return errors.Wrap(err, "parse options")
 	}
@@ -141,10 +68,10 @@ func (p *pxc) Setup(c ClusterConfig, s3 *dbaas.BackupStorageSpec, platform dbaas
 	return nil
 }
 
-func (p *pxc) operatorName() string {
+func (p *PXC) operatorName() string {
 	return "percona-xtradb-cluster-operator"
 }
 
-func (p *pxc) OperatorType() string {
+func (p *PXC) OperatorType() string {
 	return "pxc"
 }

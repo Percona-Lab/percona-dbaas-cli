@@ -44,7 +44,15 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		dbOperator, err := pxc.NewController("", *envDlt, name)
+		labelsMap := make(map[string]string)
+		if len(*labels) > 0 {
+			keyValues := strings.Split(*labels, ",")
+			for index := range keyValues {
+				itemSlice := strings.Split(keyValues[index], "=")
+				labelsMap[itemSlice[0]] = itemSlice[1]
+			}
+		}
+		dbOperator, err := pxc.NewController(labelsMap, *envDlt)
 		if err != nil {
 			log.Error("new pxc operator: ", err)
 			return
@@ -76,7 +84,7 @@ var delCmd = &cobra.Command{
 
 		err = dbOperator.DeleteCluster(name, *delePVC)
 		if err != nil {
-			log.Println("delete cluster: ", err)
+			log.Error("delete cluster: ", err)
 			return
 		}
 		sp.Stop()

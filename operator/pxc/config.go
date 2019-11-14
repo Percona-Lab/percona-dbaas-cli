@@ -22,13 +22,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8sversion "k8s.io/apimachinery/pkg/version"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
 )
 
 type ClusterConfig struct {
+	Name     string
 	PXC      Spec
 	ProxySQL Spec
-	S3       dbaas.S3StorageConfig
+	S3       k8s.S3StorageConfig
 	PMM      PMMSpec
 }
 
@@ -53,10 +54,10 @@ type PerconaXtraDBClusterSpec struct {
 }
 
 type PXCScheduledBackup struct {
-	Image            string                              `json:"image,omitempty"`
-	ImagePullSecrets []corev1.LocalObjectReference       `json:"imagePullSecrets,omitempty"`
-	Schedule         []PXCScheduledBackupSchedule        `json:"schedule,omitempty"`
-	Storages         map[string]*dbaas.BackupStorageSpec `json:"storages,omitempty"`
+	Image            string                            `json:"image,omitempty"`
+	ImagePullSecrets []corev1.LocalObjectReference     `json:"imagePullSecrets,omitempty"`
+	Schedule         []PXCScheduledBackupSchedule      `json:"schedule,omitempty"`
+	Storages         map[string]*k8s.BackupStorageSpec `json:"storages,omitempty"`
 }
 
 type PXCScheduledBackupSchedule struct {
@@ -236,13 +237,13 @@ var AffinityValidTopologyKeys = map[string]struct{}{
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
 
-func (cr *PerconaXtraDBCluster) UpdateWith(c ClusterConfig, s3 *dbaas.BackupStorageSpec) (err error) {
-	if _, ok := cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName]; !ok && s3 != nil {
+func (cr *PerconaXtraDBCluster) UpdateWith(c ClusterConfig, s3 *k8s.BackupStorageSpec) (err error) {
+	if _, ok := cr.Spec.Backup.Storages[k8s.DefaultBcpStorageName]; !ok && s3 != nil {
 		if cr.Spec.Backup.Storages == nil {
-			cr.Spec.Backup.Storages = make(map[string]*dbaas.BackupStorageSpec)
+			cr.Spec.Backup.Storages = make(map[string]*k8s.BackupStorageSpec)
 		}
 
-		cr.Spec.Backup.Storages[dbaas.DefaultBcpStorageName] = s3
+		cr.Spec.Backup.Storages[k8s.DefaultBcpStorageName] = s3
 	}
 
 	if c.PXC.Instances > 0 {
@@ -274,8 +275,9 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c ClusterConfig, s3 *dbaas.BackupStorageSpec, p dbaas.PlatformType) (err error) {
-	cr.ObjectMeta.Name = clusterName
+func (cr *PerconaXtraDBCluster) SetNew(c ClusterConfig, s3 *k8s.BackupStorageSpec, p k8s.PlatformType) (err error) {
+	cr.ClusterName = c.Name
+	cr.ObjectMeta.Name = c.Name
 	cr.SetDefaults()
 
 	if len(c.PXC.BrokerInstance) > 0 {
@@ -345,8 +347,8 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c ClusterConfig, s3 *
 	}
 
 	if s3 != nil {
-		cr.Spec.Backup.Storages = map[string]*dbaas.BackupStorageSpec{
-			dbaas.DefaultBcpStorageName: s3,
+		cr.Spec.Backup.Storages = map[string]*k8s.BackupStorageSpec{
+			k8s.DefaultBcpStorageName: s3,
 		}
 	}
 
@@ -355,7 +357,7 @@ func (cr *PerconaXtraDBCluster) SetNew(clusterName string, c ClusterConfig, s3 *
 	}
 
 	switch p {
-	case dbaas.PlatformMinishift, dbaas.PlatformMinikube:
+	case k8s.PlatformMinishift, k8s.PlatformMinikube:
 		none := AffinityTopologyKeyOff
 		cr.Spec.PXC.Affinity.TopologyKey = &none
 		cr.Spec.PXC.Resources = nil

@@ -1,73 +1,53 @@
 package pxc
 
 import (
-	"regexp"
-	"time"
+	"encoding/json"
+	"fmt"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
 	"github.com/pkg/errors"
 )
 
 const (
-	defaultVersion    = "default"
-	getStatusMaxTries = 1200
+	defaultVersion = "default"
 )
 
-// Controller represents PXC Operator controller
-type Controller struct {
-	cmd *dbaas.Cmd
-	app *pxc
+// PXC represents PXC Operator controller
+type PXC struct {
+	cmd    *k8s.Cmd
+	config *PerconaXtraDBCluster
+	obj    k8s.Objects
 }
 
 // NewController returns new PXCOperator Controller
-func NewController(labels, envCrt, name string) (Controller, error) {
-	cmd, err := dbaas.New(envCrt)
+func NewController(labels map[string]string, envCrt string) (*PXC, error) {
+	config := &PerconaXtraDBCluster{}
+	cmd, err := k8s.New(envCrt)
 	if err != nil {
-		return Controller{}, errors.Wrap(err, "new Cmd")
+		return nil, errors.Wrap(err, "new Cmd")
 	}
-	if len(labels) > 0 { //pass map to method
-		match, err := regexp.MatchString("^(([a-zA-Z0-9_]+=[a-zA-Z0-9_]+)(,|$))+$", labels)
-		if err != nil {
-			return Controller{}, errors.Wrap(err, "label parse")
-		}
-		if !match {
-			return Controller{}, errors.New("Incorrect label format. Use key1=value1,key2=value2 syntax")
+	config.ObjectMeta.Labels = labels
 
-		}
-	}
-
-	app := new(name, defaultVersion, labels)
-
-	return Controller{
-		cmd: cmd,
-		app: app,
+	return &PXC{
+		cmd:    cmd,
+		obj:    Objects[defaultVersion],
+		config: config,
 	}, nil
 }
 
 // CreateCluster start creating cluster procces
-func (c *Controller) CreateCluster(config ClusterConfig, skipS3Storage bool, operatorImage string) error {
-	var s3stor *dbaas.BackupStorageSpec
-	if !skipS3Storage {
-		var err error
-		s3stor, err = c.cmd.S3Storage(c.app.name, config.S3)
-		if err != nil {
-			switch err.(type) {
-			case dbaas.ErrNoS3Options:
-				return errors.Wrap(err, "no S3 storage")
-			default:
-				return errors.Wrap(err, "create S3 backup storage: ")
-			}
-		}
-	}
-	err := c.app.Setup(config, s3stor, c.cmd.GetPlatformType())
+func (p *PXC) CreateCluster(config ClusterConfig, operatorImage string) error {
+	var s3stor *k8s.BackupStorageSpec
+	err := p.Setup(config, s3stor, p.cmd.GetPlatformType())
 	if err != nil {
 		return errors.Wrap(err, "set configuration: ")
 	}
-	cr, err := c.app.getCr()
+	cr, err := p.getCR()
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
-	err = c.cmd.CreateCluster("pxc", operatorImage, c.app.name, cr, c.app.bundle(operatorImage))
+
+	err = p.cmd.CreateCluster("pxc", operatorImage, p.config.ObjectMeta.Name, cr, p.bundle(operatorImage))
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -75,50 +55,60 @@ func (c *Controller) CreateCluster(config ClusterConfig, skipS3Storage bool, ope
 	return nil
 }
 
-// CheckClusterReady wait for cluster state ready
-func (c *Controller) CheckClusterReady() (Cluster, error) {
-	// give a time for operator to start
-	time.Sleep(1 * time.Minute)
+type Cluster struct {
+	Host  string           `json:"host,omitempty"`
+	Port  int              `json:"port,omitempty"`
+	User  string           `json:"user,omitempty"`
+	Pass  string           `json:"pass,omitempty"`
+	State k8s.ClusterState `json:"state,omitempty"`
+}
 
-	tries := 0
-	tckr := time.NewTicker(500 * time.Millisecond)
-	defer tckr.Stop()
-	for range tckr.C {
-		secrets, err := c.cmd.GetSecrets(c.app.name)
-		if err != nil {
-			return Cluster{}, errors.Wrap(err, "get cluster secrets")
+func (c Cluster) String() string {
+	stringMsg := `Host: %s, Port: 3306, User: root, Pass: %s`
+	return fmt.Sprintf(stringMsg, c.Host, c.Pass)
+}
 
-		}
-		status, err := c.cmd.GetObject("pxc", c.app.name)
-		if err != nil {
-			return Cluster{}, errors.Wrap(err, "get cluster status")
+// CheckClusterStatus status return Cluster object with cluster info
+func (p *PXC) CheckClusterStatus() (Cluster, error) {
+	secrets, err := p.cmd.GetSecrets(p.config.ObjectMeta.Name)
+	if err != nil {
+		return Cluster{}, errors.Wrap(err, "get cluster secrets")
 
-		}
-		cluster, err := c.app.CheckClusterStatus(status, secrets)
-		if err != nil {
-			return Cluster{}, errors.Wrap(err, "parse cluster status")
-
-		}
-
-		switch cluster.State {
-		case dbaas.ClusterStateReady:
-			return cluster, nil
-
-		case dbaas.ClusterStateInit:
-		}
-
-		if tries >= getStatusMaxTries {
-			return cluster, errors.New("unable to start cluster")
-
-		}
-		tries++
 	}
-	return Cluster{}, errors.New("unable to start cluster")
+	status, err := p.cmd.GetObject("pxc", p.config.ObjectMeta.Name)
+	if err != nil {
+		return Cluster{}, errors.Wrap(err, "get cluster status")
+
+	}
+	st := &k8sStatus{}
+	cluster := Cluster{}
+	err = json.Unmarshal(status, st)
+	if err != nil {
+		return cluster, errors.Wrap(err, "unmarshal status")
+	}
+
+	switch st.Status.Status {
+	case AppStateReady:
+		cluster.Host = st.Status.Host
+		cluster.Port = 3306
+		cluster.User = "root"
+		cluster.Pass = string(secrets["root"])
+		cluster.State = k8s.ClusterStateReady
+		return cluster, nil
+	case AppStateInit:
+		cluster.State = k8s.ClusterStateInit
+		return cluster, nil
+	case AppStateError:
+		cluster.State = k8s.ClusterStateError
+		return cluster, errors.New(st.Status.Messages[0])
+	}
+	cluster.State = k8s.ClusterStateUnknown
+	return cluster, nil
 }
 
 // DeleteCluster delete cluster by name
-func (c *Controller) DeleteCluster(name string, delePVC bool) error {
-	ext, err := c.cmd.IsObjExists("pxc", name)
+func (p *PXC) DeleteCluster(name string, delePVC bool) error {
+	ext, err := p.cmd.IsObjExists("pxc", name)
 	if err != nil {
 		return errors.Wrap(err, "check if cluster exists")
 	}
@@ -127,9 +117,25 @@ func (c *Controller) DeleteCluster(name string, delePVC bool) error {
 		return errors.New("unable to find cluster pxc/" + name)
 	}
 
-	err = c.cmd.DeleteCluster("pxc", c.app.operatorName(), c.app.name, delePVC)
+	err = p.cmd.DeleteCluster("pxc", p.operatorName(), name, delePVC)
 	if err != nil {
 		return errors.Wrap(err, "delete cluster")
 	}
+	return nil
+}
+
+func (p *PXC) GetCluster(name string) (Cluster, error) {
+	return Cluster{}, nil
+}
+
+func (p *PXC) UpdateCluster(config ClusterConfig) error {
+	return nil
+}
+
+func (p *PXC) ListClusters() error {
+	return nil
+}
+
+func (p *PXC) Describe() error {
 	return nil
 }

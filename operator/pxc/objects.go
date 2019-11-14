@@ -15,20 +15,26 @@
 package pxc
 
 import (
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
 )
 
-var Objects map[Version]dbaas.Objects
+type Version string
+
+const (
+	currentVersion Version = "default"
+)
+
+var Objects map[Version]k8s.Objects
 
 func init() {
-	Objects = make(map[Version]dbaas.Objects)
+	Objects = make(map[Version]k8s.Objects)
 
-	Objects[CurrentVersion] = dbaas.Objects{
+	Objects[currentVersion] = k8s.Objects{
 		Bundle: bundle100,
 	}
 }
 
-var bundle100 = []dbaas.BundleObject{
+var bundle100 = []k8s.BundleObject{
 	{
 		Kind: "CustomResourceDefinition",
 		Name: "perconaxtradbclusters.pxc.percona.com",

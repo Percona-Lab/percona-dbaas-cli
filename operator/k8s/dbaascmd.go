@@ -14,7 +14,7 @@
 
 // +build !windows
 
-package dbaas
+package k8s
 
 const (
 	k8sExecDefault = "kubectl"
