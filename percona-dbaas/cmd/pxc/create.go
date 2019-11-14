@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc/types/config"
 	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -29,10 +29,6 @@ import (
 
 const (
 	defaultVersion = "default"
-
-	noS3backupWarn = `S3 backup storage options doesn't set: %v. You have specify S3 storage in order to make backups.
-You can skip this step by using --s3-skip-storage flag add the storage later with the "add-storage" command.
-`
 )
 
 // createCmd represents the create command
@@ -55,7 +51,8 @@ var createCmd = &cobra.Command{
 				labelsMap[itemSlice[0]] = itemSlice[1]
 			}
 		}
-		dbOperator, err := pxc.NewController(labelsMap, *envCrt)
+
+		pxcOperator, err := pxc.NewPXCController(labelsMap, *envCrt)
 		if err != nil {
 			log.Error("new pxc operator: ", err)
 			return
@@ -74,7 +71,7 @@ var createCmd = &cobra.Command{
 		sp.Unlock()
 		sp.Start()
 		defer sp.Stop()
-		err = dbOperator.CreateCluster(config, *operatorImage)
+		err = pxcOperator.CreateDBCluster(config, *operatorImage)
 		if err != nil {
 			log.Error(errors.Wrap(err, "create DB"))
 			return
@@ -86,18 +83,16 @@ var createCmd = &cobra.Command{
 		tckr := time.NewTicker(500 * time.Millisecond)
 		defer tckr.Stop()
 		for range tckr.C {
-			cluster, err := dbOperator.CheckClusterStatus()
+			cluster, err := pxcOperator.CheckDBClusterStatus(args[0])
 			if err != nil {
 				log.Error("check status: ", err)
 				return
 			}
 			switch cluster.State {
-			case k8s.ClusterStateReady:
+			case pxc.AppStateReady:
 				sp.Stop()
 				log.WithField("data", cluster).Info("Cluster ready")
 				return
-
-			case k8s.ClusterStateInit:
 			}
 
 			if tries >= getStatusMaxTries {
@@ -141,7 +136,7 @@ func init() {
 	createCmd.Flags().String("pmm-server-host", "monitoring-service", "Monitoring service server hostname.")
 	createCmd.Flags().String("pmm-server-user", "", "Monitoring service user for login.")
 	createCmd.Flags().String("pmm-server-password", "", "Monitoring service password for login.")
-	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", false, "Don't create S3 compatible backup storage. Has to be set manually later on.")
+	skipS3Storage = createCmd.Flags().Bool("s3-skip-storage", true, "Don't create S3 compatible backup storage. Has to be set manually later on.")
 	envCrt = createCmd.Flags().String("environment", "", "Target kubernetes cluster")
 	labels = createCmd.Flags().String("labels", "", "PXC cluster labels inside kubernetes/openshift cluster")
 	operatorImage = createCmd.Flags().String("operator-image", "", "Custom operator image")
@@ -149,7 +144,7 @@ func init() {
 	PXCCmd.AddCommand(createCmd)
 }
 
-func parseCreateFlagsToConfig(f *pflag.FlagSet, ClusterName string) (config pxc.ClusterConfig, err error) {
+func parseCreateFlagsToConfig(f *pflag.FlagSet, ClusterName string) (config config.ClusterConfig, err error) {
 	config.Name = ClusterName
 	config.PXC.StorageSize, err = f.GetString("storage-size")
 	if err != nil {

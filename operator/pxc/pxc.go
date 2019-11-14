@@ -15,52 +15,72 @@
 package pxc
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc/types/config"
+	v100 "github.com/Percona-Lab/percona-dbaas-cli/operator/pxc/types/v100"
 )
 
 const (
 	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.1.0"
 )
 
-func (p PXC) bundle(operatorVersion string) []k8s.BundleObject {
-	if operatorVersion == "" {
-		operatorVersion = defaultOperatorVersion
-	}
-
-	for i, o := range p.obj.Bundle {
-		if o.Kind == "Deployment" && o.Name == p.operatorName() {
-			p.obj.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
-		}
-	}
-	return p.obj.Bundle
-}
-
-func (p PXC) getCR() (string, error) {
-	cr, err := json.Marshal(p.config)
-	if err != nil {
-		return "", errors.Wrap(err, "marshal cr template")
-	}
-
-	return string(cr), nil
-}
+type Version string
 
 type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
 
-func (p *PXC) Setup(c ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
-	err := p.config.SetNew(c, s3, platform)
+const (
+	currentVersion Version = "default"
+)
+
+type VersionObject struct {
+	k8s k8s.Objects
+	pxc PXDBCluster
+}
+
+var objects map[Version]VersionObject
+
+func init() {
+	objects = make(map[Version]VersionObject)
+
+	objects[currentVersion] = VersionObject{
+		k8s: k8s.Objects{
+			Bundle: v100.Bundle,
+		},
+		pxc: &v100.PerconaXtraDBCluster{},
+	}
+}
+
+func (p PXC) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.BundleObject {
+	if operatorVersion == "" {
+		operatorVersion = defaultOperatorVersion
+	}
+
+	for i, o := range v[currentVersion].k8s.Bundle {
+		if o.Kind == "Deployment" && o.Name == p.operatorName() {
+			v[currentVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+		}
+	}
+	return v[currentVersion].k8s.Bundle
+}
+
+func (p PXC) getCR(cluster PXDBCluster) (string, error) {
+	return cluster.GetCR()
+}
+
+func (p *PXC) setup(cluster PXDBCluster, c config.ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
+	err := cluster.SetNew(c, s3, platform)
 	if err != nil {
 		return errors.Wrap(err, "parse options")
 	}
 
-	_, err = p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
+	//_, err = p.config.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
+	err = cluster.MarshalRequests()
 	if err != nil {
 		return errors.Wrap(err, "marshal pxc volume requests")
 	}
@@ -70,8 +90,4 @@ func (p *PXC) Setup(c ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.Pla
 
 func (p *PXC) operatorName() string {
 	return "percona-xtradb-cluster-operator"
-}
-
-func (p *PXC) OperatorType() string {
-	return "pxc"
 }

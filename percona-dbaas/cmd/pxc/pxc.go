@@ -22,7 +22,7 @@ import (
 
 // PXCCmd represents the pxc command
 var PXCCmd = &cobra.Command{
-	Use:   "pxc",
+	Use:   "mysql",
 	Short: "Manage your MySQL cluster on Kubernetes",
 }
 

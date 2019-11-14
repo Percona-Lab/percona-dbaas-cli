@@ -52,7 +52,7 @@ var delCmd = &cobra.Command{
 				labelsMap[itemSlice[0]] = itemSlice[1]
 			}
 		}
-		dbOperator, err := pxc.NewController(labelsMap, *envDlt)
+		pxcOperator, err := pxc.NewPXCController(labelsMap, *envDlt)
 		if err != nil {
 			log.Error("new pxc operator: ", err)
 			return
@@ -82,7 +82,7 @@ var delCmd = &cobra.Command{
 		sp.Prefix = "Deleting..."
 		sp.Unlock()
 
-		err = dbOperator.DeleteCluster(name, *delePVC)
+		err = pxcOperator.DeleteDBCluster(name, *delePVC)
 		if err != nil {
 			log.Error("delete cluster: ", err)
 			return

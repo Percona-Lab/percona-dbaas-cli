@@ -2,9 +2,9 @@ package pxc
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/operator/k8s"
+	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc/types/config"
 	"github.com/pkg/errors"
 )
 
@@ -14,40 +14,35 @@ const (
 
 // PXC represents PXC Operator controller
 type PXC struct {
-	cmd    *k8s.Cmd
-	config *PerconaXtraDBCluster
-	obj    k8s.Objects
+	cmd *k8s.Cmd
 }
 
-// NewController returns new PXCOperator Controller
-func NewController(labels map[string]string, envCrt string) (*PXC, error) {
-	config := &PerconaXtraDBCluster{}
+// NewPXCController returns new PXCOperator Controller
+func NewPXCController(labels map[string]string, envCrt string) (*PXC, error) {
 	cmd, err := k8s.New(envCrt)
 	if err != nil {
 		return nil, errors.Wrap(err, "new Cmd")
 	}
-	config.ObjectMeta.Labels = labels
 
 	return &PXC{
-		cmd:    cmd,
-		obj:    Objects[defaultVersion],
-		config: config,
+		cmd: cmd,
 	}, nil
 }
 
-// CreateCluster start creating cluster procces
-func (p *PXC) CreateCluster(config ClusterConfig, operatorImage string) error {
+// CreateDBCluster start creating DB cluster
+func (p *PXC) CreateDBCluster(config config.ClusterConfig, operatorImage string) error {
 	var s3stor *k8s.BackupStorageSpec
-	err := p.Setup(config, s3stor, p.cmd.GetPlatformType())
+	c := objects[currentVersion].pxc
+	err := p.setup(c, config, s3stor, p.cmd.GetPlatformType())
 	if err != nil {
 		return errors.Wrap(err, "set configuration: ")
 	}
-	cr, err := p.getCR()
+	cr, err := p.getCR(c)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
 
-	err = p.cmd.CreateCluster("pxc", operatorImage, p.config.ObjectMeta.Name, cr, p.bundle(operatorImage))
+	err = p.cmd.CreateCluster("pxc", operatorImage, c.GetName(), cr, p.bundle(objects, operatorImage))
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -55,27 +50,14 @@ func (p *PXC) CreateCluster(config ClusterConfig, operatorImage string) error {
 	return nil
 }
 
-type Cluster struct {
-	Host  string           `json:"host,omitempty"`
-	Port  int              `json:"port,omitempty"`
-	User  string           `json:"user,omitempty"`
-	Pass  string           `json:"pass,omitempty"`
-	State k8s.ClusterState `json:"state,omitempty"`
-}
-
-func (c Cluster) String() string {
-	stringMsg := `Host: %s, Port: 3306, User: root, Pass: %s`
-	return fmt.Sprintf(stringMsg, c.Host, c.Pass)
-}
-
-// CheckClusterStatus status return Cluster object with cluster info
-func (p *PXC) CheckClusterStatus() (Cluster, error) {
-	secrets, err := p.cmd.GetSecrets(p.config.ObjectMeta.Name)
+// CheckDBClusterStatus status return Cluster object with cluster info
+func (p *PXC) CheckDBClusterStatus(name string) (Cluster, error) {
+	secrets, err := p.cmd.GetSecrets(name)
 	if err != nil {
 		return Cluster{}, errors.Wrap(err, "get cluster secrets")
 
 	}
-	status, err := p.cmd.GetObject("pxc", p.config.ObjectMeta.Name)
+	status, err := p.cmd.GetObject("pxc", name)
 	if err != nil {
 		return Cluster{}, errors.Wrap(err, "get cluster status")
 
@@ -106,8 +88,8 @@ func (p *PXC) CheckClusterStatus() (Cluster, error) {
 	return cluster, nil
 }
 
-// DeleteCluster delete cluster by name
-func (p *PXC) DeleteCluster(name string, delePVC bool) error {
+// DeleteDBCluster delete cluster by name
+func (p *PXC) DeleteDBCluster(name string, delePVC bool) error {
 	ext, err := p.cmd.IsObjExists("pxc", name)
 	if err != nil {
 		return errors.Wrap(err, "check if cluster exists")
@@ -124,18 +106,18 @@ func (p *PXC) DeleteCluster(name string, delePVC bool) error {
 	return nil
 }
 
-func (p *PXC) GetCluster(name string) (Cluster, error) {
+func (p *PXC) GetDBCluster(name string) (Cluster, error) {
 	return Cluster{}, nil
 }
 
-func (p *PXC) UpdateCluster(config ClusterConfig) error {
+func (p *PXC) UpdateDBCluster(config config.ClusterConfig) error {
 	return nil
 }
 
-func (p *PXC) ListClusters() error {
+func (p *PXC) ListDBClusters() error {
 	return nil
 }
 
-func (p *PXC) Describe() error {
+func (p *PXC) DescribeDBCluster(name string) error {
 	return nil
 }
