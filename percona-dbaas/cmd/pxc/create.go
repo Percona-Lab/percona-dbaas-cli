@@ -15,14 +15,9 @@
 package pxc
 
 import (
-	"strings"
-	"time"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc"
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc/types/config"
-	"github.com/briandowns/spinner"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas/engines/pxc/types/config"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -43,67 +38,70 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		labelsMap := make(map[string]string)
-		if len(*labels) > 0 {
-			keyValues := strings.Split(*labels, ",")
-			for index := range keyValues {
-				itemSlice := strings.Split(keyValues[index], "=")
-				labelsMap[itemSlice[0]] = itemSlice[1]
+		var instance dbaas.Instance
+		dbaas.CreateDB(instance)
+		/*
+			labelsMap := make(map[string]string)
+			if len(*labels) > 0 {
+				keyValues := strings.Split(*labels, ",")
+				for index := range keyValues {
+					itemSlice := strings.Split(keyValues[index], "=")
+					labelsMap[itemSlice[0]] = itemSlice[1]
+				}
 			}
-		}
 
-		pxcOperator, err := pxc.NewPXCController(labelsMap, *envCrt)
-		if err != nil {
-			log.Error("new pxc operator: ", err)
-			return
-		}
-
-		config, err := parseCreateFlagsToConfig(cmd.Flags(), args[0])
-		if err != nil {
-			log.Error("parse flags to config: ", err)
-			return
-		}
-
-		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
-		sp.Color("green", "bold")
-		sp.Lock()
-		sp.Prefix = "Starting..."
-		sp.Unlock()
-		sp.Start()
-		defer sp.Stop()
-		err = pxcOperator.CreateDBCluster(config, *operatorImage)
-		if err != nil {
-			log.Error(errors.Wrap(err, "create DB"))
-			return
-		}
-
-		time.Sleep(1 * time.Minute)
-		getStatusMaxTries := 1200
-		tries := 0
-		tckr := time.NewTicker(500 * time.Millisecond)
-		defer tckr.Stop()
-		for range tckr.C {
-			cluster, err := pxcOperator.CheckDBClusterStatus(args[0])
+			pxcOperator, err := pxc.NewPXCController(labelsMap, *envCrt)
 			if err != nil {
-				log.Error("check status: ", err)
-				return
-			}
-			switch cluster.State {
-			case pxc.AppStateReady:
-				sp.Stop()
-				log.WithField("data", cluster).Info("Cluster ready")
+				log.Error("new pxc operator: ", err)
 				return
 			}
 
-			if tries >= getStatusMaxTries {
-				log.Error("unable to start cluster")
+			config, err := parseCreateFlagsToConfig(cmd.Flags(), args[0])
+			if err != nil {
+				log.Error("parse flags to config: ", err)
 				return
 			}
-			tries++
-		}
 
-		sp.Stop()
+			sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
+			sp.Color("green", "bold")
+			sp.Lock()
+			sp.Prefix = "Starting..."
+			sp.Unlock()
+			sp.Start()
+			defer sp.Stop()
+			err = pxcOperator.CreateDBCluster(config, *operatorImage)
+			if err != nil {
+				log.Error(errors.Wrap(err, "create DB"))
+				return
+			}
 
+			time.Sleep(1 * time.Minute)
+			getStatusMaxTries := 1200
+			tries := 0
+			tckr := time.NewTicker(500 * time.Millisecond)
+			defer tckr.Stop()
+			for range tckr.C {
+				cluster, err := pxcOperator.CheckDBClusterStatus(args[0])
+				if err != nil {
+					log.Error("check status: ", err)
+					return
+				}
+				switch cluster.State {
+				case pxc.AppStateReady:
+					sp.Stop()
+					log.WithField("data", cluster).Info("Cluster ready")
+					return
+				}
+
+				if tries >= getStatusMaxTries {
+					log.Error("unable to start cluster")
+					return
+				}
+				tries++
+			}
+
+			sp.Stop()
+		*/
 	},
 }
 

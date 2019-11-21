@@ -15,18 +15,9 @@
 package pxc
 
 import (
-	"bufio"
-	"fmt"
-	"os"
-	"strings"
-	"time"
-
-	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/operator/pxc"
 )
 
 var delePVC *bool
@@ -43,7 +34,7 @@ var delCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		name := args[0]
+		/*name := args[0]
 		labelsMap := make(map[string]string)
 		if len(*labels) > 0 {
 			keyValues := strings.Split(*labels, ",")
@@ -87,7 +78,7 @@ var delCmd = &cobra.Command{
 			log.Error("delete cluster: ", err)
 			return
 		}
-		sp.Stop()
+		sp.Stop()*/
 		log.Println("Deleting done")
 	},
 }
