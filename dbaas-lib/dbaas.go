@@ -3,7 +3,6 @@ package dbaas
 import (
 	"errors"
 
-	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/pxc"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 )

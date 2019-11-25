@@ -33,6 +33,7 @@ func (p *PXC) ParseOptions(s string) error {
 func (p *PXC) CreateDBCluster(name string) error {
 	var s3stor *k8s.BackupStorageSpec
 	c := objects[currentVersion].pxc
+	p.config.Name = name
 	err := p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
 	if err != nil {
 		return errors.Wrap(err, "set configuration: ")
