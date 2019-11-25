@@ -18,12 +18,11 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/pxc"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/mysql"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -44,21 +43,13 @@ func init() {
 	rootCmd.PersistentFlags().Bool("demo", false, "demo mode (no spinners)")
 	rootCmd.PersistentFlags().MarkHidden("demo")
 	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be "json" or "text". "text" is set by default`)
-	rootCmd.AddCommand(pxc.PXCCmd)
+	rootCmd.AddCommand(mysql.PXCCmd)
 }
 
 func main() {
-	rewriteKubectlArgs("pxc")
-
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
-	}
-}
-
-func rewriteKubectlArgs(db string) {
-	if path.Base(os.Args[0]) == "kubectl-"+db {
-		os.Args = append(os.Args[:1], append([]string{db}, os.Args[1:]...)...)
 	}
 }
 
