@@ -1,17 +1,11 @@
 module github.com/Percona-Lab/percona-dbaas-cli
 
+go 1.12
+
 require (
-	github.com/alecthomas/jsonschema v0.0.0-20190626084004-00dfc6288dec
-	github.com/briandowns/spinner v0.0.0-20190319032542-ac46072a5a91
-	github.com/fatih/color v1.7.0 // indirect
-	github.com/gorilla/mux v1.7.3
-	github.com/inconshreveable/mousetrap v1.0.0 // indirect
-	github.com/mattn/go-colorable v0.1.1 // indirect
-	github.com/mattn/go-isatty v0.0.7 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/sirupsen/logrus v1.4.2
-	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3
-	k8s.io/api v0.0.0-20190409092523-d687e77c8ae9
-	k8s.io/apimachinery v0.0.0-20190409092423-760d1845f48b
+	github.com/spf13/cobra v0.0.5
+	k8s.io/api v0.0.0-20191121015604-11707872ac1c
+	k8s.io/apimachinery v0.0.0-20191123233150-4c4803ed55e3
 )
