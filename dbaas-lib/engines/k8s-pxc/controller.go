@@ -109,7 +109,31 @@ func (p *PXC) DeleteDBCluster(name string, delePVC bool) error {
 }
 
 func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
-	return structs.DB{}, nil
+	var db structs.DB
+	secrets, err := p.cmd.GetSecrets(name)
+	if err != nil {
+		return db, errors.Wrap(err, "get cluster secrets")
+
+	}
+	cluster, err := p.cmd.GetObject("pxc", name)
+	if err != nil {
+		return db, errors.Wrap(err, "get cluster object")
+
+	}
+
+	st := &k8sStatus{}
+	err = json.Unmarshal(cluster, st)
+	if err != nil {
+		return db, errors.Wrap(err, "unmarshal object")
+	}
+
+	db.Host = st.Status.Host
+	db.Port = 3306
+	db.User = "root"
+	db.Pass = string(secrets["root"])
+	db.Status = k8s.ClusterStateReady
+
+	return db, nil
 }
 
 func (p *PXC) UpdateDBCluster() error {

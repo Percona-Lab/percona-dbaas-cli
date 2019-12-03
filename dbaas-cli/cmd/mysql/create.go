@@ -15,6 +15,9 @@
 package mysql
 
 import (
+	"time"
+
+	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,6 +28,7 @@ import (
 
 const (
 	defaultVersion = "default"
+	maxTries       = 1200
 )
 
 // createCmd represents the create command
@@ -45,10 +49,37 @@ var createCmd = &cobra.Command{
 			Engine:        *engine,
 			Provider:      *provider,
 		}
+		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
+		sp.Color("green", "bold")
+		sp.Prefix = "Creating cluster..."
+		sp.FinalMSG = ""
+		sp.Start()
+		defer sp.Stop()
 		_, err := dbaas.CreateDB(instance)
 		if err != nil {
 			log.Error("create db: ", err)
 			return
+		}
+		tries := 0
+		tckr := time.NewTicker(500 * time.Millisecond)
+		defer tckr.Stop()
+		for range tckr.C {
+			cluster, err := dbaas.GetDB(instance)
+			if err != nil {
+				log.Error("check db: ", err)
+				return
+			}
+			if cluster.Status == "ready" {
+				sp.Stop()
+				log.Println("Cluster is ready")
+				log.Println(cluster)
+				return
+			}
+			if tries >= maxTries {
+				log.Error("unable to start cluster. cluster status: ", cluster.Status)
+				return
+			}
+			tries++
 		}
 	},
 }
