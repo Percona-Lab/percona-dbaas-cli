@@ -46,10 +46,10 @@ func CreateDB(instance Instance) (*structs.DB, error) {
 	return nil, nil
 }
 
-func GetDB(instance Instance) (structs.DB, error) {
+func DescribeDB(instance Instance) (structs.DB, error) {
 	instance.setDefaults()
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name)
 
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name)
 }
 
 func DeleteDB(instance Instance) error {
@@ -62,9 +62,6 @@ func DeleteDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func DescribeDB(instance Instance) ([]structs.DB, error) {
-	return nil, nil
+	return nil
 }

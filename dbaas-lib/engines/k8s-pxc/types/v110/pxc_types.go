@@ -239,12 +239,12 @@ func (cr *PerconaXtraDBCluster) UpdateWith(c config.ClusterConfig, s3 *k8s.Backu
 		cr.Spec.Backup.Storages[k8s.DefaultBcpStorageName] = s3
 	}
 
-	if c.PXC.Instances > 0 {
-		cr.Spec.PXC.Size = c.PXC.Instances
+	if c.PXC.Size > 0 {
+		cr.Spec.PXC.Size = c.PXC.Size
 	}
 
-	if c.ProxySQL.Instances > 0 {
-		cr.Spec.ProxySQL.Size = c.ProxySQL.Instances
+	if c.ProxySQL.Size > 0 {
+		cr.Spec.ProxySQL.Size = c.ProxySQL.Size
 	}
 
 	// Disable ProxySQL if size set to 0
@@ -294,39 +294,34 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		}
 	}
 
-	if c.PXC.Instances > 0 {
-		cr.Spec.PXC.Size = c.PXC.Instances
+	if c.PXC.Size > 0 {
+		cr.Spec.PXC.Size = c.PXC.Size
 	}
 
-	if len(c.PXC.RequestCPU) > 0 && len(c.PXC.RequestMem) > 0 {
-		pxcCPU := c.PXC.RequestCPU
-		_, err = resource.ParseQuantity(pxcCPU)
-		if err != nil {
-			return errors.Wrap(err, "pxc-request-cpu")
-		}
-		pxcMemory := c.PXC.RequestMem
-		_, err = resource.ParseQuantity(pxcMemory)
-		if err != nil {
-			return errors.Wrap(err, "pxc-request-mem")
-		}
-		cr.Spec.PXC.Resources = &PodResources{
-			Requests: &ResourcesList{
-				CPU:    pxcCPU,
-				Memory: pxcMemory,
-			},
-		}
+	var pxcCPU, pxcMem string
+	if len(c.PXC.Resources.Requests.CPU) > 0 {
+		pxcCPU = c.PXC.Resources.Requests.CPU
+	}
+	if len(c.PXC.Resources.Requests.Memory) > 0 {
+		pxcMem = c.PXC.Resources.Requests.Memory
 	}
 
-	if len(c.PXC.AntiAffinityKey) > 0 {
-		pxctpk := c.PXC.AntiAffinityKey
-		if _, ok := AffinityValidTopologyKeys[pxctpk]; !ok {
-			return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", pxctpk)
-		}
-		cr.Spec.PXC.Affinity.TopologyKey = &pxctpk
+	cr.Spec.PXC.Resources = &PodResources{
+		Requests: &ResourcesList{
+			CPU:    pxcCPU,
+			Memory: pxcMem,
+		},
 	}
 
-	if c.ProxySQL.Instances > 0 {
-		cr.Spec.ProxySQL.Size = c.ProxySQL.Instances
+	if len(c.PXC.Affinity.TopologyKey) > 0 {
+		if _, ok := AffinityValidTopologyKeys[c.PXC.Affinity.TopologyKey]; !ok {
+			return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", c.PXC.Affinity.TopologyKey)
+		}
+		cr.Spec.PXC.Affinity.TopologyKey = &c.PXC.Affinity.TopologyKey
+	}
+
+	if c.ProxySQL.Size > 0 {
+		cr.Spec.ProxySQL.Size = c.ProxySQL.Size
 	}
 
 	// Disable ProxySQL if size set to 0
@@ -366,29 +361,27 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 }
 
 func (cr *PerconaXtraDBCluster) setProxySQL(c config.ClusterConfig) error {
-	proxyCPU := c.ProxySQL.RequestCPU
-	_, err := resource.ParseQuantity(proxyCPU)
-	if err != nil {
-		return errors.Wrap(err, "proxy-request-cpu")
+	var proxyCPU, proxyMem string
+	if len(c.ProxySQL.Resources.Requests.CPU) > 0 {
+		proxyCPU = c.ProxySQL.Resources.Requests.CPU
 	}
-	proxyMemory := c.ProxySQL.RequestMem
-	_, err = resource.ParseQuantity(proxyMemory)
-	if err != nil {
-		return errors.Wrap(err, "proxy-request-mem")
+	if len(c.ProxySQL.Resources.Requests.Memory) > 0 {
+		proxyMem = c.ProxySQL.Resources.Requests.Memory
 	}
+
 	cr.Spec.ProxySQL.Resources = &PodResources{
 		Requests: &ResourcesList{
 			CPU:    proxyCPU,
-			Memory: proxyMemory,
+			Memory: proxyMem,
 		},
 	}
 
-	proxytpk := c.ProxySQL.AntiAffinityKey
-	if _, ok := AffinityValidTopologyKeys[proxytpk]; !ok {
-		return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", proxytpk)
+	if len(c.ProxySQL.Affinity.TopologyKey) > 0 {
+		if _, ok := AffinityValidTopologyKeys[c.ProxySQL.Affinity.TopologyKey]; !ok {
+			return errors.Errorf("invalid `proxy-anti-affinity-key` value: %s", c.ProxySQL.Affinity.TopologyKey)
+		}
+		cr.Spec.ProxySQL.Affinity.TopologyKey = &c.ProxySQL.Affinity.TopologyKey
 	}
-	cr.Spec.ProxySQL.Affinity.TopologyKey = &proxytpk
-
 	return nil
 }
 

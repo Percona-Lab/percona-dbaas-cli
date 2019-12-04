@@ -37,7 +37,10 @@ var delCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		i := dbaas.Instance{
-			Name: args[0],
+			Name:          args[0],
+			EngineOptions: *delOptions,
+			Engine:        *delEngine,
+			Provider:      *delProvider,
 		}
 		err := dbaas.DeleteDB(i)
 		if err != nil {
@@ -94,10 +97,17 @@ var delCmd = &cobra.Command{
 }
 
 var envDlt *string
+var delOptions *string
+var delProvider *string
+var delEngine *string
 
 func init() {
 	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
+
+	delOptions = delCmd.Flags().String("options", "", "Engine options")
+	delProvider = delCmd.Flags().String("provider", "", "Provider")
+	delEngine = delCmd.Flags().String("engine", "", "Engine")
 
 	PXCCmd.AddCommand(delCmd)
 }

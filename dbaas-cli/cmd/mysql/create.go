@@ -51,12 +51,13 @@ var createCmd = &cobra.Command{
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
-		sp.Prefix = "Creating cluster..."
+		sp.Prefix = "Starting........."
 		sp.FinalMSG = ""
 		sp.Start()
 		defer sp.Stop()
 		_, err := dbaas.CreateDB(instance)
 		if err != nil {
+			sp.Stop()
 			log.Error("create db: ", err)
 			return
 		}
@@ -64,18 +65,20 @@ var createCmd = &cobra.Command{
 		tckr := time.NewTicker(500 * time.Millisecond)
 		defer tckr.Stop()
 		for range tckr.C {
-			cluster, err := dbaas.GetDB(instance)
+			cluster, err := dbaas.DescribeDB(instance)
 			if err != nil {
+				sp.Stop()
 				log.Error("check db: ", err)
 				return
 			}
 			if cluster.Status == "ready" {
 				sp.Stop()
-				log.Println("Cluster is ready")
+				log.Println("Database started successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
+				sp.Stop()
 				log.Error("unable to start cluster. cluster status: ", cluster.Status)
 				return
 			}

@@ -15,6 +15,6 @@ type DB struct {
 }
 
 func (d DB) String() string {
-	stringMsg := `Host: %s, Port: %d, User: %s, Pass: %s`
+	stringMsg := "Host: %s\nPort: %d\nUser: %s\nPass: %s"
 	return fmt.Sprintf(stringMsg, d.Host, d.Port, d.User, d.Pass)
 }
