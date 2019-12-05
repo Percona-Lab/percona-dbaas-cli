@@ -10,6 +10,7 @@ type Engine interface {
 	CheckDBClusterStatus(name string) (structs.DB, error)
 	DeleteDBCluster(name string, delePVC bool) error
 	GetDBCluster(name string) (structs.DB, error)
+	GetDBClusterList() ([]structs.DB, error)
 	UpdateDBCluster() error
 	ListDBClusters() error
 	DescribeDBCluster(name string) error

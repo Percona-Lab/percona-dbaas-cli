@@ -25,31 +25,37 @@ func (i *Instance) setDefaults() {
 	}
 }
 
-func CreateDB(instance Instance) (*structs.DB, error) {
+func CreateDB(instance Instance) error {
 	instance.setDefaults()
 	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
-		return nil, errors.New("wrong provider")
+		return errors.New("wrong provider")
 	}
 	if _, ok := pdl.Providers[instance.Provider].Engines[instance.Engine]; !ok {
-		return nil, errors.New("wrong engine")
+		return errors.New("wrong engine")
 	}
 
 	err := pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, nil
+	return nil
 }
 
 func DescribeDB(instance Instance) (structs.DB, error) {
 	instance.setDefaults()
 
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name)
+}
+
+func ListDB(instance Instance) ([]structs.DB, error) {
+	instance.setDefaults()
+
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBClusterList()
 }
 
 func DeleteDB(instance Instance) error {

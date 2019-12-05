@@ -277,7 +277,6 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		cr.ObjectMeta.Annotations = make(map[string]string)
 		cr.ObjectMeta.Annotations["broker-instance"] = c.PXC.BrokerInstance
 	}
-
 	if len(c.PXC.StorageSize) > 0 {
 		volSizeFlag := c.PXC.StorageSize
 		volSize, err := resource.ParseQuantity(volSizeFlag)
@@ -286,16 +285,20 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		}
 		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: volSize}
 	}
-
 	if len(c.PXC.StorageClass) > 0 {
 		volClassNameFlag := c.PXC.StorageClass
 		if volClassNameFlag != "" {
 			cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
 		}
 	}
-
 	if c.PXC.Size > 0 {
 		cr.Spec.PXC.Size = c.PXC.Size
+	}
+	if len(c.PXC.Image) > 0 {
+		cr.Spec.PXC.Image = c.PXC.Image
+	}
+	if len(c.SecretsName) > 0 {
+		cr.Spec.SecretsName = c.SecretsName
 	}
 
 	var pxcCPU, pxcMem string

@@ -118,6 +118,13 @@ func (p Cmd) GetObject(typ, name string) ([]byte, error) {
 	return p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
+func (p Cmd) GetObjects(typ string) ([]byte, error) {
+	if len(p.Namespace) > 0 {
+		return p.runCmd(p.execCommand, "get", typ, "-n", p.Namespace, "-o", "json")
+	}
+	return p.runCmd(p.execCommand, "get", typ, "-o", "json")
+}
+
 func (p Cmd) apply(k8sObj string) error {
 	namespace := ""
 	if len(p.Namespace) > 0 {

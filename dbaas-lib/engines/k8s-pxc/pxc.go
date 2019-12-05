@@ -27,6 +27,8 @@ import (
 
 const (
 	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.1.0"
+	provider               = "k8s"
+	engine                 = "pxc"
 )
 
 var objects map[Version]VersionObject
@@ -37,7 +39,7 @@ func init() {
 	if err != nil {
 		return
 	}
-	pdl.RegisterEngine("k8s", "pxc", pxc)
+	pdl.RegisterEngine(provider, engine, pxc)
 
 	// Register pxc versions
 	objects = make(map[Version]VersionObject)
@@ -56,6 +58,19 @@ type PXC struct {
 }
 
 type Version string
+
+type PXCMeta struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
+type PXCResource struct {
+	Meta   PXCMeta `json:"metadata"`
+	Status PerconaXtraDBClusterStatus
+}
+type k8sCluster struct {
+	Items []PXCResource `json:"items"`
+}
 
 type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus

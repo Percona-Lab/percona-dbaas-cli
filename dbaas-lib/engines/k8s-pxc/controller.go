@@ -103,7 +103,7 @@ func (p *PXC) CheckDBClusterStatus(name string) (structs.DB, error) {
 
 	switch st.Status.Status {
 	case AppStateReady:
-		db.Host = st.Status.Host
+		db.ResourceEndpoint = st.Status.Host
 		db.Port = 3306
 		db.User = "root"
 		db.Pass = string(secrets["root"])
@@ -157,13 +157,41 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 		return db, errors.Wrap(err, "unmarshal object")
 	}
 
-	db.Host = st.Status.Host
+	db.Provider = provider
+	db.Engine = engine
+	db.ResourceName = name
+	db.ResourceEndpoint = st.Status.Host //"-h $cluster-proxysql -uroot -proot_password"
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])
 	db.Status = string(st.Status.Status)
+	if st.Status.Status == "ready" {
+		db.Message = "To access database please run the following command:\nkubectl proxy ...; mysql -h " + name + "-proxysql." + name + ".pxc.svc.local -P 3306 -u root -p" + db.Pass
+	}
 
 	return db, nil
+}
+
+func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
+	var dbList []structs.DB
+	cluster, err := p.cmd.GetObjects("pxc")
+	if err != nil {
+		return dbList, errors.Wrap(err, "get cluster object")
+
+	}
+	st := &k8sCluster{}
+	err = json.Unmarshal(cluster, st)
+	if err != nil {
+		return dbList, errors.Wrap(err, "unmarshal object")
+	}
+	for _, c := range st.Items {
+		db := structs.DB{
+			ResourceName: c.Meta.Name,
+			Status:       string(c.Status.Status),
+		}
+		dbList = append(dbList, db)
+	}
+	return dbList, nil
 }
 
 func (p *PXC) UpdateDBCluster() error {

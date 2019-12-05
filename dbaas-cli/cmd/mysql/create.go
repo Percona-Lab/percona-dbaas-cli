@@ -55,7 +55,7 @@ var createCmd = &cobra.Command{
 		sp.FinalMSG = ""
 		sp.Start()
 		defer sp.Stop()
-		_, err := dbaas.CreateDB(instance)
+		err := dbaas.CreateDB(instance)
 		if err != nil {
 			sp.Stop()
 			log.Error("create db: ", err)
