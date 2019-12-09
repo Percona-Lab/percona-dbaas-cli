@@ -18,35 +18,35 @@ type DB struct {
 func (d DB) String() string {
 	provider := ""
 	if len(d.Provider) > 0 {
-		provider = fmt.Sprintf("Provider:          %s\n", d.Provider)
+		provider = fmt.Sprintf("Provider:          %s", d.Provider)
 	}
 	engine := ""
 	if len(d.Engine) > 0 {
-		engine = fmt.Sprintf("Engine:            %s\n", d.Engine)
+		engine = fmt.Sprintf("\nEngine:            %s", d.Engine)
 	}
 	resourceName := ""
 	if len(d.ResourceName) > 0 {
-		resourceName = fmt.Sprintf("Resource Name:     %s\n", d.ResourceName)
+		resourceName = fmt.Sprintf("\nResource Name:     %s", d.ResourceName)
 	}
 	resourceEndpoint := ""
 	if len(d.ResourceEndpoint) > 0 {
-		resourceEndpoint = fmt.Sprintf("Resource Endpoint: %s\n", d.ResourceEndpoint)
+		resourceEndpoint = fmt.Sprintf("\nResource Endpoint: %s", d.ResourceEndpoint)
 	}
 	port := ""
 	if d.Port > 0 {
-		port = fmt.Sprintf("Port:              %d\n", d.Port)
+		port = fmt.Sprintf("\nPort:              %d", d.Port)
 	}
 	user := ""
 	if len(d.User) > 0 {
-		user = fmt.Sprintf("User:              %s\n", d.User)
+		user = fmt.Sprintf("\nUser:              %s", d.User)
 	}
 	pass := ""
 	if len(d.Pass) > 0 {
-		pass = fmt.Sprintf("Pass:              %s\n", d.Pass)
+		pass = fmt.Sprintf("\nPass:              %s", d.Pass)
 	}
 	message := ""
 	if len(d.Message) > 0 {
-		message = fmt.Sprintf("\n%s\n", d.Message)
+		message = fmt.Sprintf("\n\n%s\n", d.Message)
 	}
 
 	return provider + engine + resourceName + resourceEndpoint + port + user + pass + message

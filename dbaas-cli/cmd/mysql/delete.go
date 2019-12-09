@@ -15,6 +15,13 @@
 package mysql
 
 import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -30,12 +37,27 @@ var delCmd = &cobra.Command{
 	Short: "Delete MySQL cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("you have to specify mysql-cluster-name")
+			return errors.New("you have to specify resource name")
 		}
 
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		var yn string
+		fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n", args[0])
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			yn = strings.TrimSpace(scanner.Text())
+			break
+		}
+		if yn != "yes" && yn != "Yes" {
+			return
+		}
+		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
+		sp.Color("green", "bold")
+		sp.Prefix = "Deleting cluster........."
+		sp.FinalMSG = ""
+		sp.Start()
 		i := dbaas.Instance{
 			Name:          args[0],
 			EngineOptions: *delOptions,
@@ -47,51 +69,7 @@ var delCmd = &cobra.Command{
 			log.Error("delete db: ", err)
 			return
 		}
-		/*name := args[0]
-		labelsMap := make(map[string]string)
-		if len(*labels) > 0 {
-			keyValues := strings.Split(*labels, ",")
-			for index := range keyValues {
-				itemSlice := strings.Split(keyValues[index], "=")
-				labelsMap[itemSlice[0]] = itemSlice[1]
-			}
-		}
-		pxcOperator, err := pxc.NewPXCController(labelsMap, *envDlt)
-		if err != nil {
-			log.Error("new pxc operator: ", err)
-			return
-		}
-		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
-		sp.Color("green", "bold")
-		sp.Prefix = "Looking for the cluster..."
-		sp.FinalMSG = ""
-		sp.Start()
-		defer sp.Stop()
-
-		if *delePVC {
-			sp.Stop()
-			var yn string
-			fmt.Printf("\nAll current data on \"%s\" cluster will be destroyed.\nAre you sure? [y/N] ", name)
-			scanner := bufio.NewScanner(os.Stdin)
-			for scanner.Scan() {
-				yn = strings.TrimSpace(scanner.Text())
-				break
-			}
-			if yn != "y" && yn != "Y" {
-				return
-			}
-			sp.Start()
-		}
-		sp.Lock()
-		sp.Prefix = "Deleting..."
-		sp.Unlock()
-
-		err = pxcOperator.DeleteDBCluster(name, *delePVC)
-		if err != nil {
-			log.Error("delete cluster: ", err)
-			return
-		}
-		sp.Stop()*/
+		sp.Stop()
 		log.Println("Deleting done")
 	},
 }

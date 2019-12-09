@@ -160,13 +160,13 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = st.Status.Host //"-h $cluster-proxysql -uroot -proot_password"
+	db.ResourceEndpoint = st.Status.Host + "." + name + ".pxc.svc.local"
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])
 	db.Status = string(st.Status.Status)
 	if st.Status.Status == "ready" {
-		db.Message = "To access database please run the following command:\nkubectl proxy ...; mysql -h " + name + "-proxysql." + name + ".pxc.svc.local -P 3306 -u root -p" + db.Pass
+		db.Message = "To access database please run the following command:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306; mysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
 	}
 
 	return db, nil
