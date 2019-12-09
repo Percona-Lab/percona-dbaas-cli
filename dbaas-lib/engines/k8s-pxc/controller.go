@@ -160,7 +160,7 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = st.Status.Host //"-h $cluster-proxysql -uroot -proot_password"
+	db.ResourceEndpoint = st.Status.Host
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])

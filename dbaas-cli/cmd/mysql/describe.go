@@ -19,20 +19,12 @@ import (
 	"github.com/spf13/cobra"
 
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
-	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
 
 // describeCmd represents the describe command
 var describeCmd = &cobra.Command{
 	Use:   "describe-db <mysql-cluster-name>",
 	Short: "Create MySQL cluster on current Kubernetes cluster",
-	Args: func(cmd *cobra.Command, args []string) error {
-		//if len(args) == 0 {
-		//	return errors.New("You have to specify mysql-cluster-name")
-		//}
-
-		return nil
-	},
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
 		if len(args) > 0 {
@@ -44,24 +36,35 @@ var describeCmd = &cobra.Command{
 			Engine:        *engine,
 			Provider:      *provider,
 		}
+
 		if len(name) > 0 {
 			db, err := dbaas.DescribeDB(instance)
 			if err != nil {
-				log.Error("check db: ", err)
+				log.Error("describe db: ", err)
 				return
 			}
 			db.Message = ""
-			log.Println(db)
+			db.Pass = ""
+			log.Print(db)
 			return
 		}
+
 		listDB, err := dbaas.ListDB(instance)
 		if err != nil {
 			log.Error("list db: ", err)
 			return
 		}
-		log.Println("Name      Status")
+		log.Println("NAME                STATUS")
 		for _, db := range listDB {
-			log.Println(db.ResourceName + "     " + db.Status)
+			space := "          "
+			if len(db.ResourceName) <= 10 {
+				for i := 0; i < 10-len(db.ResourceName); i++ {
+					space = space + " "
+				}
+			} else {
+				db.ResourceName = db.ResourceName[:10]
+			}
+			log.Println(db.ResourceName + space + db.Status)
 		}
 	},
 }

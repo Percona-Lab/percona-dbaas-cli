@@ -37,7 +37,7 @@ var createCmd = &cobra.Command{
 	Short: "Create MySQL cluster on current Kubernetes cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return errors.New("You have to specify mysql-cluster-name")
+			return errors.New("You have to specify resource name")
 		}
 
 		return nil
