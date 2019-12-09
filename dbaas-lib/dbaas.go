@@ -25,6 +25,7 @@ func (i *Instance) setDefaults() {
 	}
 }
 
+// CreateDb creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
 func CreateDB(instance Instance) error {
 	instance.setDefaults()
 	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {

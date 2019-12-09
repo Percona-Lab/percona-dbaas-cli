@@ -14,6 +14,7 @@ import (
 
 var currectOptions map[string]string
 
+// ParseOptions parse PXC options given in "object.paramValue=val,objectTwo.paramValue=val" string
 func (p *PXC) ParseOptions(options string) error {
 	var c config.ClusterConfig
 
@@ -166,7 +167,7 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	db.Pass = string(secrets["root"])
 	db.Status = string(st.Status.Status)
 	if st.Status.Status == "ready" {
-		db.Message = "To access database please run the following command:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306; mysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
+		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\n mysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
 	}
 
 	return db, nil
