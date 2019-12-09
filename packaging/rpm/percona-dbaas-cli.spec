@@ -38,7 +38,7 @@ mv %{name}-%{version} src/github.com/Percona-Lab/%{name}
 mv src/github.com/Percona-Lab/%{name}/kubernetes src/k8s.io/
 ln -s src/github.com/Percona-Lab/%{name} %{name}-%{version}
 cd src/
-go build github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas
+go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd
 go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
 cd %{_builddir}
 

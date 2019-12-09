@@ -35,7 +35,7 @@ override_dh_auto_build:
 	mkdir -p build/src/k8s.io/
 	cp -r `ls | grep -v build` build/src/github.com/Percona-Lab/percona-dbaas-cli
 	cp -r kubernetes build/src/k8s.io/
-	cd build/src/ && go build github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas
+	cd build/src/ && go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd
 	cd build/src/ && go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
 
 	touch $@

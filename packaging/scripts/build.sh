@@ -494,12 +494,12 @@ build_tarball(){
     export GOBINPATH="/usr/local/go/bin"
     if [ "x${WIN}" = "x1" ]; then
         ARCH="win"
-        cd build/src && env GOOS=windows GOARCH=386 go build -o percona-dbaas.exe github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas && env GOOS=windows GOARCH=386 go build -o percona-kubectl.exe k8s.io/kubernetes/cmd/kubectl
+        cd build/src && env GOOS=windows GOARCH=386 go build -o percona-dbaas.exe github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd && env GOOS=windows GOARCH=386 go build -o percona-kubectl.exe k8s.io/kubernetes/cmd/kubectl
     elif [ ${MAC} = 1 ]; then
         ARCH="ios"
-        cd build/src && env GOOS=darwin GOARCH=amd64 go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas && env GOOS=darwin GOARCH=amd64 go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
+        cd build/src && env GOOS=darwin GOARCH=amd64 go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd && env GOOS=darwin GOARCH=amd64 go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
     else
-        cd build/src && go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/cmd/percona-dbaas && go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
+        cd build/src && go build -o percona-dbaas github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd && go build -o percona-kubectl k8s.io/kubernetes/cmd/kubectl
     fi
     cp percona-dbaas* ${WORKDIR}/${PSMDIR}/
     cp percona-dbaas* ${WORKDIR}/${PSMDIR}/kubectl-pxc
