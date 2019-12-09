@@ -29,8 +29,6 @@ import (
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 )
 
-var delePVC *bool
-
 // delCmd represents the list command
 var delCmd = &cobra.Command{
 	Use:   "delete-db <mysql-cluster-name>",
@@ -43,15 +41,17 @@ var delCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		var yn string
-		fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n", args[0])
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			yn = strings.TrimSpace(scanner.Text())
-			break
-		}
-		if yn != "yes" && yn != "Yes" {
-			return
+		if !*forced {
+			var yn string
+			fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n", args[0])
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				yn = strings.TrimSpace(scanner.Text())
+				break
+			}
+			if yn != "yes" && yn != "Yes" && yn != "YES" && yn != "Y" && yn != "y" {
+				return
+			}
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
@@ -78,9 +78,11 @@ var envDlt *string
 var delOptions *string
 var delProvider *string
 var delEngine *string
+var forced *bool
 
 func init() {
-	delePVC = delCmd.Flags().Bool("clear-data", false, "Remove cluster volumes")
+	forced = delCmd.Flags().BoolP("forced", "f", false, "Forced delete")
+
 	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
 
 	delOptions = delCmd.Flags().String("options", "", "Engine options")
