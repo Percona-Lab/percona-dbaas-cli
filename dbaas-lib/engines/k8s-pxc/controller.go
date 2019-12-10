@@ -24,7 +24,7 @@ func (p *PXC) ParseOptions(options string) error {
 			Memory: "1G",
 		},
 	}
-	topologyKey := "kubernetes.io/hostname"
+	topologyKey := "none" //TODO: Deside what value is default "none" or "kubernetes.io/hostname"
 	aff := config.PodAffinity{
 		TopologyKey: topologyKey,
 	}
@@ -122,21 +122,34 @@ func (p *PXC) CheckDBClusterStatus(name string) (structs.DB, error) {
 }
 
 // DeleteDBCluster delete cluster by name
-func (p *PXC) DeleteDBCluster(name string, delePVC bool) error {
+func (p *PXC) DeleteDBCluster(name string, delePVC bool) (string, error) {
 	ext, err := p.cmd.IsObjExists("pxc", name)
 	if err != nil {
-		return errors.Wrap(err, "check if cluster exists")
+		return "", errors.Wrap(err, "check if cluster exists")
 	}
 
 	if !ext {
-		return errors.New("unable to find cluster pxc/" + name)
+		return "", errors.New("unable to find cluster pxc/" + name)
 	}
 
 	err = p.cmd.DeleteCluster("pxc", p.operatorName(), name, delePVC)
 	if err != nil {
-		return errors.Wrap(err, "delete cluster")
+		return "", errors.Wrap(err, "delete cluster")
 	}
-	return nil
+	if !delePVC {
+		pvcObj, err := p.cmd.GetObject("pvc", "datadir-"+name+"-pxc-0")
+		if err != nil {
+			return "", errors.Wrap(err, "get pvc")
+		}
+		pvc := &k8sPVC{}
+		err = json.Unmarshal(pvcObj, pvc)
+		if err != nil {
+			return "", errors.Wrap(err, "unmarshal pvc")
+		}
+		return "pvc/" + pvc.Meta.Name, nil
+	}
+
+	return "", nil
 }
 
 func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
@@ -167,7 +180,7 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	db.Pass = string(secrets["root"])
 	db.Status = string(st.Status.Status)
 	if st.Status.Status == "ready" {
-		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\n mysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
+		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
 	}
 
 	return db, nil
@@ -195,15 +208,24 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 	return dbList, nil
 }
 
-func (p *PXC) UpdateDBCluster() error {
-	return nil
-}
+func (p *PXC) UpdateDBCluster(name string) error {
+	var s3stor *k8s.BackupStorageSpec
+	c := objects[currentVersion].pxc
+	p.config.Name = name
+	err := p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
+	if err != nil {
+		return errors.Wrap(err, "set configuration: ")
+	}
+	cr, err := p.getCR(c)
+	if err != nil {
+		return errors.Wrap(err, "get cr")
+	}
 
-func (p *PXC) ListDBClusters() error {
-	return nil
-}
+	err = p.cmd.Upgrade("pxc", name, cr)
+	if err != nil {
+		return errors.Wrap(err, "create cluster")
+	}
 
-func (p *PXC) DescribeDBCluster(name string) error {
 	return nil
 }
 

@@ -26,15 +26,10 @@ import (
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
 
-const (
-	defaultVersion = "default"
-	maxTries       = 1200
-)
-
-// createCmd represents the create command
-var createCmd = &cobra.Command{
-	Use:   "create-db <mysql-cluster-name>",
-	Short: "Create MySQL cluster",
+// modifyCmd represents the create command
+var modifyCmd = &cobra.Command{
+	Use:   "modify-db <mysql-cluster-name>",
+	Short: "Modify MySQL cluster ",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify resource name")
@@ -45,17 +40,17 @@ var createCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		instance := dbaas.Instance{
 			Name:          args[0],
-			EngineOptions: *options,
-			Engine:        *engine,
-			Provider:      *provider,
+			EngineOptions: *modifyOptions,
+			Engine:        *modifyEngine,
+			Provider:      *modifyProvider,
 		}
 		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
 		sp.Color("green", "bold")
-		sp.Prefix = "Starting........."
+		sp.Prefix = "Modifying........."
 		sp.FinalMSG = ""
 		sp.Start()
 		defer sp.Stop()
-		err := dbaas.CreateDB(instance)
+		err := dbaas.ModifyDB(instance)
 		if err != nil {
 			sp.Stop()
 			log.Error("create db: ", err)
@@ -73,7 +68,7 @@ var createCmd = &cobra.Command{
 			}
 			if cluster.Status == "ready" {
 				sp.Stop()
-				log.Println("Database started successfully, connection details are below:")
+				log.Println("Database modifyed successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
@@ -87,14 +82,14 @@ var createCmd = &cobra.Command{
 	},
 }
 
-var options *string
-var provider *string
-var engine *string
+var modifyOptions *string
+var modifyProvider *string
+var modifyEngine *string
 
 func init() {
-	options = createCmd.Flags().String("options", "", "Engine options")
-	provider = createCmd.Flags().String("provider", "", "Provider")
-	engine = createCmd.Flags().String("engine", "", "Engine")
+	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options")
+	modifyProvider = modifyCmd.Flags().String("provider", "", "Provider")
+	modifyEngine = modifyCmd.Flags().String("engine", "", "Engine")
 
-	PXCCmd.AddCommand(createCmd)
+	PXCCmd.AddCommand(modifyCmd)
 }

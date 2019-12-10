@@ -25,7 +25,7 @@ func (i *Instance) setDefaults() {
 	}
 }
 
-// CreateDb creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
+// CreateDB creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
 func CreateDB(instance Instance) error {
 	instance.setDefaults()
 	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
@@ -47,6 +47,28 @@ func CreateDB(instance Instance) error {
 	return nil
 }
 
+// ModifyDB modifies DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
+func ModifyDB(instance Instance) error {
+	instance.setDefaults()
+	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
+		return errors.New("wrong provider")
+	}
+	if _, ok := pdl.Providers[instance.Provider].Engines[instance.Engine]; !ok {
+		return errors.New("wrong engine")
+	}
+
+	err := pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
+	if err != nil {
+		return err
+	}
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func DescribeDB(instance Instance) (structs.DB, error) {
 	instance.setDefaults()
 
@@ -59,16 +81,12 @@ func ListDB(instance Instance) ([]structs.DB, error) {
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBClusterList()
 }
 
-func DeleteDB(instance Instance) error {
+func DeleteDB(instance Instance, saveData bool) (string, error) {
 	instance.setDefaults()
 	err := pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
 	if err != nil {
-		return err
-	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, false)
-	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, saveData)
 }

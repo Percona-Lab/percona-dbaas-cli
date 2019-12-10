@@ -44,10 +44,14 @@ func (d DB) String() string {
 	if len(d.Pass) > 0 {
 		pass = fmt.Sprintf("\nPass:              %s", d.Pass)
 	}
+	status := ""
+	if len(d.Status) > 0 {
+		status = fmt.Sprintf("\nStatus:            %s", d.Status)
+	}
 	message := ""
 	if len(d.Message) > 0 {
 		message = fmt.Sprintf("\n\n%s\n", d.Message)
 	}
 
-	return provider + engine + resourceName + resourceEndpoint + port + user + pass + message
+	return provider + engine + resourceName + resourceEndpoint + port + user + pass + status + message
 }

@@ -8,12 +8,10 @@ type Engine interface {
 	ParseOptions(s string) error
 	CreateDBCluster(name string) error
 	CheckDBClusterStatus(name string) (structs.DB, error)
-	DeleteDBCluster(name string, delePVC bool) error
+	DeleteDBCluster(name string, delePVC bool) (string, error)
 	GetDBCluster(name string) (structs.DB, error)
 	GetDBClusterList() ([]structs.DB, error)
-	UpdateDBCluster() error
-	ListDBClusters() error
-	DescribeDBCluster(name string) error
+	UpdateDBCluster(name string) error
 }
 
 var Providers = make(map[string]Provider)
