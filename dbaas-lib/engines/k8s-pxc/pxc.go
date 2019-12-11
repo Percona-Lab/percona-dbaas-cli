@@ -76,6 +76,17 @@ type k8sStatus struct {
 	Status PerconaXtraDBClusterStatus
 }
 
+type PVCMeta struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	SelfLink  string `json:"selflink"`
+	UID       string `json:"uid"`
+}
+
+type k8sPVC struct {
+	Meta PVCMeta `json:"metadata"`
+}
+
 const (
 	currentVersion Version = "default"
 )

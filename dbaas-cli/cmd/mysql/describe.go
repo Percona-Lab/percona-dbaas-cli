@@ -24,7 +24,7 @@ import (
 // describeCmd represents the describe command
 var describeCmd = &cobra.Command{
 	Use:   "describe-db <mysql-cluster-name>",
-	Short: "Create MySQL cluster on current Kubernetes cluster",
+	Short: "Describe MySQL cluster or list clusters",
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
 		if len(args) > 0 {
@@ -54,6 +54,10 @@ var describeCmd = &cobra.Command{
 			log.Error("list db: ", err)
 			return
 		}
+		if len(listDB) == 0 {
+			log.Println("Nothing to show")
+			return
+		}
 		log.Println("NAME                STATUS")
 		for _, db := range listDB {
 			space := "          "
@@ -73,7 +77,6 @@ var descrProvider *string
 var descrEngine *string
 
 func init() {
-
 	descrProvider = describeCmd.Flags().String("provider", "", "Provider")
 	descrEngine = describeCmd.Flags().String("engine", "", "Engine")
 

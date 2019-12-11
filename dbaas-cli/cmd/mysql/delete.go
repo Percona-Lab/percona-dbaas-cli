@@ -43,7 +43,11 @@ var delCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		if !*forced {
 			var yn string
-			fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n", args[0])
+			preservText := "YOUR DATA WILL BE SAVED\n"
+			if !*preserve {
+				preservText = "ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG FOR SAVE IT\n"
+			}
+			fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n"+preservText, args[0])
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
 				yn = strings.TrimSpace(scanner.Text())
@@ -59,18 +63,24 @@ var delCmd = &cobra.Command{
 		sp.FinalMSG = ""
 		sp.Start()
 		i := dbaas.Instance{
-			Name:          args[0],
-			EngineOptions: *delOptions,
-			Engine:        *delEngine,
-			Provider:      *delProvider,
+			Name:     args[0],
+			Engine:   *delEngine,
+			Provider: *delProvider,
 		}
-		err := dbaas.DeleteDB(i)
+		deletePVC := false
+		if !*preserve {
+			deletePVC = true
+		}
+		dataStorage, err := dbaas.DeleteDB(i, deletePVC)
 		if err != nil {
 			log.Error("delete db: ", err)
 			return
 		}
 		sp.Stop()
 		log.Println("Deleting done")
+		if *preserve {
+			log.Println("Your data store in " + dataStorage)
+		}
 	},
 }
 
@@ -79,15 +89,13 @@ var delOptions *string
 var delProvider *string
 var delEngine *string
 var forced *bool
+var preserve *bool
 
 func init() {
-	forced = delCmd.Flags().BoolP("forced", "f", false, "Forced delete")
-
-	envDlt = delCmd.Flags().String("environment", "", "Target kubernetes cluster")
-
-	delOptions = delCmd.Flags().String("options", "", "Engine options")
+	forced = delCmd.Flags().BoolP("yes", "y", false, "Unswer yes for questions")
 	delProvider = delCmd.Flags().String("provider", "", "Provider")
 	delEngine = delCmd.Flags().String("engine", "", "Engine")
+	preserve = delCmd.Flags().Bool("preserve-data", false, "Do not delete data")
 
 	PXCCmd.AddCommand(delCmd)
 }

@@ -22,7 +22,7 @@ type ClusterConfig struct {
 type Spec struct {
 	BrokerInstance string `json:"brokerInstance,omitempty"`
 	StorageSize    string `json:"storageSize,omitempty"`
-	StorageClass   string `json:"storageClass,omitempty"`
+	//StorageClass   string `json:"storageClass,omitempty"`
 
 	Enabled             bool                          `json:"enabled,omitempty"`
 	Size                int32                         `json:"size,omitempty"`
