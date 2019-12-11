@@ -53,7 +53,7 @@ var modifyCmd = &cobra.Command{
 		err := dbaas.ModifyDB(instance)
 		if err != nil {
 			sp.Stop()
-			log.Error("create db: ", err)
+			log.Error("modify db: ", err)
 			return
 		}
 		tries := 0
@@ -74,7 +74,7 @@ var modifyCmd = &cobra.Command{
 			}
 			if tries >= maxTries {
 				sp.Stop()
-				log.Error("unable to start cluster. cluster status: ", cluster.Status)
+				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
 				return
 			}
 			tries++

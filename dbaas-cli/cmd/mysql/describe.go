@@ -24,7 +24,7 @@ import (
 // describeCmd represents the describe command
 var describeCmd = &cobra.Command{
 	Use:   "describe-db <mysql-cluster-name>",
-	Short: "Create MySQL cluster on current Kubernetes cluster",
+	Short: "Describe MySQL cluster or list clusters",
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
 		if len(args) > 0 {

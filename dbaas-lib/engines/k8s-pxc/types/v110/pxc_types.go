@@ -268,15 +268,21 @@ func (cr *PerconaXtraDBCluster) Upgrade(imgs map[string]string) {
 	}
 }
 
+// SetNew setting up cr using ClusterConfig
 func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupStorageSpec, p k8s.PlatformType) (err error) {
 	cr.ClusterName = c.Name
 	cr.ObjectMeta.Name = c.Name
-	cr.SetDefaults()
+	if len(c.Labels) > 0 {
+		cr.ObjectMeta.Labels = make(map[string]string)
+		cr.ObjectMeta.Labels = c.Labels
+	}
+	cr.setDefaults()
 
 	if len(c.PXC.BrokerInstance) > 0 {
 		cr.ObjectMeta.Annotations = make(map[string]string)
 		cr.ObjectMeta.Annotations["broker-instance"] = c.PXC.BrokerInstance
 	}
+	cr.Spec.PXC.AllowUnsafeConfig = c.PXC.AllowUnsafeConfig
 	if len(c.PXC.StorageSize) > 0 {
 		volSizeFlag := c.PXC.StorageSize
 		volSize, err := resource.ParseQuantity(volSizeFlag)
@@ -285,11 +291,8 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		}
 		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: volSize}
 	}
-	if len(c.PXC.StorageClass) > 0 {
-		volClassNameFlag := c.PXC.StorageClass
-		if volClassNameFlag != "" {
-			cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
-		}
+	if c.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName != nil {
+		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = c.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName
 	}
 	if c.PXC.Size > 0 {
 		cr.Spec.PXC.Size = c.PXC.Size
@@ -300,7 +303,6 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 	if len(c.SecretsName) > 0 {
 		cr.Spec.SecretsName = c.SecretsName
 	}
-
 	var pxcCPU, pxcMem string
 	if len(c.PXC.Resources.Requests.CPU) > 0 {
 		pxcCPU = c.PXC.Resources.Requests.CPU
@@ -308,25 +310,49 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 	if len(c.PXC.Resources.Requests.Memory) > 0 {
 		pxcMem = c.PXC.Resources.Requests.Memory
 	}
-
 	cr.Spec.PXC.Resources = &PodResources{
 		Requests: &ResourcesList{
 			CPU:    pxcCPU,
 			Memory: pxcMem,
 		},
 	}
-
 	if len(c.PXC.Affinity.TopologyKey) > 0 {
 		if _, ok := AffinityValidTopologyKeys[c.PXC.Affinity.TopologyKey]; !ok {
 			return errors.Errorf("invalid `pxc-anti-affinity-key` value: %s", c.PXC.Affinity.TopologyKey)
 		}
 		cr.Spec.PXC.Affinity.TopologyKey = &c.PXC.Affinity.TopologyKey
 	}
+	if len(c.PXC.ImagePullSecrets) > 0 {
+		cr.Spec.PXC.ImagePullSecrets = c.PXC.ImagePullSecrets
+	}
+	if len(c.PXC.Labels) > 0 {
+		if cr.Spec.PXC.Labels == nil {
+			cr.Spec.PXC.Labels = make(map[string]string)
+		}
+		cr.Spec.PXC.Labels = c.PXC.Labels
+	}
+	if len(c.PXC.NodeSelector) > 0 {
+		cr.Spec.PXC.NodeSelector = c.PXC.NodeSelector
+	}
+	if len(c.PXC.PodDisruptionBudget.MaxUnavailable.StrVal) > 0 || c.PXC.PodDisruptionBudget.MaxUnavailable.IntVal > 0 {
+		cr.Spec.PXC.PodDisruptionBudget.MaxUnavailable = &c.PXC.PodDisruptionBudget.MaxUnavailable
+	}
+	if len(c.PXC.PodDisruptionBudget.MinAvailable.StrVal) > 0 || c.PXC.PodDisruptionBudget.MinAvailable.IntVal > 0 {
+		cr.Spec.PXC.PodDisruptionBudget.MinAvailable = &c.PXC.PodDisruptionBudget.MinAvailable
+	}
+	if len(c.PXC.PriorityClassName) > 0 {
+		cr.Spec.PXC.PriorityClassName = c.PXC.PriorityClassName
+	}
+	if len(c.PXC.Annotations) > 0 {
+		if cr.Spec.PXC.Annotations == nil {
+			cr.Spec.PXC.Annotations = make(map[string]string)
+		}
+		cr.Spec.PXC.Annotations = c.PXC.Annotations
+	}
 
 	if c.ProxySQL.Size > 0 {
 		cr.Spec.ProxySQL.Size = c.ProxySQL.Size
 	}
-
 	// Disable ProxySQL if size set to 0
 	if cr.Spec.ProxySQL.Size > 0 {
 		err := cr.setProxySQL(c)
@@ -385,10 +411,39 @@ func (cr *PerconaXtraDBCluster) setProxySQL(c config.ClusterConfig) error {
 		}
 		cr.Spec.ProxySQL.Affinity.TopologyKey = &c.ProxySQL.Affinity.TopologyKey
 	}
+
+	if len(c.ProxySQL.ImagePullSecrets) > 0 {
+		cr.Spec.ProxySQL.ImagePullSecrets = c.ProxySQL.ImagePullSecrets
+	}
+	if len(c.ProxySQL.Labels) > 0 {
+		if cr.Spec.ProxySQL.Labels == nil {
+			cr.Spec.ProxySQL.Labels = make(map[string]string)
+		}
+		cr.Spec.ProxySQL.Labels = c.ProxySQL.Labels
+	}
+	if len(c.ProxySQL.NodeSelector) > 0 {
+		cr.Spec.ProxySQL.Labels = c.ProxySQL.NodeSelector
+	}
+	if len(c.ProxySQL.PodDisruptionBudget.MaxUnavailable.StrVal) > 0 || c.ProxySQL.PodDisruptionBudget.MaxUnavailable.IntVal > 0 {
+		cr.Spec.ProxySQL.PodDisruptionBudget.MaxUnavailable = &c.ProxySQL.PodDisruptionBudget.MaxUnavailable
+	}
+	if len(c.ProxySQL.PodDisruptionBudget.MinAvailable.StrVal) > 0 || c.ProxySQL.PodDisruptionBudget.MinAvailable.IntVal > 0 {
+		cr.Spec.ProxySQL.PodDisruptionBudget.MinAvailable = &c.ProxySQL.PodDisruptionBudget.MinAvailable
+	}
+	if len(c.ProxySQL.PriorityClassName) > 0 {
+		cr.Spec.ProxySQL.PriorityClassName = c.ProxySQL.PriorityClassName
+	}
+	if len(c.ProxySQL.Annotations) > 0 {
+		if cr.Spec.ProxySQL.Annotations == nil {
+			cr.Spec.ProxySQL.Annotations = make(map[string]string)
+		}
+		cr.Spec.ProxySQL.Annotations = c.ProxySQL.Annotations
+	}
+
 	return nil
 }
 
-func (cr *PerconaXtraDBCluster) SetDefaults() {
+func (cr *PerconaXtraDBCluster) setDefaults() {
 	one := intstr.FromInt(1)
 
 	cr.TypeMeta.APIVersion = "pxc.percona.com/v1"
