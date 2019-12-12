@@ -70,6 +70,7 @@ var modifyCmd = &cobra.Command{
 			if tries >= maxTries {
 				dotPrinter.Stop("error")
 				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
+
 				return
 			}
 			tries++
