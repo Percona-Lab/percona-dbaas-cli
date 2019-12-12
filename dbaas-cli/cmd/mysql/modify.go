@@ -60,21 +60,23 @@ var modifyCmd = &cobra.Command{
 		tckr := time.NewTicker(500 * time.Millisecond)
 		defer tckr.Stop()
 		for range tckr.C {
-			cluster, err := dbaas.DescribeDB(instance)
+			db, err := dbaas.DescribeDB(instance)
 			if err != nil {
 				sp.Stop()
 				log.Error("check db: ", err)
 				return
 			}
-			if cluster.Status == "ready" {
+			if db.Status == "ready" {
+				db.Pass = ""
+				db.Message = ""
 				sp.Stop()
-				log.Println("Database modifyed successfully, connection details are below:")
-				log.Println(cluster)
+				log.Println("Database modifyed successfully, details are below:")
+				log.Println(db)
 				return
 			}
 			if tries >= maxTries {
 				sp.Stop()
-				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
+				log.Error("unable to modify. Database status: ", db.Status)
 				return
 			}
 			tries++

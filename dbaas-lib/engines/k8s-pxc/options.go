@@ -97,6 +97,7 @@ func set(i *config.ClusterConfig, field string, value string) error {
 }
 
 func getValue(value string, field reflect.Value) (reflect.Value, error) {
+	var fieldValue interface{}
 	var pointer bool
 	if strings.Contains(field.Type().String(), "*") {
 		pointer = true
@@ -108,90 +109,75 @@ func getValue(value string, field reflect.Value) (reflect.Value, error) {
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		fieldValue = v
 		if pointer {
-			var pointerV *int
-			pointerV = &v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &v
 		}
-		return reflect.Indirect(reflect.ValueOf(v)), nil
 	case "int32":
 		v, err := strconv.Atoi(value)
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		i32v := int32(v)
+		fieldValue = i32v
 		if pointer {
-			var pointerV *int32
-			i32v := int32(v)
-			pointerV = &i32v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &i32v
 		}
-		return reflect.Indirect(reflect.ValueOf(int32(v))), nil
 	case "int64":
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		fieldValue = v
 		if pointer {
-			var pointerV *int64
-			pointerV = &v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &v
 		}
-		return reflect.Indirect(reflect.ValueOf(v)), nil
 	case "float32":
 		v, err := strconv.ParseFloat(value, 32)
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		f32v := float32(v)
+		fieldValue = f32v
 		if pointer {
-			var pointerV *float32
-			f32v := float32(v)
-			pointerV = &f32v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &f32v
 		}
-		return reflect.Indirect(reflect.ValueOf(float32(v))), nil
 	case "float64":
 		v, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		fieldValue = v
 		if pointer {
-			var pointerV *float64
-			pointerV = &v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &v
 		}
-		return reflect.Indirect(reflect.ValueOf(v)), nil
 	case "bool":
 		v, err := strconv.ParseBool(value)
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		fieldValue = v
 		if pointer {
-			var pointerV *bool
-			pointerV = &v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &v
 		}
-		return reflect.Indirect(reflect.ValueOf(v)), nil
 	case "map[string]string":
 		v, err := parseMapValue(value)
 		if err != nil {
 			return reflect.Value{}, err
 		}
+		fieldValue = v
 		if pointer {
-			var pointerV *map[string]string
-			pointerV = &v
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &v
 		}
 		return reflect.Indirect(reflect.ValueOf(v)), nil
 	case "string":
+		fieldValue = value
 		if pointer {
-			var pointerV *string
-			pointerV = &value
-			return reflect.ValueOf(pointerV), nil
+			fieldValue = &value
 		}
-		return reflect.Indirect(reflect.ValueOf(value)), nil
-	default:
-		return reflect.Indirect(reflect.ValueOf(value)), nil
 	}
+
+	return reflect.ValueOf(fieldValue), nil
 }
 
 func parseMapValue(s string) (map[string]string, error) {
