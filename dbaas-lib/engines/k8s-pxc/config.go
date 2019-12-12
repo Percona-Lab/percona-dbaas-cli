@@ -24,7 +24,6 @@ type PXDBCluster interface {
 	UpdateWith(c config.ClusterConfig, s3 *k8s.BackupStorageSpec) (err error)
 	Upgrade(imgs map[string]string)
 	SetNew(c config.ClusterConfig, s3 *k8s.BackupStorageSpec, p k8s.PlatformType) (err error)
-	SetDefaults()
 	GetName() string
 	MarshalRequests() error
 	GetCR() (string, error)
