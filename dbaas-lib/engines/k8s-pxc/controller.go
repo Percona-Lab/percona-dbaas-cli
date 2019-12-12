@@ -100,6 +100,7 @@ func (p *PXC) DeleteDBCluster(name string, delePVC bool) (string, error) {
 	return "", nil
 }
 
+// GetDBCluster return DB object
 func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	var db structs.DB
 	secrets, err := p.cmd.GetSecrets(name)
@@ -134,6 +135,7 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	return db, nil
 }
 
+// GetDBClusterList return list of existing DB obkects
 func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 	var dbList []structs.DB
 	cluster, err := p.cmd.GetObjects("pxc")
@@ -156,6 +158,7 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 	return dbList, nil
 }
 
+// UpdateDBCluster update DB
 func (p *PXC) UpdateDBCluster(name string) error {
 	var s3stor *k8s.BackupStorageSpec
 	c := objects[currentVersion].pxc
