@@ -1,0 +1,18 @@
+bin_dir=$(cd $(dirname $0); pwd -P)
+root_dir=$(cd $(dirname $0)/../..; pwd -P)
+tmp_dir=${root_dir}/tmp
+
+percona_dbaas_cli_repo=$(git config --get remote.origin.url)
+percona_dbaas_cli_branch=$(git rev-parse --abbrev-ref HEAD)
+percona_dbaas_cli_version=$(cat ${root_dir}/VERSION | grep percona-dbaas-cli | awk '{print $2}')
+kubernetes_version=$(cat ${root_dir}/VERSION | grep kubernetes | awk '{print $2}')
+full_percona_dbaas_cli_version=${percona_dbaas_cli_version}-$(git rev-parse --short HEAD)
+
+echo -e "\n\n\n>>> full_percona_dbaas_cli_version=${full_percona_dbaas_cli_version} \n\n\n"
+
+rpms_dir=${root_dir}/tmp/percona-dbaas-cli/RPMS
+source_dir=${root_dir}/tmp/source/${full_percona_dbaas_cli_version}
+binary_dir=${root_dir}/tmp/binary/percona-dbaas-cli-${percona_dbaas_cli_version}
+properties_file=${root_dir}/results/percona-dbaas-cli.properties
+source_tarball=${root_dir}/results/source_tarball/percona-dbaas-cli-${percona_dbaas_cli_version}.tar.gz
+binary_tarball=${root_dir}/results/tarball/percona-dbaas-cli-${percona_dbaas_cli_version}-x86_64.tar.gz

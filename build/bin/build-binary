@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -o errexit
+set -o xtrace
+
+. $(dirname $0)/vars
+
+extract_source_tarball() {
+    if [ ! -d "${source_dir}" ]; then
+        mkdir -p $(dirname ${source_dir})
+        tar -C $(dirname ${source_dir}) -zxpf ${source_tarball}
+    fi
+}
+
+build_binary() {
+    local component_name=$1
+    local extract_path=${2:-"github.com/Percona-Lab/$component_name"}
+    local component_path=$3
+
+    if [ -x "${binary_dir}/percona-dbaas" ]; then
+        echo skip build
+        return
+    fi
+    echo ${source_dir}
+    mkdir -p ${binary_dir}
+    pushd $(dirname ${source_dir})/${component_name}-${percona_dbaas_cli_version}
+        SOURCE_ROOT_DIR=$(pwd)
+        mkdir -p src/github.com/Percona-Lab
+        ln -s $SOURCE_ROOT_DIR  src/${extract_path}
+        pushd src/${extract_path}
+             docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 go build -o percona-dbaas ${extract_path}/dbaas-cli/cmd
+        popd
+        aws s3 cp percona-dbaas s3://operator-testing/percona-dbaas
+        cp percona-dbaas ${binary_dir}/percona-dbaas
+    popd
+}
+
+main() {
+    extract_source_tarball
+    build_binary percona-dbaas-cli
+    mkdir -p $(dirname ${binary_tarball})
+    tar -C $(dirname ${binary_dir}) -zcf ${binary_tarball} $(basename ${binary_dir})
+}
+
+main
+exit 0
