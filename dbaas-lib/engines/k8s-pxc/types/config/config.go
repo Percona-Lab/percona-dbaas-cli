@@ -62,9 +62,9 @@ type ResourcesList struct {
 }
 
 type VolumeSpec struct {
-	EmptyDir              corev1.EmptyDirVolumeSource      `json:"emptyDir,omitempty"`
-	HostPath              corev1.HostPathVolumeSource      `json:"hostPath,omitempty"`
-	PersistentVolumeClaim corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
+	EmptyDir              *corev1.EmptyDirVolumeSource      `json:"emptyDir,omitempty"`
+	HostPath              *corev1.HostPathVolumeSource      `json:"hostPath,omitempty"`
+	PersistentVolumeClaim *corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
 }
 
 type PXCScheduledBackup struct {

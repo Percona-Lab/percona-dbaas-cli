@@ -162,10 +162,18 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 func (p *PXC) UpdateDBCluster(name string) error {
 	var s3stor *k8s.BackupStorageSpec
 	c := objects[currentVersion].pxc
-	p.config.Name = name
-	err := p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
+	oldCR, err := p.cmd.GetObject("pxc", name)
 	if err != nil {
-		return errors.Wrap(err, "set configuration: ")
+		return errors.Wrap(err, "get cluster cr")
+	}
+	err = json.Unmarshal(oldCR, &c)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal cr")
+	}
+	p.config.Name = name
+	err = p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
+	if err != nil {
+		return errors.Wrap(err, "set configuration")
 	}
 	cr, err := p.getCR(c)
 	if err != nil {

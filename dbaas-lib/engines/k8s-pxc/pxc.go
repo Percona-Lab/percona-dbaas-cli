@@ -15,6 +15,8 @@
 package pxc
 
 import (
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -37,7 +39,8 @@ func init() {
 	// Register pxc engine in dbaas
 	pxc, err := NewPXCController("", "k8s")
 	if err != nil {
-		return
+		fmt.Println("Cant start. Setup your kubectl")
+		os.Exit(1)
 	}
 	pdl.RegisterEngine(provider, engine, pxc)
 

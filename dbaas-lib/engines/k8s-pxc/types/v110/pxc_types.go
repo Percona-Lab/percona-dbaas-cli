@@ -291,9 +291,7 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		}
 		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests = corev1.ResourceList{corev1.ResourceStorage: volSize}
 	}
-	if c.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName != nil {
-		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName = c.PXC.VolumeSpec.PersistentVolumeClaim.StorageClassName
-	}
+
 	if c.PXC.Size > 0 {
 		cr.Spec.PXC.Size = c.PXC.Size
 	}
@@ -302,6 +300,21 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 	}
 	if len(c.SecretsName) > 0 {
 		cr.Spec.SecretsName = c.SecretsName
+	}
+	if c.PXC.VolumeSpec.EmptyDir != nil {
+		cr.Spec.PXC.VolumeSpec.EmptyDir = c.PXC.VolumeSpec.EmptyDir
+	}
+	if c.PXC.VolumeSpec.HostPath != nil {
+		cr.Spec.PXC.VolumeSpec.HostPath = c.PXC.VolumeSpec.HostPath
+	}
+	if c.PXC.VolumeSpec.PersistentVolumeClaim != nil {
+		cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim = c.PXC.VolumeSpec.PersistentVolumeClaim
+	}
+	if len(c.PXC.Tolerations) > 0 {
+		cr.Spec.PXC.Tolerations = c.PXC.Tolerations
+	}
+	if len(c.PXC.Configuration) > 0 {
+		cr.Spec.PXC.Configuration = c.PXC.Configuration
 	}
 	var pxcCPU, pxcMem string
 	if len(c.PXC.Resources.Requests.CPU) > 0 {
@@ -349,7 +362,6 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		}
 		cr.Spec.PXC.Annotations = c.PXC.Annotations
 	}
-
 	if c.ProxySQL.Size > 0 {
 		cr.Spec.ProxySQL.Size = c.ProxySQL.Size
 	}

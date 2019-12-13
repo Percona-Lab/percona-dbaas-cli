@@ -28,14 +28,11 @@ func (i *Instance) setDefaults() {
 // CreateDB creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
 func CreateDB(instance Instance) error {
 	instance.setDefaults()
-	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
-		return errors.New("wrong provider")
+	err := checkPrroviderAndEngine(instance)
+	if err != nil {
+		return err
 	}
-	if _, ok := pdl.Providers[instance.Provider].Engines[instance.Engine]; !ok {
-		return errors.New("wrong engine")
-	}
-
-	err := pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
 	if err != nil {
 		return err
 	}
@@ -50,14 +47,11 @@ func CreateDB(instance Instance) error {
 // ModifyDB modifies DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
 func ModifyDB(instance Instance) error {
 	instance.setDefaults()
-	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
-		return errors.New("wrong provider")
+	err := checkPrroviderAndEngine(instance)
+	if err != nil {
+		return err
 	}
-	if _, ok := pdl.Providers[instance.Provider].Engines[instance.Engine]; !ok {
-		return errors.New("wrong engine")
-	}
-
-	err := pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
 	if err != nil {
 		return err
 	}
@@ -71,22 +65,44 @@ func ModifyDB(instance Instance) error {
 
 func DescribeDB(instance Instance) (structs.DB, error) {
 	instance.setDefaults()
+	err := checkPrroviderAndEngine(instance)
+	if err != nil {
+		return structs.DB{}, err
+	}
 
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name)
 }
 
 func ListDB(instance Instance) ([]structs.DB, error) {
 	instance.setDefaults()
+	err := checkPrroviderAndEngine(instance)
+	if err != nil {
+		return nil, err
+	}
 
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBClusterList()
 }
 
 func DeleteDB(instance Instance, saveData bool) (string, error) {
 	instance.setDefaults()
-	err := pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
+	err := checkPrroviderAndEngine(instance)
+	if err != nil {
+		return "", err
+	}
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
 	if err != nil {
 		return "", err
 	}
 
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, saveData)
+}
+
+func checkPrroviderAndEngine(instance Instance) error {
+	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
+		return errors.New("wrong provider")
+	}
+	if _, ok := pdl.Providers[instance.Provider].Engines[instance.Engine]; !ok {
+		return errors.New("wrong engine")
+	}
+	return nil
 }
