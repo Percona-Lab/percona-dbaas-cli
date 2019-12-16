@@ -1,6 +1,7 @@
 package options
 
 import (
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -17,12 +18,11 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 
 	opts := make(map[string]string)
 	validConfKeys(typ, opts, "", "")
-
 	optArr := strings.Split(options, ",")
 	for _, str := range optArr {
 		v := strings.Split(str, "=")
 		if _, ok := opts[v[0]]; !ok {
-			return errors.Errorf("invalid option %s", v[0])
+			return errors.Errorf("invalidd option %s", v[0])
 		}
 		if len(v) > 1 {
 			fs := strings.Split(opts[v[0]], ".")
@@ -53,6 +53,12 @@ func setValue(val reflect.Value, value string) error {
 	default:
 		// TODO: maps, slices
 		return errors.Errorf("type %v not implemented", val.Kind())
+	case reflect.Map:
+		v, err := parseMapValue(value, val)
+		if err != nil {
+			return errors.Errorf("parse value %s: %v", val, err)
+		}
+		val.Set(v)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil || val.OverflowInt(v) {
@@ -123,23 +129,40 @@ func getValue(val reflect.Value, value string) (reflect.Value, error) {
 		rv = reflect.ValueOf(v)
 	case reflect.String:
 		rv = reflect.ValueOf(value)
+	case reflect.Map:
+		//v, err := parseMapValue(value)
+		//if err != nil {
+		//	return rv, errors.Errorf("parse value %s: %v", val, err)
+		//}
+		//rv = reflect.ValueOf(v)
 	}
 
 	return rv, nil
 }
 
-func parseMapValue(s string) (map[string]string, error) {
-	value := make(map[string]string)
+func parseMapValue(s string, refValue reflect.Value) (reflect.Value, error) {
+	value := refValue
+	value.Set(reflect.MakeMap(refValue.Type()))
+	//value := make(map[interface{}]interface{})
 	sSlice := strings.Split(s, ";")
 	if len(sSlice) == 0 {
-		return nil, errors.New("empty value")
+		return value, errors.New("empty value")
 	}
 	for _, v := range sSlice {
 		vSlice := strings.Split(v, ":")
 		if len(vSlice) != 2 {
-			return nil, errors.New("empty map value")
+			return value, errors.New("empty map value")
 		}
-		value[vSlice[0]] = vSlice[1]
+		key, err := getValue(refValue, vSlice[0])
+		if err != nil {
+			return value, errors.Wrap(err, "get map key")
+		}
+		val, err := getValue(refValue, vSlice[1])
+		if err != nil {
+			return value, errors.Wrap(err, "get map value")
+		}
+		log.Println(value.Type().String())
+		value.SetMapIndex(key, val)
 	}
 
 	return value, nil
