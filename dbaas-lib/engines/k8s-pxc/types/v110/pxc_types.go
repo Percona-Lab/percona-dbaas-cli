@@ -402,6 +402,25 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 }
 
 func (cr *PerconaXtraDBCluster) setProxySQL(c config.ClusterConfig) error {
+	if len(c.ProxySQL.Image) > 0 {
+		cr.Spec.ProxySQL.Image = c.ProxySQL.Image
+	}
+
+	if c.ProxySQL.VolumeSpec.EmptyDir != nil {
+		cr.Spec.ProxySQL.VolumeSpec.EmptyDir = c.ProxySQL.VolumeSpec.EmptyDir
+	}
+	if c.ProxySQL.VolumeSpec.HostPath != nil {
+		cr.Spec.ProxySQL.VolumeSpec.HostPath = c.ProxySQL.VolumeSpec.HostPath
+	}
+	if c.ProxySQL.VolumeSpec.PersistentVolumeClaim != nil {
+		cr.Spec.ProxySQL.VolumeSpec.PersistentVolumeClaim = c.ProxySQL.VolumeSpec.PersistentVolumeClaim
+	}
+	if len(c.ProxySQL.Tolerations) > 0 {
+		cr.Spec.ProxySQL.Tolerations = c.ProxySQL.Tolerations
+	}
+	if len(c.ProxySQL.Configuration) > 0 {
+		cr.Spec.ProxySQL.Configuration = c.ProxySQL.Configuration
+	}
 	var proxyCPU, proxyMem string
 	if len(c.ProxySQL.Resources.Requests.CPU) > 0 {
 		proxyCPU = c.ProxySQL.Resources.Requests.CPU
@@ -434,7 +453,7 @@ func (cr *PerconaXtraDBCluster) setProxySQL(c config.ClusterConfig) error {
 		cr.Spec.ProxySQL.Labels = c.ProxySQL.Labels
 	}
 	if len(c.ProxySQL.NodeSelector) > 0 {
-		cr.Spec.ProxySQL.Labels = c.ProxySQL.NodeSelector
+		cr.Spec.ProxySQL.NodeSelector = c.ProxySQL.NodeSelector
 	}
 	if len(c.ProxySQL.PodDisruptionBudget.MaxUnavailable.StrVal) > 0 || c.ProxySQL.PodDisruptionBudget.MaxUnavailable.IntVal > 0 {
 		cr.Spec.ProxySQL.PodDisruptionBudget.MaxUnavailable = &c.ProxySQL.PodDisruptionBudget.MaxUnavailable

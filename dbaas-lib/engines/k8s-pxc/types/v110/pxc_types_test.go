@@ -60,7 +60,7 @@ func TestSetNew(t *testing.T) {
 		ProxySQL: config.Spec{
 			Enabled: true,
 			Size:    int32(3),
-			Image:   "test-pxc-image",
+			Image:   "test-proxy-image",
 			Resources: config.PodResources{
 				Requests: config.ResourcesList{
 					CPU:    "600m",
@@ -88,8 +88,7 @@ func TestSetNew(t *testing.T) {
 					Name: "test",
 				},
 			},
-			AllowUnsafeConfig: true,
-			Configuration:     "test",
+			Configuration: "test",
 			PodDisruptionBudget: config.PodDisruptionBudgetSpec{
 				MinAvailable: intstr.IntOrString{
 					StrVal: "test",
@@ -100,9 +99,6 @@ func TestSetNew(t *testing.T) {
 	cr := PerconaXtraDBCluster{}
 	var s3stor *k8s.BackupStorageSpec
 	cr.SetNew(c, s3stor, k8s.PlatformKubernetes)
-	//if cr.Spec.PXC.Enabled != c.PXC.Enabled {
-	//	t.Error("PXC.Enabled !=", c.PXC.Enabled)
-	//}
 
 	if cr.Spec.PXC.Size != c.PXC.Size {
 		t.Error("PXC.Size !=", c.PXC.Size)
@@ -151,5 +147,57 @@ func TestSetNew(t *testing.T) {
 	}
 	if cr.Spec.PXC.PodDisruptionBudget.MinAvailable.StrVal != c.PXC.PodDisruptionBudget.MinAvailable.StrVal {
 		t.Error("PXC.PodDisruptionBudget.MinAvailable.StrVal !=", c.PXC.PodDisruptionBudget.MinAvailable.StrVal)
+	}
+
+	if cr.Spec.ProxySQL.Enabled != c.ProxySQL.Enabled {
+		t.Error("ProxySQL.Enabled !=", c.ProxySQL.Enabled)
+	}
+	if cr.Spec.ProxySQL.Size != c.ProxySQL.Size {
+		t.Error("ProxySQL.Size !=", c.ProxySQL.Size)
+	}
+	if cr.Spec.ProxySQL.Image != c.ProxySQL.Image {
+		t.Error("ProxySQL.Image !=", c.ProxySQL.Image)
+	}
+	if cr.Spec.ProxySQL.Resources.Requests.CPU != c.ProxySQL.Resources.Requests.CPU {
+		t.Error("ProxySQL.Resources.Requests.CPU !=", c.ProxySQL.Resources.Requests.CPU)
+	}
+	if cr.Spec.ProxySQL.Resources.Requests.Memory != c.ProxySQL.Resources.Requests.Memory {
+		t.Error("ProxySQL.Resources.Requests.CPU !=", c.ProxySQL.Resources.Requests.Memory)
+	}
+	if cr.Spec.ProxySQL.VolumeSpec.EmptyDir.Medium != c.ProxySQL.VolumeSpec.EmptyDir.Medium {
+		t.Error("ProxySQL.VolumeSpec.EmptyDir.Medium !=", c.ProxySQL.VolumeSpec.EmptyDir.Medium)
+	}
+	if *cr.Spec.ProxySQL.Affinity.TopologyKey != c.ProxySQL.Affinity.TopologyKey {
+		t.Error("ProxySQL.Affinity.TopologyKey !=", c.ProxySQL.Affinity.TopologyKey)
+	}
+	if cr.Spec.ProxySQL.NodeSelector["test"] != c.ProxySQL.NodeSelector["test"] {
+		t.Error(`ProxySQL.NodeSelector["test"]!=`, c.ProxySQL.NodeSelector["test"])
+	}
+	if cr.Spec.ProxySQL.Tolerations[0].Value != c.ProxySQL.Tolerations[0].Value {
+		t.Error("ProxySQL.Tolerations[0].Value !=", c.ProxySQL.Tolerations[0].Value)
+	}
+	if cr.Spec.ProxySQL.Tolerations[0].Key != c.ProxySQL.Tolerations[0].Key {
+		t.Error("ProxySQL.Tolerations[0].Key !=", c.ProxySQL.Tolerations[0].Key)
+	}
+	if cr.Spec.ProxySQL.PriorityClassName != c.ProxySQL.PriorityClassName {
+		t.Error("ProxySQL.PriorityClassName !=", c.ProxySQL.PriorityClassName)
+	}
+	if cr.Spec.ProxySQL.Annotations["test"] != c.ProxySQL.Annotations["test"] {
+		t.Error(`ProxySQL.Annotations["test"]!=`, c.ProxySQL.Annotations["test"])
+	}
+	if cr.Spec.ProxySQL.Labels["test"] != c.ProxySQL.Labels["test"] {
+		t.Error(`ProxySQL.Labels["test"]!=`, c.ProxySQL.Labels["test"])
+	}
+	if cr.Spec.ProxySQL.ImagePullSecrets[0].Name != c.ProxySQL.ImagePullSecrets[0].Name {
+		t.Error("ProxySQL.ImagePullSecrets[0].Name !=", c.ProxySQL.ImagePullSecrets[0].Name)
+	}
+	if cr.Spec.ProxySQL.AllowUnsafeConfig != c.ProxySQL.AllowUnsafeConfig {
+		t.Error("ProxySQL.AllowUnsafeConfig !=", c.ProxySQL.AllowUnsafeConfig)
+	}
+	if cr.Spec.ProxySQL.Configuration != c.ProxySQL.Configuration {
+		t.Error("ProxySQL.Configurationg !=", c.ProxySQL.Configuration)
+	}
+	if cr.Spec.ProxySQL.PodDisruptionBudget.MinAvailable.StrVal != c.ProxySQL.PodDisruptionBudget.MinAvailable.StrVal {
+		t.Error("ProxySQL.PodDisruptionBudget.MinAvailable.StrVal !=", c.ProxySQL.PodDisruptionBudget.MinAvailable.StrVal)
 	}
 }
