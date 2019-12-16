@@ -17,7 +17,6 @@ package mysql
 import (
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -44,15 +43,11 @@ var modifyCmd = &cobra.Command{
 			Engine:        *modifyEngine,
 			Provider:      *modifyProvider,
 		}
-		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
-		sp.Color("green", "bold")
-		sp.Prefix = "Modifying........."
-		sp.FinalMSG = ""
-		sp.Start()
-		defer sp.Stop()
+
+		dotPrinter.StartPrintDot("Modifying")
 		err := dbaas.ModifyDB(instance)
 		if err != nil {
-			sp.Stop()
+			dotPrinter.StopPrintDot("error")
 			log.Error("modify db: ", err)
 			return
 		}
@@ -62,18 +57,18 @@ var modifyCmd = &cobra.Command{
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
 			if err != nil {
-				sp.Stop()
+				dotPrinter.StopPrintDot("error")
 				log.Error("check db: ", err)
 				return
 			}
 			if cluster.Status == "ready" {
-				sp.Stop()
+				dotPrinter.StopPrintDot("error")
 				log.Println("Database modifyed successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
-				sp.Stop()
+				dotPrinter.StopPrintDot("error")
 				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
 				return
 			}
