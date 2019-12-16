@@ -62,7 +62,7 @@ var modifyCmd = &cobra.Command{
 				return
 			}
 			if cluster.Status == "ready" {
-				dotPrinter.StopPrintDot("error")
+				dotPrinter.StopPrintDot("done")
 				log.Println("Database modifyed successfully, connection details are below:")
 				log.Println(cluster)
 				return
