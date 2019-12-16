@@ -49,11 +49,11 @@ var createCmd = &cobra.Command{
 			Provider:      *provider,
 		}
 
-		dotPrinter.StartPrintDot("Starting")
+		dotPrinter.Start("Starting")
 		err := dbaas.CreateDB(instance)
 		if err != nil {
 			//sp.Stop()
-			dotPrinter.StopPrintDot("error")
+			dotPrinter.Stop("error")
 			log.Error("create db: ", err)
 			return
 		}
@@ -70,14 +70,14 @@ var createCmd = &cobra.Command{
 			}
 			if cluster.Status == "ready" {
 				//sp.Stop()
-				dotPrinter.StopPrintDot("done")
+				dotPrinter.Stop("done")
 				log.Println("Database started successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
 				//sp.Stop()
-				dotPrinter.StopPrintDot("error")
+				dotPrinter.Stop("error")
 				log.Error("unable to start cluster. cluster status: ", cluster.Status)
 				return
 			}
