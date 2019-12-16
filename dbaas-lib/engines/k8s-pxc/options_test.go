@@ -84,7 +84,7 @@ func TestOptions(t *testing.T) {
 					Resources: res,
 					Affinity:  aff,
 					VolumeSpec: config.VolumeSpec{
-						HostPath: corev1.HostPathVolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
 							Path: "test",
 						},
 					},

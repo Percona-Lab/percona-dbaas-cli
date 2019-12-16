@@ -13,6 +13,7 @@ var currectOptions map[string]string
 
 // ParseOptions parse PXC options given in "object.paramValue=val,objectTwo.paramValue=val" string
 func (p *PXC) ParseOptions(options string) error {
+	options = strings.ToLower(options)
 	var c config.ClusterConfig
 
 	res := config.PodResources{
@@ -217,11 +218,11 @@ func keys(t reflect.Type, prevType, prevName string) map[string]string {
 		name := strings.TrimSpace(strings.Split(t.Field(i).Tag.Get("json"), ",")[0])
 		if t.Field(i).Type.Kind() == reflect.Struct {
 			for name, nType := range keys(t.Field(i).Type, prevType+t.Field(i).Name+".", prevName+name+".") {
-				currectOptions[prevName+name+"."+name] = prevType + t.Field(i).Name + "." + nType
+				currectOptions[strings.ToLower(prevName+name+"."+name)] = prevType + t.Field(i).Name + "." + nType
 			}
 		} else {
-			v[name] = t.Field(i).Name
-			currectOptions[prevName+name] = prevType + t.Field(i).Name
+			v[strings.ToLower(name)] = t.Field(i).Name
+			currectOptions[strings.ToLower(prevName+name)] = prevType + t.Field(i).Name
 		}
 	}
 
