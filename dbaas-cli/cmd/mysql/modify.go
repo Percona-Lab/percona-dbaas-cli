@@ -57,9 +57,9 @@ var modifyCmd = &cobra.Command{
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
 			if err != nil {
-				dotPrinter.StopPrintDot("error")
-				log.Error("check db: ", err)
-				return
+				//dotPrinter.StopPrintDot("error")
+				//log.Error("check db: ", err)
+				continue
 			}
 			if cluster.Status == "ready" {
 				dotPrinter.StopPrintDot("done")
