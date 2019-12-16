@@ -17,7 +17,6 @@ package mysql
 import (
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -49,15 +48,12 @@ var createCmd = &cobra.Command{
 			Engine:        *engine,
 			Provider:      *provider,
 		}
-		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
-		sp.Color("green", "bold")
-		sp.Prefix = "Starting........."
-		sp.FinalMSG = ""
-		sp.Start()
-		defer sp.Stop()
+
+		dotPrinter.StartPrintDot("Starting")
 		err := dbaas.CreateDB(instance)
 		if err != nil {
-			sp.Stop()
+			//sp.Stop()
+			dotPrinter.StopPrintDot("error")
 			log.Error("create db: ", err)
 			return
 		}
@@ -67,18 +63,21 @@ var createCmd = &cobra.Command{
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
 			if err != nil {
-				sp.Stop()
+				//sp.Stop()
+				dotPrinter.StopPrintDot("error")
 				log.Error("check db: ", err)
 				return
 			}
 			if cluster.Status == "ready" {
-				sp.Stop()
+				//sp.Stop()
+				dotPrinter.StopPrintDot("done")
 				log.Println("Database started successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
-				sp.Stop()
+				//sp.Stop()
+				dotPrinter.StopPrintDot("error")
 				log.Error("unable to start cluster. cluster status: ", cluster.Status)
 				return
 			}

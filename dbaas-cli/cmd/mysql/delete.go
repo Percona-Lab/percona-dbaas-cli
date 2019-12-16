@@ -19,9 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -45,7 +43,7 @@ var delCmd = &cobra.Command{
 			var yn string
 			preservText := "YOUR DATA WILL BE SAVED\n"
 			if !*preserve {
-				preservText = "ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG FOR SAVE IT\n"
+				preservText = "ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG TO SAVE IT\n"
 			}
 			fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n"+preservText, args[0])
 			scanner := bufio.NewScanner(os.Stdin)
@@ -57,11 +55,7 @@ var delCmd = &cobra.Command{
 				return
 			}
 		}
-		sp := spinner.New(spinner.CharSets[14], 250*time.Millisecond)
-		sp.Color("green", "bold")
-		sp.Prefix = "Deleting cluster........."
-		sp.FinalMSG = ""
-		sp.Start()
+		dotPrinter.StartPrintDot("Deleting")
 		i := dbaas.Instance{
 			Name:     args[0],
 			Engine:   *delEngine,
@@ -73,11 +67,12 @@ var delCmd = &cobra.Command{
 		}
 		dataStorage, err := dbaas.DeleteDB(i, deletePVC)
 		if err != nil {
+			dotPrinter.StopPrintDot("error")
 			log.Error("delete db: ", err)
 			return
 		}
-		sp.Stop()
-		log.Println("Deleting done")
+
+		dotPrinter.StopPrintDot("done")
 		if *preserve {
 			log.Println("Your data store in " + dataStorage)
 		}
