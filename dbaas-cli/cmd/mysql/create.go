@@ -64,9 +64,9 @@ var createCmd = &cobra.Command{
 			cluster, err := dbaas.DescribeDB(instance)
 			if err != nil {
 				//sp.Stop()
-				dotPrinter.StopPrintDot("error")
-				log.Error("check db: ", err)
-				return
+				//dotPrinter.StopPrintDot("error")
+				//log.Error("check db: ", err)
+				continue
 			}
 			if cluster.Status == "ready" {
 				//sp.Stop()
