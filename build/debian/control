@@ -1,0 +1,10 @@
+Source: percona-dbaas-cli
+Section: utils
+Priority: optional
+Maintainer: Percona LLC
+Version: %{version}
+Homepage: https://percona.com
+
+Package: percona-dbaas-cli
+Architecture: amd64
+Description: percona-dbaas-cli

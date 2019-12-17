@@ -1,0 +1,41 @@
+#!/bin/bash
+
+. $(dirname $0)/vars
+
+set -o errexit
+set -o xtrace
+
+bin_dir=$(cd $(dirname $0); pwd -P)
+tmp_dir=${root_dir}/tmp
+
+main() {
+    local IMAGE=${1:-ubuntu:xenial}
+    docker run --rm -v ${bin_dir}:/home/builder/bin -v ${root_dir}/results:/home/builder/results ${IMAGE} sh -c "
+        set -o errexit
+        set -o xtrace
+
+        export dbaas_release=$dbaas_release
+        export dbaas_version=$dbaas_version
+        OS_VERSION=\$(cat /etc/os-release | grep VERSION_ID | awk -F'\"' '{print \$2}')
+        if [ \$OS_VERSION = 8 ]; then
+                echo \"deb http://httpredir.debian.org/debian jessie main\" > /etc/apt/sources.list
+                echo \"deb-src http://httpredir.debian.org/debian jessie main\" >> /etc/apt/sources.list
+                echo \"deb http://security.debian.org/ jessie/updates main\" >> /etc/apt/sources.list
+                echo \"deb-src http://security.debian.org/ jessie/updates main\" >> /etc/apt/sources.list
+        fi
+
+        apt-get update
+        apt-get -y install git lsb-release devscripts dh-make dh-systemd
+        mkdir -p /tmp/dbaas
+        cp -r /home/builder/results/source_deb /tmp/dbaas/
+        cd /home/builder/results
+            bash /home/builder/bin/build-dbaas-packages \
+                --builddir=/tmp/dbaas \
+                --build_deb=1
+        cd -
+        chown -R $(id -u):$(id -g) /home/builder/results/deb
+    "
+}
+
+main $*
+exit 0
