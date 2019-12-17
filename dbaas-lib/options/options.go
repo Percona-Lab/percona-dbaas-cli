@@ -215,7 +215,7 @@ func validConfKeys(t reflect.Type, to map[string]string, pk, pv string) {
 		if t.Field(i).Type.Kind() == reflect.Struct {
 			validConfKeys(t.Field(i).Type, to, name, kt)
 		} else {
-			to[name] = kt
+			to[strings.ToLower(name)] = kt
 		}
 	}
 }

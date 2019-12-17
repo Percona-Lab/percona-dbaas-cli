@@ -2,6 +2,7 @@ package pxc
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/config"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/options"
@@ -9,7 +10,7 @@ import (
 
 // ParseOptions parse PXC options given in "object.paramValue=val,objectTwo.paramValue=val" string
 func (p *PXC) ParseOptions(opts string) error {
-
+	opts = strings.ToLower(opts)
 	var c config.ClusterConfig
 
 	res := config.PodResources{
