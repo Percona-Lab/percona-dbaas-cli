@@ -52,7 +52,6 @@ var createCmd = &cobra.Command{
 		dotPrinter.Start("Starting")
 		err := dbaas.CreateDB(instance)
 		if err != nil {
-			//sp.Stop()
 			dotPrinter.Stop("error")
 			log.Error("create db: ", err)
 			return
@@ -63,20 +62,17 @@ var createCmd = &cobra.Command{
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
 			if err != nil {
-				//sp.Stop()
 				//dotPrinter.StopPrintDot("error")
 				//log.Error("check db: ", err)
 				continue
 			}
 			if cluster.Status == "ready" {
-				//sp.Stop()
 				dotPrinter.Stop("done")
 				log.Println("Database started successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
-				//sp.Stop()
 				dotPrinter.Stop("error")
 				log.Error("unable to start cluster. cluster status: ", cluster.Status)
 				return

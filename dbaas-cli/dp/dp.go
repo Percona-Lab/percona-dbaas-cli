@@ -2,11 +2,13 @@ package dp
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
 type DotPrinter struct {
 	stop chan string
+	wg   sync.WaitGroup
 }
 
 func New() DotPrinter {
@@ -21,10 +23,12 @@ func (d *DotPrinter) Start(message string) {
 
 func (d *DotPrinter) Stop(message string) {
 	d.stop <- message
+	d.wg.Wait()
 }
 
 func (d *DotPrinter) start(message string) {
-	tckr := time.NewTicker(time.Second * 1)
+	d.wg.Add(1)
+	tckr := time.NewTicker(time.Second * 5)
 	defer tckr.Stop()
 	fmt.Printf(message)
 	for {
@@ -33,6 +37,7 @@ func (d *DotPrinter) start(message string) {
 			fmt.Print(".")
 		case msg := <-d.stop:
 			fmt.Printf("[%s]\n", msg)
+			d.wg.Done()
 			return
 		}
 	}

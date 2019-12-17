@@ -362,19 +362,23 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		}
 		cr.Spec.PXC.Annotations = c.PXC.Annotations
 	}
-	if c.ProxySQL.Size > 0 {
-		cr.Spec.ProxySQL.Size = c.ProxySQL.Size
-	}
-	// Disable ProxySQL if size set to 0
-	if cr.Spec.ProxySQL.Size > 0 {
-		err := cr.setProxySQL(c)
-		if err != nil {
-			return err
-		}
-	} else {
-		cr.Spec.ProxySQL.Enabled = false
-	}
 
+	cr.Spec.ProxySQL.Enabled = c.ProxySQL.Enabled
+
+	if cr.Spec.ProxySQL.Enabled {
+		if c.ProxySQL.Size > 0 {
+			cr.Spec.ProxySQL.Size = c.ProxySQL.Size
+		}
+		// Disable ProxySQL if size set to 0
+		if cr.Spec.ProxySQL.Size > 0 {
+			err := cr.setProxySQL(c)
+			if err != nil {
+				return err
+			}
+		} else {
+			cr.Spec.ProxySQL.Enabled = false
+		}
+	}
 	if s3 != nil {
 		cr.Spec.Backup.Storages = map[string]*k8s.BackupStorageSpec{
 			k8s.DefaultBcpStorageName: s3,
@@ -394,8 +398,8 @@ func (cr *PerconaXtraDBCluster) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		none := AffinityTopologyKeyOff
 		cr.Spec.PXC.Affinity.TopologyKey = &none
 		cr.Spec.PXC.Resources = nil
-		cr.Spec.ProxySQL.Affinity.TopologyKey = &none
-		cr.Spec.ProxySQL.Resources = nil
+		//cr.Spec.ProxySQL.Affinity.TopologyKey = &none
+		//cr.Spec.ProxySQL.Resources = nil
 	}
 
 	return nil
