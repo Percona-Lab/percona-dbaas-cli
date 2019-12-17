@@ -1,0 +1,35 @@
+#!/bin/bash
+
+. $(dirname $0)/vars
+
+set -o errexit
+set -o xtrace
+
+bin_dir=$(cd $(dirname $0); pwd -P)
+tmp_dir=${root_dir}/tmp
+
+main() {
+    local IMAGE=${1:-${rpmbuild_docker_image}}
+    docker run --rm -v $(dirname ${bin_dir})/rpm:/home/builder/rpm -v $(dirname ${bin_dir})/deb:/home/builder/deb -v ${bin_dir}:/home/builder/bin -v ${root_dir}/results:/home/builder/results ${IMAGE} sh -c "
+        set -o errexit
+        set -o xtrace
+
+        export dbaas_release=$dbaas_release
+        export dbaas_version=$dbaas_version
+        export sudo_path=\$(ls /usr/bin/sudo)
+        [[ ${IMAGE} = ${rpmbuild_docker_image} ]] || \$sudo_path yum -y install git rpm-build
+        mkdir -p /tmp/dbaas
+        pushd /home/builder/results
+             cp -r ./* /tmp/dbaas/
+             cp -r ../rpm /tmp/dbaas/
+
+            /home/builder/bin/build-dbaas-packages \
+                --builddir=/tmp/dbaas \
+                --build_src_rpm=1
+        popd
+        \$sudo_path chown -R $(id -u):$(id -g) /home/builder/results/srpm
+    "
+}
+
+main $*
+exit 0

@@ -1,0 +1,91 @@
+#!/bin/bash
+
+set -o errexit
+set -o xtrace
+
+. $(dirname $0)/vars
+
+extract_source_tarball() {
+    if [ ! -d "${source_dir}" ]; then
+        mkdir -p $(dirname ${source_dir})
+        tar -C $(dirname ${source_dir}) -zxpf ${source_tarball}
+    fi
+}
+
+build_binary() {
+    local component_name=$1
+    local extract_path=${2:-"github.com/Percona-Lab/$component_name"}
+    local binary_name=$3
+
+    if [ -x "${binary_dir}/${binary_name}" ]; then
+        echo skip build
+        return
+    fi
+    echo ${source_dir}
+    mkdir -p ${binary_dir}
+    pushd $(dirname ${source_dir})/percona-dbaas-cli-${percona_dbaas_cli_version}
+        SOURCE_ROOT_DIR=$(pwd)
+        rm -rf src
+
+        mkdir -p src/$(dirname ${extract_path})
+
+        if [ "${component_name}" = 'kubernetes' ]; then
+            ln -s $SOURCE_ROOT_DIR/kubernetes  src/${extract_path}
+        else
+            ln -s $SOURCE_ROOT_DIR  src/${extract_path}
+        fi
+
+        pushd src/${extract_path}
+             for os_name in 'win' 'linux' 'macOS'; do
+                 if [ "${os_name}" = 'macOS' ]; then
+                     build_options='env GOOS=darwin GOARCH=amd64 '
+
+                     if [ "${component_name}" = 'percona-dbaas-cli' ]; then
+                         docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 ${build_options}  go build -o ${binary_name} ${extract_path}/dbaas-cli/cmd
+                     else
+                         docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 ${build_options} go build -o ${binary_name} ${extract_path}/cmd/kubectl
+                     fi
+
+                     mkdir -p ${binary_dir}/${os_name}
+                     mv ${binary_name} ${binary_dir}/${os_name}/${binary_name}
+                 elif [ "${os_name}" = 'win' ]; then
+                     build_options='env GOOS=windows GOARCH=386 '
+                     win_binary_name="${binary_name}.exe"
+
+                     if [ "${component_name}" = 'percona-dbaas-cli' ]; then
+                         docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 ${build_options}  go build -o ${win_binary_name} ${extract_path}/dbaas-cli/cmd
+                     else
+                         docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 ${build_options} go build -o ${win_binary_name} ${extract_path}/cmd/kubectl
+                     fi
+
+                     mkdir -p ${binary_dir}/${os_name}
+                     mv ${win_binary_name} ${binary_dir}/${os_name}/${win_binary_name}
+                 elif [ "${os_name}" = 'linux' ]; then
+                     build_options=' '
+
+                     if [ "${component_name}" = 'percona-dbaas-cli' ]; then
+                         docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 ${build_options}  go build -o ${binary_name} ${extract_path}/dbaas-cli/cmd
+                     else
+                         docker run --rm -v $(pwd):/go/src/${extract_path} -w /go/src/${extract_path} golang:1.13 ${build_options} go build -o ${binary_name} ${extract_path}/cmd/kubectl
+                     fi
+
+                     mkdir -p ${binary_dir}/${os_name}
+                     mv ${binary_name} ${binary_dir}/${os_name}/${binary_name}
+                 fi
+             done
+             
+            cp LICENSE ${binary_dir}/
+        popd
+    popd
+}
+
+main() {
+    extract_source_tarball
+    build_binary percona-dbaas-cli 'github.com/Percona-Lab/percona-dbaas-cli' percona-dbaas
+    build_binary kubernetes 'k8s.io/kubernetes' percona-kubectl
+    mkdir -p $(dirname ${binary_tarball})
+    tar -C $(dirname ${binary_dir}) -zcf ${binary_tarball} $(basename ${binary_dir})
+}
+
+main
+exit 0
