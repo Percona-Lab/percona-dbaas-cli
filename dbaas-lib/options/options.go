@@ -14,7 +14,7 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 	if options == "" {
 		return nil
 	}
-
+	options = strings.ToLower(options)
 	opts := make(map[string]string)
 	validConfKeys(typ, opts, "", "")
 	optArr := strings.Split(options, ",")
