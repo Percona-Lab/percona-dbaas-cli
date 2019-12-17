@@ -58,6 +58,12 @@ func setValue(val reflect.Value, value string) error {
 			return errors.Errorf("parse value %s: %v", val, err)
 		}
 		val.Set(v)
+	case reflect.Slice:
+		v, err := parseSliceValue(value, val)
+		if err != nil {
+			return errors.Errorf("parse value %s: %v", val, err)
+		}
+		val.Set(v)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		v, err := strconv.ParseInt(value, 10, 64)
 		if err != nil || val.OverflowInt(v) {
@@ -170,6 +176,24 @@ func parseMapValue(s string, refValue reflect.Value) (reflect.Value, error) {
 		setValue(keyValue, vSlice[0])
 		setValue(mapValue, vSlice[1])
 		value.SetMapIndex(keyValue, mapValue)
+	}
+
+	return value, nil
+}
+
+func parseSliceValue(s string, refValue reflect.Value) (reflect.Value, error) {
+	value := refValue
+	sSlice := strings.Split(s, ";")
+	if len(sSlice) == 0 {
+		return value, errors.New("empty value")
+	}
+	for _, v := range sSlice {
+		sliceValue := reflect.Indirect(reflect.New(refValue.Addr().Type().Elem().Elem()))
+		err := setValue(sliceValue, v)
+		if err != nil {
+			return value, err
+		}
+		value = reflect.Append(value, sliceValue)
 	}
 
 	return value, nil
