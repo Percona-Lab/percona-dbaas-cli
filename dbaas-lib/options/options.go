@@ -1,7 +1,6 @@
 package options
 
 import (
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -90,16 +89,29 @@ func setValue(val reflect.Value, value string) error {
 	return nil
 }
 
+/*
 // TODO: maps, slices
 func getValue(val reflect.Value, value string) (reflect.Value, error) {
+	var ival reflect.Value
 	if val.Kind() == reflect.Ptr {
-		iv, err := getValue(val.Elem(), value)
+
+		//iv, err := getValue(val.Elem(), value)
+		//val = reflect.Indirect(val)
+
+		log.Println("t kind:", val.Addr().Type())
+		newVal := reflect.Indirect(reflect.New(val.Addr().Type())).Elem()
+		iv, err := getValue(newVal, value)
 		if err != nil {
 			return reflect.Value{}, err
 		}
-		reflect.Indirect(val).Set(iv)
-		return val, nil
+		ival = iv
+
+		//reflect.Indirect(val).Set(iv)
+		//return val, nil
+		return ival, nil
 	}
+	log.Println("kind:", val.Kind())
+	log.Println("type:", val.Type())
 
 	rv := reflect.Value{}
 	switch val.Kind() {
@@ -139,30 +151,25 @@ func getValue(val reflect.Value, value string) (reflect.Value, error) {
 
 	return rv, nil
 }
-
+*/
 func parseMapValue(s string, refValue reflect.Value) (reflect.Value, error) {
-	value := refValue
-	value.Set(reflect.MakeMap(refValue.Type()))
-	//value := make(map[interface{}]interface{})
+	value := reflect.MakeMap(refValue.Type())
+
 	sSlice := strings.Split(s, ";")
 	if len(sSlice) == 0 {
 		return value, errors.New("empty value")
 	}
+
+	keyValue := reflect.Indirect(reflect.New(value.Type().Key()))
+	mapValue := reflect.Indirect(reflect.New(value.Type().Elem()))
 	for _, v := range sSlice {
 		vSlice := strings.Split(v, ":")
 		if len(vSlice) != 2 {
 			return value, errors.New("empty map value")
 		}
-		key, err := getValue(refValue, vSlice[0])
-		if err != nil {
-			return value, errors.Wrap(err, "get map key")
-		}
-		val, err := getValue(refValue, vSlice[1])
-		if err != nil {
-			return value, errors.Wrap(err, "get map value")
-		}
-		log.Println(value.Type().String())
-		value.SetMapIndex(key, val)
+		setValue(keyValue, vSlice[0])
+		setValue(mapValue, vSlice[1])
+		value.SetMapIndex(keyValue, mapValue)
 	}
 
 	return value, nil
