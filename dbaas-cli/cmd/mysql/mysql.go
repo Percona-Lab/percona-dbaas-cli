@@ -41,3 +41,7 @@ func parseArgs(args []string) []string {
 
 	return args
 }
+
+func init() {
+	dotPrinter = dp.New()
+}

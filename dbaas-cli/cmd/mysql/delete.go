@@ -55,7 +55,7 @@ var delCmd = &cobra.Command{
 				return
 			}
 		}
-		dotPrinter.StartPrintDot("Deleting")
+		dotPrinter.Start("Deleting")
 		i := dbaas.Instance{
 			Name:     args[0],
 			Engine:   *delEngine,
@@ -67,12 +67,12 @@ var delCmd = &cobra.Command{
 		}
 		dataStorage, err := dbaas.DeleteDB(i, deletePVC)
 		if err != nil {
-			dotPrinter.StopPrintDot("error")
+			dotPrinter.Stop("error")
 			log.Error("delete db: ", err)
 			return
 		}
 
-		dotPrinter.StopPrintDot("done")
+		dotPrinter.Stop("done")
 		if *preserve {
 			log.Println("Your data store in " + dataStorage)
 		}

@@ -44,10 +44,10 @@ var modifyCmd = &cobra.Command{
 			Provider:      *modifyProvider,
 		}
 
-		dotPrinter.StartPrintDot("Modifying")
+		dotPrinter.Start("Modifying")
 		err := dbaas.ModifyDB(instance)
 		if err != nil {
-			dotPrinter.StopPrintDot("error")
+			dotPrinter.Stop("error")
 			log.Error("modify db: ", err)
 			return
 		}
@@ -62,13 +62,13 @@ var modifyCmd = &cobra.Command{
 				continue
 			}
 			if cluster.Status == "ready" {
-				dotPrinter.StopPrintDot("done")
+				dotPrinter.Stop("done")
 				log.Println("Database modifyed successfully, connection details are below:")
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
-				dotPrinter.StopPrintDot("error")
+				dotPrinter.Stop("error")
 				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
 				return
 			}

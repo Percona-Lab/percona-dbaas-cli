@@ -131,7 +131,10 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	if st.Status.Status == "ready" {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
 	}
-
+	if st.Status.Status == "unknown" && st.Status.PXC.Status == "ready" {
+		db.Status = "ready"
+		db.Message = "To access database please run the following commands:\nkubectl port-forward pod/" + name + "-pxc-0 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -p" + db.Pass
+	}
 	return db, nil
 }
 

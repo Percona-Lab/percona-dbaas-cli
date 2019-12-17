@@ -7,45 +7,38 @@ import (
 )
 
 type DotPrinter struct {
-	stopChan chan bool
-	wg       sync.WaitGroup
+	stop chan string
+	wg   sync.WaitGroup
 }
 
 func New() DotPrinter {
-	return DotPrinter{}
+	return DotPrinter{
+		stop: make(chan string),
+	}
 }
 
-func (d *DotPrinter) StartPrintDot(message string) {
-	d.stopChan = make(chan bool)
-	fmt.Print(message)
-	d.PrintDot()
+func (d *DotPrinter) Start(message string) {
+	go d.start(message)
 }
 
-func (d *DotPrinter) StopPrintDot(message string) {
-	d.stopChan <- true
+func (d *DotPrinter) Stop(message string) {
+	d.stop <- message
 	d.wg.Wait()
-	fmt.Print("[" + message + "]")
-	fmt.Println()
 }
 
-func (d *DotPrinter) PrintDot() {
-	stopPrint := false
-	go func(stopChan chan bool) {
-		d.wg.Add(1)
-		for stop := range stopChan {
-			if stop {
-				stopPrint = true
-			}
-		}
-	}(d.stopChan)
-	go func() {
-		for {
-			if stopPrint {
-				d.wg.Done()
-				return
-			}
-			time.Sleep(1 * time.Second)
+func (d *DotPrinter) start(message string) {
+	d.wg.Add(1)
+	tckr := time.NewTicker(time.Second * 5)
+	defer tckr.Stop()
+	fmt.Printf(message)
+	for {
+		select {
+		case <-tckr.C:
 			fmt.Print(".")
+		case msg := <-d.stop:
+			fmt.Printf("[%s]\n", msg)
+			d.wg.Done()
+			return
 		}
-	}()
+	}
 }

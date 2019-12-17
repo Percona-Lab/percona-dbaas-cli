@@ -29,6 +29,7 @@ func (p *PXC) ParseOptions(options string) error {
 	c.PXC.Size = int32(3)
 	c.PXC.Resources = res
 	c.PXC.Affinity = aff
+	c.ProxySQL.Enabled = true
 	c.ProxySQL.Size = int32(1)
 	c.ProxySQL.Resources = res
 	c.ProxySQL.Affinity = aff
