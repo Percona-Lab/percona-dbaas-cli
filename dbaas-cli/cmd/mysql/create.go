@@ -15,6 +15,7 @@
 package mysql
 
 import (
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -69,6 +70,7 @@ var createCmd = &cobra.Command{
 			if cluster.Status == "ready" {
 				dotPrinter.Stop("done")
 				log.Println("Database started successfully, connection details are below:")
+				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 				log.Println(cluster)
 				return
 			}

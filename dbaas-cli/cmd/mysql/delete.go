@@ -43,7 +43,7 @@ var delCmd = &cobra.Command{
 			var yn string
 			preservText := "YOUR DATA WILL BE SAVED\n"
 			if !*preserve {
-				preservText = "ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG TO SAVE IT\n"
+				preservText = "ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG TO SAVE IT.\n"
 			}
 			fmt.Printf("ARE YOU SURE YOU WANT TO DELETE THE DATABASE '%s'? Yes/No\n"+preservText, args[0])
 			scanner := bufio.NewScanner(os.Stdin)
@@ -74,7 +74,7 @@ var delCmd = &cobra.Command{
 
 		dotPrinter.Stop("done")
 		if *preserve {
-			log.Println("Your data store in " + dataStorage)
+			log.Println("Your data is stored in " + dataStorage)
 		}
 	},
 }
