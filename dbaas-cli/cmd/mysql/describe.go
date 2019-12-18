@@ -43,7 +43,6 @@ var describeCmd = &cobra.Command{
 				log.Error("describe db: ", err)
 				return
 			}
-			db.Message = ""
 			db.Pass = ""
 			log.Print(db)
 			return
