@@ -1,7 +1,6 @@
 package options
 
 import (
-	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -11,24 +10,21 @@ import (
 
 // Parse parses options from the given string in format "object.paramValue=val,objectTwo.paramValue=val"
 // and assigned it into the given "to" of type type
-var Opts map[string]string
-
 func Parse(to interface{}, typ reflect.Type, options string) error {
 	if options == "" {
 		return nil
 	}
 	options = strings.ToLower(options)
-	Opts = make(map[string]string)
-	validConfKeys(typ, Opts, "", "")
-	log.Println(Opts)
+	opts := make(map[string]string)
+	validConfKeys(typ, opts, "", "")
 	optArr := strings.Split(options, ",")
 	for _, str := range optArr {
 		v := strings.Split(str, "=")
-		if _, ok := Opts[v[0]]; !ok {
+		if _, ok := opts[v[0]]; !ok {
 			return errors.Errorf("invalidd option %s", v[0])
 		}
 		if len(v) > 1 {
-			fs := strings.Split(Opts[v[0]], ".")
+			fs := strings.Split(opts[v[0]], ".")
 			rv := reflect.ValueOf(to).Elem()
 			for _, f := range fs {
 				rv = rv.FieldByName(f)
@@ -56,12 +52,6 @@ func setValue(val reflect.Value, value string) error {
 	default:
 		// TODO: maps, slices
 		return errors.Errorf("type %v not implemented", val.Kind())
-	case reflect.Struct:
-		v, err := parseStruct(value, val)
-		if err != nil {
-			return errors.Errorf("parse value %s: %v", val, err)
-		}
-		val.Set(v)
 	case reflect.Map:
 		v, err := parseMapValue(value, val)
 		if err != nil {
@@ -103,29 +93,6 @@ func setValue(val reflect.Value, value string) error {
 
 	}
 	return nil
-}
-
-func parseStruct(s string, refValue reflect.Value) (reflect.Value, error) {
-	var val reflect.Value
-	optArr := strings.Split(s, ";")
-	for _, str := range optArr {
-		v := strings.Split(str, ":")
-		log.Println(v[0])
-		if len(v) > 1 {
-			fs := strings.Split(Opts[v[0]], ".")
-			log.Println(fs)
-			rv := val //reflect.ValueOf(refValue).Elem()
-			for _, f := range fs {
-				rv = rv.FieldByName(f)
-			}
-			err := setValue(rv, v[1])
-			if err != nil {
-				return val, errors.Wrapf(err, "set value %s=%s", v[0], v[1])
-			}
-
-		}
-	}
-	return val, nil
 }
 
 func parseMapValue(s string, refValue reflect.Value) (reflect.Value, error) {
