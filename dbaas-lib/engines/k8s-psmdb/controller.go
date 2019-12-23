@@ -81,7 +81,7 @@ func (p *PSMDB) GetDBCluster(name string) (structs.DB, error) {
 	db.Engine = engine
 	db.ResourceName = name
 	db.ResourceEndpoint = name + "." + name + ".psmdb.svc.local"
-	db.Port = 3306
+	db.Port = 27017
 	db.User = string(secrets["MONGODB_CLUSTER_ADMIN_USER"])
 	db.Pass = string(secrets["MONGODB_CLUSTER_ADMIN_PASSWORD"])
 	db.Status = string(st.Status.Status)
