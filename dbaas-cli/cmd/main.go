@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/mysql"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/mongo"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -44,6 +45,7 @@ func init() {
 	rootCmd.PersistentFlags().MarkHidden("demo")
 	rootCmd.PersistentFlags().String("output", "", `Answers format. Can be "json" or "text". "text" is set by default`)
 	rootCmd.AddCommand(mysql.PXCCmd)
+	rootCmd.AddCommand(mongo.MongoCmd)
 }
 
 func main() {

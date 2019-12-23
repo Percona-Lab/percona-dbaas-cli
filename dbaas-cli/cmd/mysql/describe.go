@@ -33,8 +33,8 @@ var describeCmd = &cobra.Command{
 		instance := dbaas.Instance{
 			Name:          name,
 			EngineOptions: *options,
-			Engine:        *engine,
-			Provider:      *provider,
+			Engine:        *descrEngine,
+			Provider:      *descrProvider,
 		}
 
 		if len(name) > 0 {
@@ -76,8 +76,8 @@ var descrProvider *string
 var descrEngine *string
 
 func init() {
-	descrProvider = describeCmd.Flags().String("provider", "", "Provider")
-	descrEngine = describeCmd.Flags().String("engine", "", "Engine")
+	descrProvider = describeCmd.Flags().String("provider", "k8s", "Provider")
+	descrEngine = describeCmd.Flags().String("engine", "pxc", "Engine")
 
 	PXCCmd.AddCommand(describeCmd)
 }

@@ -7,7 +7,6 @@ import (
 type Engine interface {
 	ParseOptions(s string) error
 	CreateDBCluster(name string) error
-	CheckDBClusterStatus(name string) (structs.DB, error)
 	DeleteDBCluster(name string, delePVC bool) (string, error)
 	GetDBCluster(name string) (structs.DB, error)
 	GetDBClusterList() ([]structs.DB, error)

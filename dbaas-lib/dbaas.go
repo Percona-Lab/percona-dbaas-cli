@@ -18,10 +18,10 @@ type Instance struct {
 
 func (i *Instance) setDefaults() {
 	if len(i.Engine) == 0 {
-		i.Engine = "pxc"
+		//i.Engine = "pxc"
 	}
 	if len(i.Provider) == 0 {
-		i.Provider = "k8s"
+		//i.Provider = "k8s"
 	}
 }
 

@@ -88,8 +88,8 @@ var preserve *bool
 
 func init() {
 	forced = delCmd.Flags().BoolP("yes", "y", false, "Unswer yes for questions")
-	delProvider = delCmd.Flags().String("provider", "", "Provider")
-	delEngine = delCmd.Flags().String("engine", "", "Engine")
+	delProvider = delCmd.Flags().String("provider", "k8s", "Provider")
+	delEngine = delCmd.Flags().String("engine", "pxc", "Engine")
 	preserve = delCmd.Flags().Bool("preserve-data", false, "Do not delete data")
 
 	PXCCmd.AddCommand(delCmd)

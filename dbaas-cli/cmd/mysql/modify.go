@@ -85,8 +85,8 @@ var modifyEngine *string
 
 func init() {
 	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options")
-	modifyProvider = modifyCmd.Flags().String("provider", "", "Provider")
-	modifyEngine = modifyCmd.Flags().String("engine", "", "Engine")
+	modifyProvider = modifyCmd.Flags().String("provider", "k8s", "Provider")
+	modifyEngine = modifyCmd.Flags().String("engine", "pxc", "Engine")
 
 	PXCCmd.AddCommand(modifyCmd)
 }
