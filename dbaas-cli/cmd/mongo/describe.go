@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package mongo
 
 import (
 	log "github.com/sirupsen/logrus"
@@ -23,8 +23,8 @@ import (
 
 // describeCmd represents the describe command
 var describeCmd = &cobra.Command{
-	Use:   "describe-db <mysql-cluster-name>",
-	Short: "Describe MySQL cluster or list clusters",
+	Use:   "describe-db <mongo-cluster-name>",
+	Short: "Describe MongoDB cluster or list clusters",
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
 		if len(args) > 0 {
@@ -77,7 +77,7 @@ var descrEngine *string
 
 func init() {
 	descrProvider = describeCmd.Flags().String("provider", "k8s", "Provider")
-	descrEngine = describeCmd.Flags().String("engine", "pxc", "Engine")
+	descrEngine = describeCmd.Flags().String("engine", "psmdb", "Engine")
 
-	PXCCmd.AddCommand(describeCmd)
+	MongoCmd.AddCommand(describeCmd)
 }

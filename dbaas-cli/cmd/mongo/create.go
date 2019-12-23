@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package mongo
 
 import (
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -22,13 +23,18 @@ import (
 	"github.com/spf13/cobra"
 
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
-	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
+	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb"
 )
 
-// modifyCmd represents the create command
-var modifyCmd = &cobra.Command{
-	Use:   "modify-db <mysql-cluster-name>",
-	Short: "Modify MySQL cluster ",
+const (
+	defaultVersion = "default"
+	maxTries       = 1200
+)
+
+// createCmd represents the create command
+var createCmd = &cobra.Command{
+	Use:   "create-db <mongo-cluster-name>",
+	Short: "Create MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify resource name")
@@ -39,16 +45,16 @@ var modifyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		instance := dbaas.Instance{
 			Name:          args[0],
-			EngineOptions: *modifyOptions,
-			Engine:        *modifyEngine,
-			Provider:      *modifyProvider,
+			EngineOptions: *options,
+			Engine:        *engine,
+			Provider:      *provider,
 		}
 
-		dotPrinter.Start("Modifying")
-		err := dbaas.ModifyDB(instance)
+		dotPrinter.Start("Starting")
+		err := dbaas.CreateDB(instance)
 		if err != nil {
 			dotPrinter.Stop("error")
-			log.Error("modify db: ", err)
+			log.Error("create db: ", err)
 			return
 		}
 		tries := 0
@@ -63,15 +69,14 @@ var modifyCmd = &cobra.Command{
 			}
 			if cluster.Status == "ready" {
 				dotPrinter.Stop("done")
-				log.Println("Database modified successfully, connection details are below:")
-				cluster.Pass = ""
+				log.Println("Database started successfully, connection details are below:")
+				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 				log.Println(cluster)
 				return
 			}
 			if tries >= maxTries {
 				dotPrinter.Stop("error")
-				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
-
+				log.Error("unable to start cluster. cluster status: ", cluster.Status)
 				return
 			}
 			tries++
@@ -79,14 +84,14 @@ var modifyCmd = &cobra.Command{
 	},
 }
 
-var modifyOptions *string
-var modifyProvider *string
-var modifyEngine *string
+var options *string
+var provider *string
+var engine *string
 
 func init() {
-	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options")
-	modifyProvider = modifyCmd.Flags().String("provider", "k8s", "Provider")
-	modifyEngine = modifyCmd.Flags().String("engine", "pxc", "Engine")
+	options = createCmd.Flags().String("options", "", "Engine options")
+	provider = createCmd.Flags().String("provider", "k8s", "Provider")
+	engine = createCmd.Flags().String("engine", "psmdb", "Engine")
 
-	PXCCmd.AddCommand(modifyCmd)
+	MongoCmd.AddCommand(createCmd)
 }

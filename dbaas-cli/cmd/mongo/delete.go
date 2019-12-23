@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package mongo
 
 import (
 	"bufio"
@@ -29,8 +29,8 @@ import (
 
 // delCmd represents the list command
 var delCmd = &cobra.Command{
-	Use:   "delete-db <mysql-cluster-name>",
-	Short: "Delete MySQL cluster",
+	Use:   "delete-db <mongo-cluster-name>",
+	Short: "Delete MongoDB cluster",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("you have to specify resource name")
@@ -89,8 +89,8 @@ var preserve *bool
 func init() {
 	forced = delCmd.Flags().BoolP("yes", "y", false, "Unswer yes for questions")
 	delProvider = delCmd.Flags().String("provider", "k8s", "Provider")
-	delEngine = delCmd.Flags().String("engine", "pxc", "Engine")
+	delEngine = delCmd.Flags().String("engine", "psmdb", "Engine")
 	preserve = delCmd.Flags().Bool("preserve-data", false, "Do not delete data")
 
-	PXCCmd.AddCommand(delCmd)
+	MongoCmd.AddCommand(delCmd)
 }

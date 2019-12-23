@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mysql
+package mongo
 
 import (
 	"time"
@@ -27,8 +27,8 @@ import (
 
 // modifyCmd represents the create command
 var modifyCmd = &cobra.Command{
-	Use:   "modify-db <mysql-cluster-name>",
-	Short: "Modify MySQL cluster ",
+	Use:   "modify-db <mongo-cluster-name>",
+	Short: "Modify MongoDBL cluster ",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify resource name")
@@ -86,7 +86,7 @@ var modifyEngine *string
 func init() {
 	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options")
 	modifyProvider = modifyCmd.Flags().String("provider", "k8s", "Provider")
-	modifyEngine = modifyCmd.Flags().String("engine", "pxc", "Engine")
+	modifyEngine = modifyCmd.Flags().String("engine", "psmdb", "Engine")
 
-	PXCCmd.AddCommand(modifyCmd)
+	MongoCmd.AddCommand(modifyCmd)
 }

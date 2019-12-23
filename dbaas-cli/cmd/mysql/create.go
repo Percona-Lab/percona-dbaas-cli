@@ -90,8 +90,8 @@ var engine *string
 
 func init() {
 	options = createCmd.Flags().String("options", "", "Engine options")
-	provider = createCmd.Flags().String("provider", "", "Provider")
-	engine = createCmd.Flags().String("engine", "", "Engine")
+	provider = createCmd.Flags().String("provider", "k8s", "Provider")
+	engine = createCmd.Flags().String("engine", "pxc", "Engine")
 
 	PXCCmd.AddCommand(createCmd)
 }
