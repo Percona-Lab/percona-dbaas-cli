@@ -9,7 +9,7 @@ import (
 
 func (p *PSMDB) ParseOptions(opts string) error {
 	var c config.ClusterConfig
-
+	c.Replsets = []config.ReplsetSpec{}
 	err := options.Parse(&c, reflect.TypeOf(c), opts)
 	if err != nil {
 		return err
