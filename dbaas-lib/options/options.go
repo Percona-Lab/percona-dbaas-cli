@@ -20,27 +20,49 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 	optArr := strings.Split(options, ",")
 	for _, str := range optArr {
 		v := strings.Split(str, "=")
-		if _, ok := opts[v[0]]; !ok {
+		if _, ok := opts[getStringWithoutSquareBrackets(v[0])]; !ok {
 			return errors.Errorf("invalidd option %s", v[0])
 		}
 		if len(v) > 1 {
-			fs := strings.Split(opts[v[0]], ".")
+			fs := strings.Split(opts[getStringWithoutSquareBrackets(v[0])], ".")
 			rv := reflect.ValueOf(to).Elem()
+
 			for _, f := range fs {
-				rv = rv.FieldByName(f)
+				if rv.Kind() == reflect.Slice {
+					if reflect.Indirect(rv.Addr()).Len() > 0 {
+						rv = reflect.Indirect(rv.Addr()).Index(0).FieldByName(f)
+					}
+				} else {
+					rv = rv.FieldByName(f)
+
+				}
 			}
+
 			err := setValue(rv, v[1])
 			if err != nil {
 				return errors.Wrapf(err, "set value %s=%s", v[0], v[1])
 			}
+
 		}
 	}
 
 	return nil
 }
 
-func setValue(val reflect.Value, value string) error {
+func getStringWithoutSquareBrackets(s string) string {
+	if strings.Contains(s, "[") && strings.Contains(s, "]") {
+		startIndex := strings.Index(s, "[")
+		endIndex := strings.Index(s, "]")
+		if startIndex > 0 && endIndex > 0 {
+			newVal := s[:startIndex] + s[endIndex+1:]
+			return newVal
+		}
+	}
 
+	return s
+}
+
+func setValue(val reflect.Value, value string) error {
 	if val.Kind() == reflect.Ptr {
 		if val.IsZero() {
 			val.Set(reflect.New(val.Type().Elem()))
@@ -52,6 +74,12 @@ func setValue(val reflect.Value, value string) error {
 	default:
 		// TODO: maps, slices
 		return errors.Errorf("type %v not implemented", val.Kind())
+	case reflect.Struct:
+	/*v, err := parseStructValue(value, val)
+	if err != nil {
+		return errors.Errorf("parse value %s: %v", val, err)
+	}
+	val.Set(v)*/
 	case reflect.Map:
 		v, err := parseMapValue(value, val)
 		if err != nil {
@@ -92,6 +120,7 @@ func setValue(val reflect.Value, value string) error {
 		val.SetString(value)
 
 	}
+
 	return nil
 }
 
@@ -119,6 +148,7 @@ func parseMapValue(s string, refValue reflect.Value) (reflect.Value, error) {
 }
 
 func parseSliceValue(s string, refValue reflect.Value) (reflect.Value, error) {
+
 	value := refValue
 	sSlice := strings.Split(s, ";")
 	if len(sSlice) == 0 {
@@ -136,7 +166,35 @@ func parseSliceValue(s string, refValue reflect.Value) (reflect.Value, error) {
 	return value, nil
 }
 
+func parseStructSliceValue(s string, refValue reflect.Value, fieldName string) (reflect.Value, error) {
+	value := refValue
+	//log.Println("type is:", refValue.Addr().Type().Elem().Elem())
+	sliceValue := reflect.Indirect(reflect.New(refValue.Addr().Type().Elem().Elem()))
+
+	err := setValue(sliceValue.FieldByName(fieldName), s)
+	if err != nil {
+		return value, err
+	}
+	value = reflect.Append(value, sliceValue)
+	refValue.Set(value)
+	return value, nil
+}
+
+func parseStructValue(s string, refValue reflect.Value) (reflect.Value, error) {
+	//log.Println("struct name:", refValue.Type().Name())
+
+	valueField := refValue.FieldByName(refValue.Type().Name())
+
+	//setValue(valueField, s)
+
+	return valueField, nil
+}
+
 func validConfKeys(t reflect.Type, to map[string]string, pk, pv string) {
+	if t.Kind() != reflect.Struct {
+		to[strings.ToLower(pk)] = pv
+		return
+	}
 	for i := 0; i < t.NumField(); i++ {
 		name := strings.TrimSpace(strings.Split(t.Field(i).Tag.Get("json"), ",")[0])
 		if name == "" {
