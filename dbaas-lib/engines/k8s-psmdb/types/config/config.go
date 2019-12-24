@@ -26,15 +26,15 @@ type ClusterConfig struct {
 }
 
 type ReplsetSpec struct {
-	Resources                    *ResourcesSpec `json:"resources,omitempty"`
-	Name                         string         `json:"name"`
-	Size                         int32          `json:"size"`
-	ClusterRole                  ClusterRole    `json:"clusterRole,omitempty"`
-	Arbiter                      Arbiter        `json:"arbiter,omitempty"`
-	Expose                       Expose         `json:"expose,omitempty"`
-	VolumeSpec                   *VolumeSpec    `json:"volumeSpec,omitempty"`
-	ReadinessInitialDelaySeconds *int32         `json:"readinessDelaySec,omitempty"`
-	LivenessInitialDelaySeconds  *int32         `json:"livenessDelaySec,omitempty"`
+	Resources                    ResourcesSpec `json:"resources,omitempty"`
+	Name                         string        `json:"name"`
+	Size                         int32         `json:"size"`
+	ClusterRole                  ClusterRole   `json:"clusterRole,omitempty"`
+	Arbiter                      Arbiter       `json:"arbiter,omitempty"`
+	Expose                       Expose        `json:"expose,omitempty"`
+	VolumeSpec                   VolumeSpec    `json:"volumeSpec,omitempty"`
+	ReadinessInitialDelaySeconds int32         `json:"readinessDelaySec,omitempty"`
+	LivenessInitialDelaySeconds  int32         `json:"livenessDelaySec,omitempty"`
 	MultiAZ
 }
 
@@ -44,16 +44,16 @@ type ClusterRole string
 
 type VolumeSpec struct {
 	// EmptyDir represents a temporary directory that shares a pod's lifetime.
-	EmptyDir *corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
+	EmptyDir corev1.EmptyDirVolumeSource `json:"emptyDir,omitempty"`
 
 	// HostPath represents a pre-existing file or directory on the host machine
 	// that is directly exposed to the container.
-	HostPath *corev1.HostPathVolumeSource `json:"hostPath,omitempty"`
+	HostPath corev1.HostPathVolumeSource `json:"hostPath,omitempty"`
 
 	// PersistentVolumeClaim represents a reference to a PersistentVolumeClaim.
 	// It has the highest level of precedence, followed by HostPath and
 	// EmptyDir. And represents the PVC specification.
-	PersistentVolumeClaim *corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
+	PersistentVolumeClaim corev1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
 }
 
 type ResourceSpecRequirements struct {
@@ -62,8 +62,8 @@ type ResourceSpecRequirements struct {
 }
 
 type ResourcesSpec struct {
-	Limits   *ResourceSpecRequirements `json:"limits,omitempty"`
-	Requests *ResourceSpecRequirements `json:"requests,omitempty"`
+	Limits   ResourceSpecRequirements `json:"limits,omitempty"`
+	Requests ResourceSpecRequirements `json:"requests,omitempty"`
 }
 
 type PMMSpec struct {
@@ -73,13 +73,13 @@ type PMMSpec struct {
 }
 
 type MultiAZ struct {
-	Affinity            *PodAffinity             `json:"affinity,omitempty"`
-	NodeSelector        map[string]string        `json:"nodeSelector,omitempty"`
-	Tolerations         []corev1.Toleration      `json:"tolerations,omitempty"`
-	PriorityClassName   string                   `json:"priorityClassName,omitempty"`
-	Annotations         map[string]string        `json:"annotations,omitempty"`
-	Labels              map[string]string        `json:"labels,omitempty"`
-	PodDisruptionBudget *PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
+	Affinity            PodAffinity             `json:"affinity,omitempty"`
+	NodeSelector        map[string]string       `json:"nodeSelector,omitempty"`
+	Tolerations         []corev1.Toleration     `json:"tolerations,omitempty"`
+	PriorityClassName   string                  `json:"priorityClassName,omitempty"`
+	Annotations         map[string]string       `json:"annotations,omitempty"`
+	Labels              map[string]string       `json:"labels,omitempty"`
+	PodDisruptionBudget PodDisruptionBudgetSpec `json:"podDisruptionBudget,omitempty"`
 }
 
 type PodDisruptionBudgetSpec struct {
@@ -88,18 +88,18 @@ type PodDisruptionBudgetSpec struct {
 }
 
 type PodAffinity struct {
-	TopologyKey *string          `json:"antiAffinityTopologyKey,omitempty"`
-	Advanced    *corev1.Affinity `json:"advanced,omitempty"`
+	TopologyKey string          `json:"antiAffinityTopologyKey,omitempty"`
+	Advanced    corev1.Affinity `json:"advanced,omitempty"`
 }
 
 type MongodSpec struct {
-	Net                *MongodSpecNet                `json:"net,omitempty"`
-	AuditLog           *MongodSpecAuditLog           `json:"auditLog,omitempty"`
-	OperationProfiling *MongodSpecOperationProfiling `json:"operationProfiling,omitempty"`
-	Replication        *MongodSpecReplication        `json:"replication,omitempty"`
-	Security           *MongodSpecSecurity           `json:"security,omitempty"`
-	SetParameter       *MongodSpecSetParameter       `json:"setParameter,omitempty"`
-	Storage            *MongodSpecStorage            `json:"storage,omitempty"`
+	Net                MongodSpecNet                `json:"net,omitempty"`
+	AuditLog           MongodSpecAuditLog           `json:"auditLog,omitempty"`
+	OperationProfiling MongodSpecOperationProfiling `json:"operationProfiling,omitempty"`
+	Replication        MongodSpecReplication        `json:"replication,omitempty"`
+	Security           MongodSpecSecurity           `json:"security,omitempty"`
+	SetParameter       MongodSpecSetParameter       `json:"setParameter,omitempty"`
+	Storage            MongodSpecStorage            `json:"storage,omitempty"`
 }
 
 type MongodSpecNet struct {

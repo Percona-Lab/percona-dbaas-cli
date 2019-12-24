@@ -415,6 +415,9 @@ func (cr *PerconaServerMongoDB) NewReplSet(name string, c config.ClusterConfig) 
 	}
 	cr.Spec.Replsets[0].Name = name
 	if len(c.Replsets) > 0 {
+		if len(c.Replsets[0].Affinity.TopologyKey) > 0 {
+			cr.Spec.Replsets[0].Affinity.TopologyKey = &c.Replsets[0].Affinity.TopologyKey
+		}
 		/*if len(c.PSMDB.StorageSize) > 0 {
 			volSizeFlag := c.PSMDB.StorageSize
 
@@ -443,6 +446,8 @@ func (cr *PerconaServerMongoDB) NewReplSet(name string, c config.ClusterConfig) 
 		if c.Replsets[0].Size > 0 {
 			cr.Spec.Replsets[0].Size = c.Replsets[0].Size
 		}
+
+		cr.Spec.Replsets[0].Expose.Enabled = c.Replsets[0].Expose.Enabled
 
 		/*if len(c.PSMDB.RequestCPU) > 0 && len(c.PSMDB.RequestMem) > 0 {
 			psmdbCPU := c.PSMDB.RequestCPU
@@ -511,6 +516,32 @@ func (cr *PerconaServerMongoDB) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 	err = cr.NewReplSet(c.Name, c)
 	if err != nil {
 		return errors.Wrap(err, "new replset")
+	}
+	cr.Spec.UnsafeConf = c.UnsafeConf
+
+	if len(c.Secrets.Users) > 0 {
+		cr.Spec.Secrets.Users = c.Secrets.Users
+	}
+	if len(c.Secrets.SSL) > 0 {
+		cr.Spec.Secrets.SSL = c.Secrets.SSL
+	}
+	if len(c.Secrets.SSLInternal) > 0 {
+		cr.Spec.Secrets.SSLInternal = c.Secrets.SSLInternal
+	}
+
+	if len(c.ImagePullPolicy) > 0 {
+		cr.Spec.ImagePullPolicy = c.ImagePullPolicy
+	}
+	cr.Spec.PMM.Enabled = c.PMM.Enabled
+	if len(c.PMM.ServerHost) > 0 {
+		cr.Spec.PMM.ServerHost = c.PMM.ServerHost
+	}
+	if len(c.PMM.Image) > 0 {
+		cr.Spec.PMM.Image = c.PMM.Image
+	}
+	if len(c.Labels) > 0 {
+		cr.ObjectMeta.Labels = make(map[string]string)
+		cr.ObjectMeta.Labels = c.Labels
 	}
 
 	/*if len(c.PSMDB.BrokerInstance) > 0 {
