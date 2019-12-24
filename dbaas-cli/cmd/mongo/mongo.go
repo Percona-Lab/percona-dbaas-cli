@@ -26,7 +26,7 @@ var dotPrinter dp.DotPrinter
 
 // MongoCmd represents the mysql command
 var MongoCmd = &cobra.Command{
-	Use:   "mongo",
+	Use:   "mongodb",
 	Short: "Manage your MongoDB cluster on Kubernetes",
 }
 
