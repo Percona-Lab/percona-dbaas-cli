@@ -12,36 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package mongo
+// +build windows
 
-import (
-	"strings"
+package k8s
 
-	"github.com/spf13/cobra"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/dp"
+const (
+	k8sExecDefault = "kubectl.exe"
+	k8sExecCustom  = "percona-kubectl.exe"
 )
-
-var dotPrinter dp.DotPrinter
-
-// MongoCmd represents the mysql command
-var MongoCmd = &cobra.Command{
-	Use:   "mongodb",
-	Short: "Manage your MongoDB cluster on Kubernetes",
-}
-
-func parseArgs(args []string) []string {
-	if len(args) == 0 {
-		return args
-	}
-
-	if a := strings.Split(args[0], "/"); len(a) == 2 {
-		args = a
-	}
-
-	return args
-}
-
-func init() {
-	dotPrinter = dp.New()
-}
