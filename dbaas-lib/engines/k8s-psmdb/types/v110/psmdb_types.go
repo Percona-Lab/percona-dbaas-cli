@@ -387,6 +387,12 @@ const (
 	PlatformOpenshift           = "openshift"
 )
 
+func (cr *PerconaServerMongoDB) GetSpec() interface{} {
+	rs := ReplsetSpec{}
+	cr.Spec.Replsets = []*ReplsetSpec{&rs}
+	return cr.Spec
+}
+
 func (cr *PerconaServerMongoDB) GetName() string {
 	return cr.ObjectMeta.Name
 }
@@ -413,70 +419,51 @@ func (cr *PerconaServerMongoDB) NewReplSet(name string, c config.ClusterConfig) 
 	if len(cr.Spec.Replsets) == 0 {
 		return errors.New("no replsets")
 	}
-	cr.Spec.Replsets[0].Name = name
+	cr.Spec.Replsets[0].Name = "rs0"
 	if len(c.Replsets) > 0 {
 		if len(c.Replsets[0].Affinity.TopologyKey) > 0 {
 			cr.Spec.Replsets[0].Affinity.TopologyKey = &c.Replsets[0].Affinity.TopologyKey
 		}
-		/*if len(c.PSMDB.StorageSize) > 0 {
-			volSizeFlag := c.PSMDB.StorageSize
-
-			volSize, err := resource.ParseQuantity(volSizeFlag)
-			if err != nil {
-				return errors.Wrap(err, "storage-size")
-			}
-
-			cr.Spec.Replsets[0].VolumeSpec = &VolumeSpec{
-				PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
-					Resources: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{corev1.ResourceStorage: volSize},
-					},
-				},
+		if len(c.Replsets[0].Resources.Limits.CPU) > 0 {
+			cr.Spec.Replsets[0].Resources.Limits.CPU = c.Replsets[0].Resources.Limits.CPU
+		}
+		if len(c.Replsets[0].Resources.Limits.Memory) > 0 {
+			cr.Spec.Replsets[0].Resources.Limits.Memory = c.Replsets[0].Resources.Limits.Memory
+		}
+		if len(c.Replsets[0].Resources.Requests.CPU) > 0 {
+			cr.Spec.Replsets[0].Resources.Requests.CPU = c.Replsets[0].Resources.Requests.CPU
+			if len(c.Replsets[0].Resources.Requests.Memory) > 0 {
+				cr.Spec.Replsets[0].Resources.Requests.Memory = c.Replsets[0].Resources.Requests.Memory
 			}
 		}
-
-		if len(c.PSMDB.StorageClass) > 0 {
-			volClassNameFlag := c.PSMDB.StorageClass
-
-			if volClassNameFlag != "" {
-				cr.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.StorageClassName = &volClassNameFlag
-			}
-		}*/
-
 		if c.Replsets[0].Size > 0 {
 			cr.Spec.Replsets[0].Size = c.Replsets[0].Size
 		}
-
 		cr.Spec.Replsets[0].Expose.Enabled = c.Replsets[0].Expose.Enabled
-
-		/*if len(c.PSMDB.RequestCPU) > 0 && len(c.PSMDB.RequestMem) > 0 {
-			psmdbCPU := c.PSMDB.RequestCPU
-			_, err := resource.ParseQuantity(psmdbCPU)
-			if err != nil {
-				return errors.Wrap(err, "request-cpu")
-			}
-
-			psmdbMemory := c.PSMDB.RequestMem
-			_, err = resource.ParseQuantity(psmdbMemory)
-			if err != nil {
-				return errors.Wrap(err, "request-mem")
-			}
-			cr.Spec.Replsets[0].Resources = &ResourcesSpec{
-				Requests: &ResourceSpecRequirements{
-					CPU:    psmdbCPU,
-					Memory: psmdbMemory,
-				},
-			}
+		if len(c.Replsets[0].Affinity.TopologyKey) > 0 {
+			cr.Spec.Replsets[0].Affinity.TopologyKey = &c.Replsets[0].Affinity.TopologyKey
 		}
-		if len(c.PSMDB.AntiAffinityKey) > 0 {
-			psmdbtpk := c.PSMDB.AntiAffinityKey
-			if _, ok := affinityValidTopologyKeys[psmdbtpk]; !ok {
-				return errors.Errorf("invalid `anti-affinity-key` value: %s", psmdbtpk)
-			}
-			cr.Spec.Replsets[0].Affinity = &PodAffinity{
-				TopologyKey: &psmdbtpk,
-			}
-		}*/
+		if len(c.Replsets[0].NodeSelector) > 0 {
+			cr.Spec.Replsets[0].NodeSelector = c.Replsets[0].NodeSelector
+		}
+		if len(c.Replsets[0].Tolerations) > 0 {
+			cr.Spec.Replsets[0].Tolerations = c.Replsets[0].Tolerations
+		}
+		if len(c.Replsets[0].PriorityClassName) > 0 {
+			cr.Spec.Replsets[0].PriorityClassName = c.Replsets[0].PriorityClassName
+		}
+		if len(c.Replsets[0].Annotations) > 0 {
+			cr.Spec.Replsets[0].Annotations = c.Replsets[0].Annotations
+		}
+		if len(c.Replsets[0].Labels) > 0 {
+			cr.Spec.Replsets[0].Labels = c.Replsets[0].Labels
+		}
+		if c.Replsets[0].PodDisruptionBudget.MinAvailable != nil {
+			cr.Spec.Replsets[0].PodDisruptionBudget.MinAvailable = c.Replsets[0].PodDisruptionBudget.MinAvailable
+		}
+		if c.Replsets[0].PodDisruptionBudget.MaxUnavailable != nil {
+			cr.Spec.Replsets[0].PodDisruptionBudget.MaxUnavailable = c.Replsets[0].PodDisruptionBudget.MaxUnavailable
+		}
 	}
 	return nil
 }
@@ -543,22 +530,63 @@ func (cr *PerconaServerMongoDB) SetNew(c config.ClusterConfig, s3 *k8s.BackupSto
 		cr.ObjectMeta.Labels = make(map[string]string)
 		cr.ObjectMeta.Labels = c.Labels
 	}
-
-	/*if len(c.PSMDB.BrokerInstance) > 0 {
-		cr.ObjectMeta.Annotations = make(map[string]string)
-		cr.ObjectMeta.Annotations["broker-instance"] = c.PSMDB.BrokerInstance
-	}*/
-
-	/*cr.Spec.Backup, err = cr.createBackup()
-	if err != nil {
-		return errors.Wrap(err, "backup spec")
+	cr.Spec.Pause = c.Pause
+	if len(c.Image) > 0 {
+		cr.Spec.Image = c.Image
+	}
+	if c.RunUID > 0 {
+		cr.Spec.RunUID = c.RunUID
+	}
+	cr.Spec.UnsafeConf = c.UnsafeConf
+	mongodSpecNet := MongodSpecNet{}
+	mongodSpecAuditLog := MongodSpecAuditLog{}
+	mongodSpecOperationProfiling := MongodSpecOperationProfiling{}
+	mongodSpecReplication := MongodSpecReplication{}
+	mongodSpecSecurity := MongodSpecSecurity{}
+	mongodSpecSetParameter := MongodSpecSetParameter{}
+	mongodSpecStorage := MongodSpecStorage{}
+	mongod := MongodSpec{
+		Net:                &mongodSpecNet,
+		AuditLog:           &mongodSpecAuditLog,
+		OperationProfiling: &mongodSpecOperationProfiling,
+		Replication:        &mongodSpecReplication,
+		Security:           &mongodSpecSecurity,
+		SetParameter:       &mongodSpecSetParameter,
+		Storage:            &mongodSpecStorage,
 	}
 
-	if s3 != nil {
-		cr.Spec.Backup.Storages = map[string]k8s.BackupStorageSpec{
-			k8s.DefaultBcpStorageName: *s3,
-		}
-	}*/
+	if c.Mongod.Net.Port > 0 {
+		mongod.Net.Port = c.Mongod.Net.Port
+	}
+	if c.Mongod.Net.HostPort > 0 {
+		mongod.Net.HostPort = c.Mongod.Net.HostPort
+	}
+	if c.Mongod.Replication.OplogSizeMB > 0 {
+		mongod.Replication.OplogSizeMB = c.Mongod.Replication.OplogSizeMB
+	}
+	mongod.Security.RedactClientLogData = c.Mongod.Security.RedactClientLogData
+	if c.Mongod.Security.EnableEncryption != nil {
+		mongod.Security.EnableEncryption = c.Mongod.Security.EnableEncryption
+	}
+	if len(c.Mongod.Security.EncryptionKeySecret) > 0 {
+		mongod.Security.EncryptionKeySecret = c.Mongod.Security.EncryptionKeySecret
+	}
+	if c.Mongod.SetParameter.TTLMonitorSleepSecs > 0 {
+		mongod.SetParameter.TTLMonitorSleepSecs = c.Mongod.SetParameter.TTLMonitorSleepSecs
+	}
+	if c.Mongod.SetParameter.WiredTigerConcurrentReadTransactions > 0 {
+		mongod.SetParameter.WiredTigerConcurrentReadTransactions = c.Mongod.SetParameter.WiredTigerConcurrentReadTransactions
+	}
+	if c.Mongod.SetParameter.WiredTigerConcurrentWriteTransactions > 0 {
+		mongod.SetParameter.WiredTigerConcurrentWriteTransactions = c.Mongod.SetParameter.WiredTigerConcurrentWriteTransactions
+	}
+
+	cr.Spec.Mongod = &mongod
+
+	if len(c.BrokerInstance) > 0 {
+		cr.ObjectMeta.Annotations = make(map[string]string)
+		cr.ObjectMeta.Annotations["broker-instance"] = c.BrokerInstance
+	}
 
 	switch p {
 	case k8s.PlatformMinishift, k8s.PlatformMinikube:
@@ -596,7 +624,7 @@ func (cr *PerconaServerMongoDB) setDefaults(rsName string) error {
 			Memory: "1G",
 		},
 	}
-	psmdbtpk := "kubernetes.io/hostname"
+	psmdbtpk := "none" //"kubernetes.io/hostname"
 	rs.Affinity = &PodAffinity{
 		TopologyKey: &psmdbtpk,
 	}

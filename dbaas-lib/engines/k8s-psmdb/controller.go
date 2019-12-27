@@ -77,16 +77,20 @@ func (p *PSMDB) GetDBCluster(name string) (structs.DB, error) {
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
 	}
+	ns, err := p.cmd.GetCurrentNamespace()
+	if err != nil {
+		return db, errors.Wrap(err, "get namspace name")
+	}
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = name + "." + name + ".psmdb.svc.local"
+	db.ResourceEndpoint = name + "-rs0." + ns + ".psmdb.svc.local"
 	db.Port = 27017
 	db.User = string(secrets["MONGODB_CLUSTER_ADMIN_USER"])
 	db.Pass = string(secrets["MONGODB_CLUSTER_ADMIN_PASSWORD"])
 	db.Status = string(st.Status.Status)
 	if st.Status.Status == "ready" {
-		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-" + name + " 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
+		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-rs0 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
 	}
 
 	return db, nil

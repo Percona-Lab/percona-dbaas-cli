@@ -23,6 +23,7 @@ type ClusterConfig struct {
 	Backup           BackupSpec                    `json:"backup,omitempty"`
 	ImagePullPolicy  corev1.PullPolicy             `json:"imagePullPolicy,omitempty"`
 	PMM              PMMSpec                       `json:"pmm,omitempty"`
+	BrokerInstance   string                        `json:"brokerInstance,omitempty"`
 }
 
 type ReplsetSpec struct {

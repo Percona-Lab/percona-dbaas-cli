@@ -34,7 +34,6 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 					}
 				} else {
 					rv = rv.FieldByName(f)
-
 				}
 			}
 
@@ -207,10 +206,15 @@ func validConfKeys(t reflect.Type, to map[string]string, pk, pv string) {
 		if pv != "" {
 			kt = pv + "." + kt
 		}
-		if t.Field(i).Type.Kind() == reflect.Struct {
-			validConfKeys(t.Field(i).Type, to, name, kt)
-		} else if t.Field(i).Type.Kind() == reflect.Slice {
-			validConfKeys(t.Field(i).Type.Elem(), to, name, kt)
+		fieldType := t.Field(i).Type
+		if t.Field(i).Type.Kind() == reflect.Ptr {
+			fieldType = t.Field(i).Type.Elem()
+		}
+
+		if fieldType.Kind() == reflect.Struct {
+			validConfKeys(fieldType, to, name, kt)
+		} else if fieldType.Kind() == reflect.Slice {
+			validConfKeys(fieldType.Elem(), to, name, kt)
 		} else {
 			to[strings.ToLower(name)] = kt
 		}
