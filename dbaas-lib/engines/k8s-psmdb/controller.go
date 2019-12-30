@@ -3,26 +3,22 @@ package psmdb
 import (
 	"encoding/json"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PSMDB) CreateDBCluster(name string) error {
-	var s3stor *k8s.BackupStorageSpec
-	c := objects[currentVersion].psmdb
-	p.config.Name = name
-	err := p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
-	if err != nil {
-		return errors.Wrap(err, "set configuration: ")
-	}
-	cr, err := p.getCR(c)
+func (p *PSMDB) CreateDBCluster(name, opts string) error {
+	p.ParseOptions(opts)
+	p.conf.SetName(name)
+	p.conf.SetUsersSecretName(name)
+
+	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
 
-	err = p.cmd.CreateCluster("psmdb", p.config.OperatorImage, name, cr, p.bundle(objects, p.config.OperatorImage))
+	err = p.cmd.CreateCluster("psmdb", p.conf.GetOperatorImage(), name, cr, p.bundle(objects, p.conf.GetOperatorImage()))
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -31,7 +27,7 @@ func (p *PSMDB) CreateDBCluster(name string) error {
 }
 
 // DeleteDBCluster delete cluster by name
-func (p *PSMDB) DeleteDBCluster(name string, delePVC bool) (string, error) {
+func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 	ext, err := p.cmd.IsObjExists("psmdb", name)
 	if err != nil {
 		return "", errors.Wrap(err, "check if cluster exists")
@@ -60,7 +56,7 @@ func (p *PSMDB) DeleteDBCluster(name string, delePVC bool) (string, error) {
 }
 
 // GetDBCluster return DB object
-func (p *PSMDB) GetDBCluster(name string) (structs.DB, error) {
+func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	var db structs.DB
 	secrets, err := p.cmd.GetSecrets(name + "-psmdb-users")
 	if err != nil {
@@ -121,8 +117,7 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 }
 
 // UpdateDBCluster update DB
-func (p *PSMDB) UpdateDBCluster(name string) error {
-	var s3stor *k8s.BackupStorageSpec
+func (p *PSMDB) UpdateDBCluster(name, opts string) error {
 	c := objects[currentVersion].psmdb
 	oldCR, err := p.cmd.GetObject("psmdb", name)
 	if err != nil {
@@ -132,12 +127,11 @@ func (p *PSMDB) UpdateDBCluster(name string) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshal cr")
 	}
-	p.config.Name = name
-	err = p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
-	if err != nil {
-		return errors.Wrap(err, "set configuration")
-	}
-	cr, err := p.getCR(c)
+	p.conf = c
+	p.ParseOptions(opts)
+	p.conf.SetName(name)
+	p.conf.SetUsersSecretName(name)
+	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}

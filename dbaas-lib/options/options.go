@@ -26,22 +26,24 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 		if len(v) > 1 {
 			fs := strings.Split(opts[getStringWithoutSquareBrackets(v[0])], ".")
 			rv := reflect.ValueOf(to).Elem()
-
 			for _, f := range fs {
 				if rv.Kind() == reflect.Slice {
 					if reflect.Indirect(rv.Addr()).Len() > 0 {
-						rv = reflect.Indirect(rv.Addr()).Index(0).FieldByName(f)
+						rv = rv.Index(0).Elem().FieldByName(f)
+						continue
 					}
+				} else if rv.Kind() == reflect.Interface {
+					rv = reflect.Indirect(rv.Elem()).FieldByName(f)
+				} else if rv.Kind() == reflect.Ptr {
+					rv = reflect.Indirect(rv.Elem()).FieldByName(f)
 				} else {
 					rv = rv.FieldByName(f)
 				}
 			}
-
 			err := setValue(rv, v[1])
 			if err != nil {
 				return errors.Wrapf(err, "set value %s=%s", v[0], v[1])
 			}
-
 		}
 	}
 
@@ -167,7 +169,6 @@ func parseSliceValue(s string, refValue reflect.Value) (reflect.Value, error) {
 
 func parseStructSliceValue(s string, refValue reflect.Value, fieldName string) (reflect.Value, error) {
 	value := refValue
-	//log.Println("type is:", refValue.Addr().Type().Elem().Elem())
 	sliceValue := reflect.Indirect(reflect.New(refValue.Addr().Type().Elem().Elem()))
 
 	err := setValue(sliceValue.FieldByName(fieldName), s)
@@ -180,7 +181,6 @@ func parseStructSliceValue(s string, refValue reflect.Value, fieldName string) (
 }
 
 func parseStructValue(s string, refValue reflect.Value) (reflect.Value, error) {
-	//log.Println("struct name:", refValue.Type().Name())
 
 	valueField := refValue.FieldByName(refValue.Type().Name())
 
@@ -190,6 +190,9 @@ func parseStructValue(s string, refValue reflect.Value) (reflect.Value, error) {
 }
 
 func validConfKeys(t reflect.Type, to map[string]string, pk, pv string) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
 	if t.Kind() != reflect.Struct {
 		to[strings.ToLower(pk)] = pv
 		return

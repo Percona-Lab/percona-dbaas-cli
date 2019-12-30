@@ -1,19 +1,15 @@
 package psmdb
 
-import (
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/config"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-)
-
-// PSMDBCluster represent interface for ckuster types
 type PSMDBCluster interface {
-	UpdateWith(c config.ClusterConfig, s3 *k8s.BackupStorageSpec) (err error)
 	Upgrade(imgs map[string]string)
-	SetNew(c config.ClusterConfig, s3 *k8s.BackupStorageSpec, p k8s.PlatformType) (err error)
 	GetName() string
+	SetName(name string)
+	SetUsersSecretName(name string)
 	MarshalRequests() error
 	GetCR() (string, error)
 	SetLabels(labels map[string]string)
+	GetOperatorImage() string
+	SetDefaults() error
 }
 
 type AppState string

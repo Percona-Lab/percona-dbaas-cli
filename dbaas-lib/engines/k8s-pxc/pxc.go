@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/config"
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v110"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
@@ -56,8 +55,8 @@ func init() {
 
 // PXC represents PXC Operator controller
 type PXC struct {
-	cmd    *k8s.Cmd
-	config config.ClusterConfig
+	cmd  *k8s.Cmd
+	conf PXDBCluster
 }
 
 type Version string
@@ -127,20 +126,6 @@ func (p PXC) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.B
 
 func (p PXC) getCR(cluster PXDBCluster) (string, error) {
 	return cluster.GetCR()
-}
-
-func (p *PXC) setup(cluster PXDBCluster, c config.ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
-	err := cluster.SetNew(c, s3, platform)
-	if err != nil {
-		return errors.Wrap(err, "parse options")
-	}
-
-	err = cluster.MarshalRequests()
-	if err != nil {
-		return errors.Wrap(err, "marshal pxc volume requests")
-	}
-
-	return nil
 }
 
 func (p *PXC) operatorName() string {

@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/config"
-
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 
@@ -45,7 +43,7 @@ func init() {
 // PSMDB represents PSMDB Operator controller
 type PSMDB struct {
 	cmd    *k8s.Cmd
-	config config.ClusterConfig
+	conf   PSMDBCluster
 }
 
 const (
@@ -115,20 +113,6 @@ func (p PSMDB) bundle(v map[Version]VersionObject, operatorVersion string) []k8s
 
 func (p PSMDB) getCR(cluster PSMDBCluster) (string, error) {
 	return cluster.GetCR()
-}
-
-func (p *PSMDB) setup(cluster PSMDBCluster, c config.ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
-	err := cluster.SetNew(c, s3, platform)
-	if err != nil {
-		return errors.Wrap(err, "parse options")
-	}
-
-	err = cluster.MarshalRequests()
-	if err != nil {
-		return errors.Wrap(err, "marshal psmdb volume requests")
-	}
-
-	return nil
 }
 
 func (p *PSMDB) operatorName() string {

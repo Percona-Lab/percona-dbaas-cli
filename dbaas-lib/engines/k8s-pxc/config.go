@@ -14,20 +14,17 @@
 
 package pxc
 
-import (
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/config"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-)
-
 // PXDBCluster represent interface for ckuster types
 type PXDBCluster interface {
-	UpdateWith(c config.ClusterConfig, s3 *k8s.BackupStorageSpec) (err error)
 	Upgrade(imgs map[string]string)
-	SetNew(c config.ClusterConfig, s3 *k8s.BackupStorageSpec, p k8s.PlatformType) (err error)
 	GetName() string
+	SetDefaults() error
 	MarshalRequests() error
 	GetCR() (string, error)
 	SetLabels(labels map[string]string)
+	SetName(name string)
+	SetUsersSecretName(name string)
+	GetOperatorImage() string
 }
 
 type AppState string
