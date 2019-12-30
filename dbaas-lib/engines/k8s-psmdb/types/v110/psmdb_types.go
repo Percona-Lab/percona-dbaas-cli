@@ -15,10 +15,6 @@ import (
 
 // PerconaServerMongoDB is the Schema for the perconaservermongodbs API
 type PerconaServerMongoDB struct {
-	PerconaServerMongoDBTypes // Here we will try to import specified psmdb version
-}
-
-type PerconaServerMongoDBTypes struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
