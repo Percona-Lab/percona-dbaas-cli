@@ -1,8 +1,0 @@
-#!/bin/sh
-SOURCE_DIR=$1
-BUILD_ROOT=$2
-cd $SOURCE_DIR
-
-install -m 0755 -d $BUILD_ROOT/usr/bin
-install -m 0755 bin/percona-dbaas $BUILD_ROOT/usr/bin/
-install -m 0755 bin/percona-kubectl $BUILD_ROOT/usr/bin/
