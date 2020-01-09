@@ -18,7 +18,9 @@ main() {
         export dbaas_version=$dbaas_version
         export sudo_path=\$(ls /usr/bin/sudo)
         [[ ${IMAGE} = ${rpmbuild_docker_image} ]] || \$sudo_path yum -y install epel-release
-        [[ ${IMAGE} = ${rpmbuild_docker_image} ]] || \$sudo_path yum -y install git rpm-build epel-rpm-macros
+        [[ ${IMAGE} = ${rpmbuild_docker_image} ]] || \$sudo_path yum -y install git rpm-build
+        [[ ${IMAGE} = 'centos:8'} ]] && \$sudo_path yum -y install epel-rpm-macros || :
+ 
         mkdir -p /tmp/dbaas
         cp -r /home/builder/results/srpm /tmp/dbaas/
         pushd /home/builder/results
