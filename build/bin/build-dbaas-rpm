@@ -19,8 +19,8 @@ main() {
         export sudo_path=\$(ls /usr/bin/sudo)
         [[ ${IMAGE} = ${rpmbuild_docker_image} ]] || \$sudo_path yum -y install epel-release
         [[ ${IMAGE} = ${rpmbuild_docker_image} ]] || \$sudo_path yum -y install git rpm-build
-        [[ ${IMAGE} = 'centos:8'} ]] && \$sudo_path yum -y install epel-rpm-macros || :
- 
+        [[ ${IMAGE} = 'centos:8' ]] || \$sudo_path yum -y install epel-rpm-macros && :
+
         mkdir -p /tmp/dbaas
         cp -r /home/builder/results/srpm /tmp/dbaas/
         pushd /home/builder/results
