@@ -9,7 +9,10 @@ import (
 
 // CreateDBCluster start creating DB cluster
 func (p *PSMDB) CreateDBCluster(name, opts string) error {
-	p.ParseOptions(opts)
+	err := p.ParseOptions(opts)
+	if err != nil {
+		return errors.Wrap(err, "parse opts")
+	}
 	p.conf.SetName(name)
 	p.conf.SetUsersSecretName(name)
 

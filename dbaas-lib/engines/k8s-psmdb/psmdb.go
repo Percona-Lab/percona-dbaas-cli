@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
+	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v120"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
@@ -38,12 +39,18 @@ func init() {
 		},
 		psmdb: &v110.PerconaServerMongoDB{},
 	}
+	objects["v1.2.0"] = VersionObject{
+		k8s: k8s.Objects{
+			Bundle: v120.Bundle,
+		},
+		psmdb: &v120.PerconaServerMongoDB{},
+	}
 }
 
 // PSMDB represents PSMDB Operator controller
 type PSMDB struct {
-	cmd    *k8s.Cmd
-	conf   PSMDBCluster
+	cmd  *k8s.Cmd
+	conf PSMDBCluster
 }
 
 const (
