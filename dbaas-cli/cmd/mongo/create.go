@@ -43,6 +43,7 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		*options = addSpec(*options)
 		instance := dbaas.Instance{
 			Name:          args[0],
 			EngineOptions: *options,

@@ -37,6 +37,7 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		*modifyOptions = addSpec(*modifyOptions)
 		instance := dbaas.Instance{
 			Name:          args[0],
 			EngineOptions: *modifyOptions,
