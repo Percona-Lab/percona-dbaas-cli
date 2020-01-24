@@ -37,7 +37,9 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		*modifyOptions = addSpec(*modifyOptions)
+		if len(*modifyOptions) > 0 {
+			*modifyOptions = addSpec(*modifyOptions)
+		}
 		instance := dbaas.Instance{
 			Name:          args[0],
 			EngineOptions: *modifyOptions,
@@ -52,6 +54,7 @@ var modifyCmd = &cobra.Command{
 			log.Error("modify db: ", err)
 			return
 		}
+		time.Sleep(time.Second * 3) //let k8s time for applying new cr
 		tries := 0
 		tckr := time.NewTicker(500 * time.Millisecond)
 		defer tckr.Stop()

@@ -45,3 +45,7 @@ func parseArgs(args []string) []string {
 func init() {
 	dotPrinter = dp.New()
 }
+
+func addSpec(opts string) string {
+	return "spec." + strings.Replace(opts, ",", ",spec.", -1)
+}
