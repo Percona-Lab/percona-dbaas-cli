@@ -26,27 +26,3 @@ type PXDBCluster interface {
 	SetUsersSecretName(name string)
 	GetOperatorImage() string
 }
-
-type AppState string
-
-const (
-	AppStateUnknown AppState = "unknown"
-	AppStateInit             = "initializing"
-	AppStateReady            = "ready"
-	AppStateError            = "error"
-)
-
-type PerconaXtraDBClusterStatus struct {
-	PXC      AppStatus `json:"pxc,omitempty"`
-	ProxySQL AppStatus `json:"proxysql,omitempty"`
-	Host     string    `json:"host,omitempty"`
-	Messages []string  `json:"message,omitempty"`
-	Status   AppState  `json:"state,omitempty"`
-}
-
-type AppStatus struct {
-	Size    int32    `json:"size,omitempty"`
-	Ready   int32    `json:"ready,omitempty"`
-	Status  AppState `json:"status,omitempty"`
-	Message string   `json:"message,omitempty"`
-}

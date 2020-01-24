@@ -2,7 +2,7 @@ package v120
 
 import "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 
-// Bundle is bundle object for version 1.0.0
+// Bundle is bundle object for version 1.2.0
 var Bundle = []k8s.BundleObject{
 	{
 		Kind: "CustomResourceDefinition",
@@ -26,6 +26,9 @@ spec:
   versions:
     - name: v1
       storage: true
+      served: true
+    - name: v1-2-0
+      storage: false
       served: true
     - name: v1alpha1
       storage: false

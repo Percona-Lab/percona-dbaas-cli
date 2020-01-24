@@ -7,7 +7,7 @@ import (
 )
 
 func (p *PSMDB) ParseOptions(opts string) error {
-	c := objects[currentVersion].psmdb
+	c := objects[defaultVersion].psmdb
 	c.SetDefaults()
 	err := options.Parse(&c, reflect.TypeOf(c), opts)
 	if err != nil {

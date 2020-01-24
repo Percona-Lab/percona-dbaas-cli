@@ -49,6 +49,9 @@ func (cr *PerconaServerMongoDB) SetLabels(labels map[string]string) {
 }
 
 func (cr *PerconaServerMongoDB) MarshalRequests() error {
+	if len(cr.Spec.Replsets) == 0 {
+		return errors.New("no replsets")
+	}
 	_, err := cr.Spec.Replsets[0].VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	return err
 }
@@ -97,7 +100,7 @@ func (cr *PerconaServerMongoDB) SetDefaults() error {
 			Memory: "1G",
 		},
 	}
-	psmdbtpk := "none" //"kubernetes.io/hostname"
+	psmdbtpk := "kubernetes.io/hostname"
 	rs.Affinity = &v1.PodAffinity{
 		TopologyKey: &psmdbtpk,
 	}

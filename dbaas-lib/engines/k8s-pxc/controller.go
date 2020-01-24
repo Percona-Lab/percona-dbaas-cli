@@ -125,7 +125,7 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 
 // UpdateDBCluster update DB
 func (p *PXC) UpdateDBCluster(name, opts string) error {
-	c := objects[currentVersion].pxc
+	c := objects[defaultVersion].pxc
 	oldCR, err := p.cmd.GetObject("pxc", name)
 	if err != nil {
 		return errors.Wrap(err, "get cluster cr")

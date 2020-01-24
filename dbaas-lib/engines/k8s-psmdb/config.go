@@ -11,24 +11,3 @@ type PSMDBCluster interface {
 	GetOperatorImage() string
 	SetDefaults() error
 }
-
-type AppState string
-
-const (
-	AppStateUnknown AppState = "unknown"
-	AppStateInit             = "initializing"
-	AppStateReady            = "ready"
-	AppStateError            = "error"
-)
-
-type PSMDBClusterStatus struct {
-	Messages []string `json:"message,omitempty"`
-	Status   AppState `json:"state,omitempty"`
-}
-
-type AppStatus struct {
-	Size    int32    `json:"size,omitempty"`
-	Ready   int32    `json:"ready,omitempty"`
-	Status  AppState `json:"status,omitempty"`
-	Message string   `json:"message,omitempty"`
-}

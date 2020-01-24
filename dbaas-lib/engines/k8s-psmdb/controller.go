@@ -121,7 +121,7 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 
 // UpdateDBCluster update DB
 func (p *PSMDB) UpdateDBCluster(name, opts string) error {
-	c := objects[currentVersion].psmdb
+	c := objects[defaultVersion].psmdb
 	oldCR, err := p.cmd.GetObject("psmdb", name)
 	if err != nil {
 		return errors.Wrap(err, "get cluster cr")
