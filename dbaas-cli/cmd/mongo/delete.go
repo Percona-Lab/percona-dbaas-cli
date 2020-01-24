@@ -31,6 +31,7 @@ import (
 var delCmd = &cobra.Command{
 	Use:   "delete-db <mongo-cluster-name>",
 	Short: "Delete MongoDB cluster",
+	Long:  "Deletes a database instance or cluster with the given name.",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("you have to specify resource name")

@@ -25,6 +25,7 @@ import (
 var describeCmd = &cobra.Command{
 	Use:   "describe-db <mysql-cluster-name>",
 	Short: "Describe MySQL cluster or list clusters",
+	Long:  "Lists all database instances or clusters currently present or provides details about the database instance or cluster with the given name.",
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
 		if len(args) > 0 {

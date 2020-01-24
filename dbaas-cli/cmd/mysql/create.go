@@ -35,6 +35,7 @@ const (
 var createCmd = &cobra.Command{
 	Use:   "create-db <mysql-cluster-name>",
 	Short: "Create MySQL cluster",
+	Long:  "Creates a new databases instance or cluster with the given name.",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify resource name")
@@ -86,7 +87,6 @@ var createCmd = &cobra.Command{
 		}
 	},
 }
-
 var options *string
 var provider *string
 var engine *string

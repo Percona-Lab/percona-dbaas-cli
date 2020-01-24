@@ -35,6 +35,7 @@ const (
 var createCmd = &cobra.Command{
 	Use:   "create-db <mongo-cluster-name>",
 	Short: "Create MongoDB cluster",
+	Long:  "Creates a new databases instance or cluster with the given name.",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify resource name")
