@@ -5,12 +5,12 @@ import (
 )
 
 type Engine interface {
-	ParseOptions(s string) error
-	CreateDBCluster(name string) error
-	DeleteDBCluster(name string, delePVC bool) (string, error)
-	GetDBCluster(name string) (structs.DB, error)
+	ParseOptions(opts string) error
+	CreateDBCluster(name, opts string) error
+	DeleteDBCluster(name, opts string, delePVC bool) (string, error)
+	GetDBCluster(name, opts string) (structs.DB, error)
 	GetDBClusterList() ([]structs.DB, error)
-	UpdateDBCluster(name string) error
+	UpdateDBCluster(name, opts string) error
 }
 
 var Providers = make(map[string]Provider)

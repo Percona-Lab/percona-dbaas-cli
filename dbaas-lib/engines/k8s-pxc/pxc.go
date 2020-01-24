@@ -21,16 +21,15 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/config"
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v110"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
 )
 
 const (
-	defaultOperatorVersion = "percona/percona-xtradb-cluster-operator:1.1.0"
 	provider               = "k8s"
 	engine                 = "pxc"
+	defaultVersion Version = "1.1.0"
 )
 
 var objects map[Version]VersionObject
@@ -46,7 +45,13 @@ func init() {
 
 	// Register pxc versions
 	objects = make(map[Version]VersionObject)
-	objects[currentVersion] = VersionObject{
+	objects["1.1.0"] = VersionObject{
+		k8s: k8s.Objects{
+			Bundle: v110.Bundle,
+		},
+		pxc: &v110.PerconaXtraDBCluster{},
+	}
+	objects["1.2.0"] = VersionObject{
 		k8s: k8s.Objects{
 			Bundle: v110.Bundle,
 		},
@@ -56,8 +61,8 @@ func init() {
 
 // PXC represents PXC Operator controller
 type PXC struct {
-	cmd    *k8s.Cmd
-	config config.ClusterConfig
+	cmd  *k8s.Cmd
+	conf PXDBCluster
 }
 
 type Version string
@@ -65,6 +70,30 @@ type Version string
 type PXCMeta struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
+}
+
+type AppState string
+
+const (
+	AppStateUnknown AppState = "unknown"
+	AppStateInit             = "initializing"
+	AppStateReady            = "ready"
+	AppStateError            = "error"
+)
+
+type PerconaXtraDBClusterStatus struct {
+	PXC      AppStatus `json:"pxc,omitempty"`
+	ProxySQL AppStatus `json:"proxysql,omitempty"`
+	Host     string    `json:"host,omitempty"`
+	Messages []string  `json:"message,omitempty"`
+	Status   AppState  `json:"state,omitempty"`
+}
+
+type AppStatus struct {
+	Size    int32    `json:"size,omitempty"`
+	Ready   int32    `json:"ready,omitempty"`
+	Status  AppState `json:"status,omitempty"`
+	Message string   `json:"message,omitempty"`
 }
 
 type PXCResource struct {
@@ -90,10 +119,6 @@ type k8sPVC struct {
 	Meta PVCMeta `json:"metadata"`
 }
 
-const (
-	currentVersion Version = "default"
-)
-
 type VersionObject struct {
 	k8s k8s.Objects
 	pxc PXDBCluster
@@ -114,33 +139,19 @@ func NewPXCController(envCrt, provider string) (*PXC, error) {
 
 func (p PXC) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.BundleObject {
 	if operatorVersion == "" {
-		operatorVersion = defaultOperatorVersion
+		operatorVersion = v[defaultVersion].pxc.GetOperatorImage()
 	}
 
-	for i, o := range v[currentVersion].k8s.Bundle {
+	for i, o := range v[defaultVersion].k8s.Bundle {
 		if o.Kind == "Deployment" && o.Name == p.operatorName() {
-			v[currentVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+			v[defaultVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
 		}
 	}
-	return v[currentVersion].k8s.Bundle
+	return v[defaultVersion].k8s.Bundle
 }
 
 func (p PXC) getCR(cluster PXDBCluster) (string, error) {
 	return cluster.GetCR()
-}
-
-func (p *PXC) setup(cluster PXDBCluster, c config.ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
-	err := cluster.SetNew(c, s3, platform)
-	if err != nil {
-		return errors.Wrap(err, "parse options")
-	}
-
-	err = cluster.MarshalRequests()
-	if err != nil {
-		return errors.Wrap(err, "marshal pxc volume requests")
-	}
-
-	return nil
 }
 
 func (p *PXC) operatorName() string {

@@ -3,26 +3,24 @@ package pxc
 import (
 	"encoding/json"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PXC) CreateDBCluster(name string) error {
-	var s3stor *k8s.BackupStorageSpec
-	c := objects[currentVersion].pxc
-	p.config.Name = name
-	err := p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
+func (p *PXC) CreateDBCluster(name, opts string) error {
+	err := p.ParseOptions(opts)
 	if err != nil {
-		return errors.Wrap(err, "set configuration: ")
+		return err
 	}
-	cr, err := p.getCR(c)
+	p.conf.SetName(name)
+	p.conf.SetUsersSecretName(name)
+	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
 
-	err = p.cmd.CreateCluster("pxc", p.config.OperatorImage, name, cr, p.bundle(objects, p.config.OperatorImage))
+	err = p.cmd.CreateCluster("pxc", p.conf.GetOperatorImage(), name, cr, p.bundle(objects, p.conf.GetOperatorImage()))
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -30,47 +28,8 @@ func (p *PXC) CreateDBCluster(name string) error {
 	return nil
 }
 
-// CheckDBClusterStatus status return Cluster object with cluster info
-func (p *PXC) CheckDBClusterStatus(name string) (structs.DB, error) {
-	var db structs.DB
-	secrets, err := p.cmd.GetSecrets(name)
-	if err != nil {
-		return db, errors.Wrap(err, "get cluster secrets")
-
-	}
-	status, err := p.cmd.GetObject("pxc", name)
-	if err != nil {
-		return db, errors.Wrap(err, "get cluster status")
-
-	}
-
-	st := &k8sStatus{}
-	err = json.Unmarshal(status, st)
-	if err != nil {
-		return db, errors.Wrap(err, "unmarshal status")
-	}
-
-	switch st.Status.Status {
-	case AppStateReady:
-		db.ResourceEndpoint = st.Status.Host
-		db.Port = 3306
-		db.User = "root"
-		db.Pass = string(secrets["root"])
-		db.Status = k8s.ClusterStateReady
-		return db, nil
-	case AppStateInit:
-		db.Status = k8s.ClusterStateInit
-		return db, nil
-	case AppStateError:
-		db.Status = k8s.ClusterStateError
-		return db, errors.New(st.Status.Messages[0])
-	default:
-		return db, errors.New("unknown status")
-	}
-}
-
 // DeleteDBCluster delete cluster by name
-func (p *PXC) DeleteDBCluster(name string, delePVC bool) (string, error) {
+func (p *PXC) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 	ext, err := p.cmd.IsObjExists("pxc", name)
 	if err != nil {
 		return "", errors.Wrap(err, "check if cluster exists")
@@ -101,7 +60,7 @@ func (p *PXC) DeleteDBCluster(name string, delePVC bool) (string, error) {
 }
 
 // GetDBCluster return DB object
-func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
+func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	var db structs.DB
 	secrets, err := p.cmd.GetSecrets(name)
 	if err != nil {
@@ -119,11 +78,14 @@ func (p *PXC) GetDBCluster(name string) (structs.DB, error) {
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
 	}
-
+	ns, err := p.cmd.GetCurrentNamespace()
+	if err != nil {
+		return db, errors.Wrap(err, "get namspace name")
+	}
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = st.Status.Host + "." + name + ".pxc.svc.local"
+	db.ResourceEndpoint = st.Status.Host + "." + ns + ".pxc.svc.local"
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])
@@ -162,9 +124,8 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 }
 
 // UpdateDBCluster update DB
-func (p *PXC) UpdateDBCluster(name string) error {
-	var s3stor *k8s.BackupStorageSpec
-	c := objects[currentVersion].pxc
+func (p *PXC) UpdateDBCluster(name, opts string) error {
+	c := objects[defaultVersion].pxc
 	oldCR, err := p.cmd.GetObject("pxc", name)
 	if err != nil {
 		return errors.Wrap(err, "get cluster cr")
@@ -173,12 +134,11 @@ func (p *PXC) UpdateDBCluster(name string) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshal cr")
 	}
-	p.config.Name = name
-	err = p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
-	if err != nil {
-		return errors.Wrap(err, "set configuration")
-	}
-	cr, err := p.getCR(c)
+	p.conf = c
+	p.ParseOptions(opts)
+	p.conf.SetName(name)
+	p.conf.SetUsersSecretName(name)
+	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}

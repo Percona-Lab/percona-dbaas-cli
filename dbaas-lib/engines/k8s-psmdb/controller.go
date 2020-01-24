@@ -3,26 +3,25 @@ package psmdb
 import (
 	"encoding/json"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PSMDB) CreateDBCluster(name string) error {
-	var s3stor *k8s.BackupStorageSpec
-	c := objects[currentVersion].psmdb
-	p.config.Name = name
-	err := p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
+func (p *PSMDB) CreateDBCluster(name, opts string) error {
+	err := p.ParseOptions(opts)
 	if err != nil {
-		return errors.Wrap(err, "set configuration: ")
+		return errors.Wrap(err, "parse opts")
 	}
-	cr, err := p.getCR(c)
+	p.conf.SetName(name)
+	p.conf.SetUsersSecretName(name)
+
+	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
 
-	err = p.cmd.CreateCluster("psmdb", p.config.OperatorImage, name, cr, p.bundle(objects, p.config.OperatorImage))
+	err = p.cmd.CreateCluster("psmdb", p.conf.GetOperatorImage(), name, cr, p.bundle(objects, p.conf.GetOperatorImage()))
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -31,7 +30,7 @@ func (p *PSMDB) CreateDBCluster(name string) error {
 }
 
 // DeleteDBCluster delete cluster by name
-func (p *PSMDB) DeleteDBCluster(name string, delePVC bool) (string, error) {
+func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 	ext, err := p.cmd.IsObjExists("psmdb", name)
 	if err != nil {
 		return "", errors.Wrap(err, "check if cluster exists")
@@ -60,7 +59,7 @@ func (p *PSMDB) DeleteDBCluster(name string, delePVC bool) (string, error) {
 }
 
 // GetDBCluster return DB object
-func (p *PSMDB) GetDBCluster(name string) (structs.DB, error) {
+func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	var db structs.DB
 	secrets, err := p.cmd.GetSecrets(name + "-psmdb-users")
 	if err != nil {
@@ -77,16 +76,20 @@ func (p *PSMDB) GetDBCluster(name string) (structs.DB, error) {
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
 	}
+	ns, err := p.cmd.GetCurrentNamespace()
+	if err != nil {
+		return db, errors.Wrap(err, "get namspace name")
+	}
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = name + "." + name + ".psmdb.svc.local"
+	db.ResourceEndpoint = name + "-rs0." + ns + ".psmdb.svc.local"
 	db.Port = 27017
 	db.User = string(secrets["MONGODB_CLUSTER_ADMIN_USER"])
 	db.Pass = string(secrets["MONGODB_CLUSTER_ADMIN_PASSWORD"])
 	db.Status = string(st.Status.Status)
 	if st.Status.Status == "ready" {
-		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-" + name + " 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
+		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-rs0 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
 	}
 
 	return db, nil
@@ -117,9 +120,8 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 }
 
 // UpdateDBCluster update DB
-func (p *PSMDB) UpdateDBCluster(name string) error {
-	var s3stor *k8s.BackupStorageSpec
-	c := objects[currentVersion].psmdb
+func (p *PSMDB) UpdateDBCluster(name, opts string) error {
+	c := objects[defaultVersion].psmdb
 	oldCR, err := p.cmd.GetObject("psmdb", name)
 	if err != nil {
 		return errors.Wrap(err, "get cluster cr")
@@ -128,12 +130,11 @@ func (p *PSMDB) UpdateDBCluster(name string) error {
 	if err != nil {
 		return errors.Wrap(err, "unmarshal cr")
 	}
-	p.config.Name = name
-	err = p.setup(c, p.config, s3stor, p.cmd.GetPlatformType())
-	if err != nil {
-		return errors.Wrap(err, "set configuration")
-	}
-	cr, err := p.getCR(c)
+	p.conf = c
+	p.ParseOptions(opts)
+	p.conf.SetName(name)
+	p.conf.SetUsersSecretName(name)
+	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}

@@ -14,42 +14,15 @@
 
 package pxc
 
-import (
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/config"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-)
-
 // PXDBCluster represent interface for ckuster types
 type PXDBCluster interface {
-	UpdateWith(c config.ClusterConfig, s3 *k8s.BackupStorageSpec) (err error)
 	Upgrade(imgs map[string]string)
-	SetNew(c config.ClusterConfig, s3 *k8s.BackupStorageSpec, p k8s.PlatformType) (err error)
 	GetName() string
+	SetDefaults() error
 	MarshalRequests() error
 	GetCR() (string, error)
 	SetLabels(labels map[string]string)
-}
-
-type AppState string
-
-const (
-	AppStateUnknown AppState = "unknown"
-	AppStateInit             = "initializing"
-	AppStateReady            = "ready"
-	AppStateError            = "error"
-)
-
-type PerconaXtraDBClusterStatus struct {
-	PXC      AppStatus `json:"pxc,omitempty"`
-	ProxySQL AppStatus `json:"proxysql,omitempty"`
-	Host     string    `json:"host,omitempty"`
-	Messages []string  `json:"message,omitempty"`
-	Status   AppState  `json:"state,omitempty"`
-}
-
-type AppStatus struct {
-	Size    int32    `json:"size,omitempty"`
-	Ready   int32    `json:"ready,omitempty"`
-	Status  AppState `json:"status,omitempty"`
-	Message string   `json:"message,omitempty"`
+	SetName(name string)
+	SetUsersSecretName(name string)
+	GetOperatorImage() string
 }

@@ -5,9 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/config"
-
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
+	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v120"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
@@ -15,9 +14,9 @@ import (
 )
 
 const (
-	defaultOperatorVersion = "percona/percona-server-mongodb-operator:1.1.0"
 	provider               = "k8s"
 	engine                 = "psmdb"
+	defaultVersion Version = "1.1.0"
 )
 
 var objects map[Version]VersionObject
@@ -34,29 +33,52 @@ func init() {
 
 	// Register psmdb versions
 	objects = make(map[Version]VersionObject)
-	objects[currentVersion] = VersionObject{
+	objects["1.1.0"] = VersionObject{
 		k8s: k8s.Objects{
 			Bundle: v110.Bundle,
 		},
 		psmdb: &v110.PerconaServerMongoDB{},
 	}
+	objects["1.2.0"] = VersionObject{
+		k8s: k8s.Objects{
+			Bundle: v120.Bundle,
+		},
+		psmdb: &v120.PerconaServerMongoDB{},
+	}
 }
 
 // PSMDB represents PSMDB Operator controller
 type PSMDB struct {
-	cmd    *k8s.Cmd
-	config config.ClusterConfig
+	cmd  *k8s.Cmd
+	conf PSMDBCluster
 }
-
-const (
-	currentVersion Version = "default"
-)
 
 type Version string
 
 type PSMDBMeta struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
+}
+
+type AppState string
+
+const (
+	AppStateUnknown AppState = "unknown"
+	AppStateInit             = "initializing"
+	AppStateReady            = "ready"
+	AppStateError            = "error"
+)
+
+type PSMDBClusterStatus struct {
+	Messages []string `json:"message,omitempty"`
+	Status   AppState `json:"state,omitempty"`
+}
+
+type AppStatus struct {
+	Size    int32    `json:"size,omitempty"`
+	Ready   int32    `json:"ready,omitempty"`
+	Status  AppState `json:"status,omitempty"`
+	Message string   `json:"message,omitempty"`
 }
 
 type PSMDBResource struct {
@@ -102,33 +124,19 @@ func NewPSMDBController(envCrt, provider string) (*PSMDB, error) {
 
 func (p PSMDB) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.BundleObject {
 	if operatorVersion == "" {
-		operatorVersion = defaultOperatorVersion
+		operatorVersion = v[defaultVersion].psmdb.GetOperatorImage()
 	}
 
-	for i, o := range v[currentVersion].k8s.Bundle {
+	for i, o := range v[defaultVersion].k8s.Bundle {
 		if o.Kind == "Deployment" && o.Name == p.operatorName() {
-			v[currentVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+			v[defaultVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
 		}
 	}
-	return v[currentVersion].k8s.Bundle
+	return v[defaultVersion].k8s.Bundle
 }
 
 func (p PSMDB) getCR(cluster PSMDBCluster) (string, error) {
 	return cluster.GetCR()
-}
-
-func (p *PSMDB) setup(cluster PSMDBCluster, c config.ClusterConfig, s3 *k8s.BackupStorageSpec, platform k8s.PlatformType) error {
-	err := cluster.SetNew(c, s3, platform)
-	if err != nil {
-		return errors.Wrap(err, "parse options")
-	}
-
-	err = cluster.MarshalRequests()
-	if err != nil {
-		return errors.Wrap(err, "marshal psmdb volume requests")
-	}
-
-	return nil
 }
 
 func (p *PSMDB) operatorName() string {

@@ -22,11 +22,7 @@ func CreateDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
-	if err != nil {
-		return err
-	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions)
 	if err != nil {
 		return err
 	}
@@ -40,11 +36,7 @@ func ModifyDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
-	if err != nil {
-		return err
-	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions)
 	if err != nil {
 		return err
 	}
@@ -58,7 +50,7 @@ func DescribeDB(instance Instance) (structs.DB, error) {
 		return structs.DB{}, err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name)
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name, instance.EngineOptions)
 }
 
 func ListDB(instance Instance) ([]structs.DB, error) {
@@ -75,12 +67,8 @@ func DeleteDB(instance Instance, saveData bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].ParseOptions(instance.EngineOptions)
-	if err != nil {
-		return "", err
-	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, saveData)
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, saveData)
 }
 
 func checkPrroviderAndEngine(instance Instance) error {

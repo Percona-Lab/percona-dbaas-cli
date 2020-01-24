@@ -1,4 +1,4 @@
-package v110
+package v120
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	v1 "github.com/percona/percona-xtradb-cluster-operator/v110/pkg/apis/pxc/v1"
+	v120 "github.com/percona/percona-xtradb-cluster-operator/v120/pkg/apis/pxc/v1"
 )
 
 // PerconaXtraDBCluster is the Schema for the perconaxtradbclusters API
@@ -17,8 +17,8 @@ type PerconaXtraDBCluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   v1.PerconaXtraDBClusterSpec   `json:"spec,omitempty"`
-	Status v1.PerconaXtraDBClusterStatus `json:"status,omitempty"`
+	Spec   v120.PerconaXtraDBClusterSpec   `json:"spec,omitempty"`
+	Status v120.PerconaXtraDBClusterStatus `json:"status,omitempty"`
 }
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
@@ -67,7 +67,7 @@ func (cr *PerconaXtraDBCluster) SetUsersSecretName(name string) {
 }
 
 func (cr *PerconaXtraDBCluster) GetOperatorImage() string {
-	return "percona/percona-xtradb-cluster-operator:1.1.0"
+	return "percona/percona-xtradb-cluster-operator:1.2.0"
 }
 
 func (cr *PerconaXtraDBCluster) SetDefaults() error {
@@ -77,17 +77,17 @@ func (cr *PerconaXtraDBCluster) SetDefaults() error {
 	cr.TypeMeta.Kind = "PerconaXtraDBCluster"
 	cr.ObjectMeta.Finalizers = []string{"delete-pxc-pods-in-order"}
 
-	cr.Spec.PXC = &v1.PodSpec{}
+	cr.Spec.PXC = &v120.PodSpec{}
 	cr.Spec.PXC.Size = 3
-	cr.Spec.PXC.Image = "percona/percona-xtradb-cluster-operator:1.1.0-pxc"
-	cr.Spec.PXC.Affinity = &v1.PodAffinity{
+	cr.Spec.PXC.Image = "percona/percona-xtradb-cluster-operator:1.2.0-pxc"
+	cr.Spec.PXC.Affinity = &v120.PodAffinity{
 		TopologyKey: &defaultAffinityTopologyKey,
 	}
-	cr.Spec.PXC.PodDisruptionBudget = &v1.PodDisruptionBudgetSpec{
+	cr.Spec.PXC.PodDisruptionBudget = &v120.PodDisruptionBudgetSpec{
 		MaxUnavailable: &one,
 	}
 	volPXC, _ := resource.ParseQuantity("6G")
-	cr.Spec.PXC.VolumeSpec = &v1.VolumeSpec{
+	cr.Spec.PXC.VolumeSpec = &v120.VolumeSpec{
 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: volPXC},
@@ -95,18 +95,18 @@ func (cr *PerconaXtraDBCluster) SetDefaults() error {
 		},
 	}
 
-	cr.Spec.ProxySQL = &v1.PodSpec{}
+	cr.Spec.ProxySQL = &v120.PodSpec{}
 	cr.Spec.ProxySQL.Enabled = true
 	cr.Spec.ProxySQL.Size = 1
-	cr.Spec.ProxySQL.Image = "percona/percona-xtradb-cluster-operator:1.1.0-proxysql"
-	cr.Spec.ProxySQL.Affinity = &v1.PodAffinity{
+	cr.Spec.ProxySQL.Image = "percona/percona-xtradb-cluster-operator:1.2.0-proxysql"
+	cr.Spec.ProxySQL.Affinity = &v120.PodAffinity{
 		TopologyKey: &defaultAffinityTopologyKey,
 	}
-	cr.Spec.ProxySQL.PodDisruptionBudget = &v1.PodDisruptionBudgetSpec{
+	cr.Spec.ProxySQL.PodDisruptionBudget = &v120.PodDisruptionBudgetSpec{
 		MaxUnavailable: &one,
 	}
 	volProxy, _ := resource.ParseQuantity("1G")
-	cr.Spec.ProxySQL.VolumeSpec = &v1.VolumeSpec{
+	cr.Spec.ProxySQL.VolumeSpec = &v120.VolumeSpec{
 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: volProxy},
@@ -114,8 +114,8 @@ func (cr *PerconaXtraDBCluster) SetDefaults() error {
 		},
 	}
 
-	cr.Spec.Backup = &v1.PXCScheduledBackup{
-		Image: "percona/percona-xtradb-cluster-operator:1.1.0-backup",
+	cr.Spec.Backup = &v120.PXCScheduledBackup{
+		Image: "percona/percona-xtradb-cluster-operator:1.2.0-backup",
 	}
 	return nil
 }

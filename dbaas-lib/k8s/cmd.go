@@ -94,17 +94,38 @@ func New(environment string) (*Cmd, error) {
 }
 
 func (p Cmd) runCmd(cmd string, args ...string) ([]byte, error) {
-	cli := exec.Command(cmd, args...)
+	/*cli := exec.Command(cmd, args...)
 	cli.Env = os.Environ()
 	if len(p.environment) > 0 {
 		cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
 	}
-	o, err := cli.CombinedOutput()
+	var o []byte*/
+	o, err := p.runNTimes(3, cmd, args...) //cli.CombinedOutput()
 	if err != nil {
+
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
 	}
 
 	return o, nil
+}
+
+func (p Cmd) runNTimes(n int, cmd string, args ...string) (o []byte, err error) {
+	for i := 1; i <= n; i++ {
+		cli := exec.Command(cmd, args...)
+		cli.Env = os.Environ()
+		if len(p.environment) > 0 {
+			cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
+		}
+		o, err = cli.CombinedOutput()
+		if err != nil {
+			if strings.Contains(string(o), "Unable to connect to the server") && i < n {
+				continue
+			}
+		}
+		break
+	}
+
+	return o, err
 }
 
 func (p Cmd) readOperatorLogs(operatorName string) ([]byte, error) {
@@ -136,6 +157,14 @@ func (p Cmd) apply(k8sObj string) error {
 	}
 
 	return nil
+}
+
+func (p Cmd) GetCurrentNamespace() (string, error) {
+	o, err := p.runCmd(p.execCommand, "config", "view", "--minify", "--output", "jsonpath={..namespace}")
+	if err != nil {
+		return "", err
+	}
+	return string(o), err
 }
 
 func (p Cmd) Annotate(resource, clusterName, annotName, instance string) error {

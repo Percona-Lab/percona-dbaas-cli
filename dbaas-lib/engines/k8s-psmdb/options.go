@@ -3,18 +3,17 @@ package psmdb
 import (
 	"reflect"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/config"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/options"
 )
 
 func (p *PSMDB) ParseOptions(opts string) error {
-	var c config.ClusterConfig
-
+	c := objects[defaultVersion].psmdb
+	c.SetDefaults()
 	err := options.Parse(&c, reflect.TypeOf(c), opts)
 	if err != nil {
 		return err
 	}
-	p.config = c
+	p.conf = c
 
 	return nil
 }

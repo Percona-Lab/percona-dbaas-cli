@@ -1,4 +1,4 @@
-package v110
+package v120
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	v1 "github.com/percona/percona-server-mongodb-operator/v110/pkg/apis/psmdb/v1"
+	v120 "github.com/percona/percona-server-mongodb-operator/v120/pkg/apis/psmdb/v1"
 	"github.com/pkg/errors"
 )
 
@@ -16,13 +16,13 @@ type PerconaServerMongoDB struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   v1.PerconaServerMongoDBSpec   `json:"spec,omitempty"`
-	Status v1.PerconaServerMongoDBStatus `json:"status,omitempty"`
+	Spec   v120.PerconaServerMongoDBSpec   `json:"spec,omitempty"`
+	Status v120.PerconaServerMongoDBStatus `json:"status,omitempty"`
 }
 
 func (cr *PerconaServerMongoDB) GetSpec() interface{} {
-	rs := v1.ReplsetSpec{}
-	cr.Spec.Replsets = []*v1.ReplsetSpec{&rs}
+	rs := v120.ReplsetSpec{}
+	cr.Spec.Replsets = []*v120.ReplsetSpec{&rs}
 	return cr.Spec
 }
 
@@ -35,13 +35,13 @@ func (cr *PerconaServerMongoDB) SetName(name string) {
 }
 
 func (cr *PerconaServerMongoDB) SetUsersSecretName(name string) {
-	cr.Spec.Secrets = &v1.SecretsSpec{
+	cr.Spec.Secrets = &v120.SecretsSpec{
 		Users: name + "-psmdb-users-secrets",
 	}
 }
 
 func (cr *PerconaServerMongoDB) GetOperatorImage() string {
-	return "percona/percona-server-mongodb-operator:1.1.0"
+	return "percona/percona-server-mongodb-operator:1.2.0"
 }
 
 func (cr *PerconaServerMongoDB) SetLabels(labels map[string]string) {
@@ -77,7 +77,7 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 
 func (cr *PerconaServerMongoDB) SetDefaults() error {
 	rsName := "rs0"
-	rs := &v1.ReplsetSpec{
+	rs := &v120.ReplsetSpec{
 		Name: rsName,
 	}
 
@@ -86,7 +86,7 @@ func (cr *PerconaServerMongoDB) SetDefaults() error {
 	if err != nil {
 		return errors.Wrap(err, "storage-size")
 	}
-	rs.VolumeSpec = &v1.VolumeSpec{
+	rs.VolumeSpec = &v120.VolumeSpec{
 		PersistentVolumeClaim: &corev1.PersistentVolumeClaimSpec{
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{corev1.ResourceStorage: volSize},
@@ -94,23 +94,23 @@ func (cr *PerconaServerMongoDB) SetDefaults() error {
 		},
 	}
 	rs.Size = int32(3)
-	rs.Resources = &v1.ResourcesSpec{
-		Requests: &v1.ResourceSpecRequirements{
+	rs.Resources = &v120.ResourcesSpec{
+		Requests: &v120.ResourceSpecRequirements{
 			CPU:    "600m",
 			Memory: "1G",
 		},
 	}
-	psmdbtpk := "kubernetes.io/hostname"
-	rs.Affinity = &v1.PodAffinity{
+	psmdbtpk := "none" //"kubernetes.io/hostname"
+	rs.Affinity = &v120.PodAffinity{
 		TopologyKey: &psmdbtpk,
 	}
-	cr.Spec.Replsets = []*v1.ReplsetSpec{
+	cr.Spec.Replsets = []*v120.ReplsetSpec{
 		rs,
 	}
 	cr.TypeMeta.APIVersion = "psmdb.percona.com/v1"
 	cr.TypeMeta.Kind = "PerconaServerMongoDB"
 
-	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.1.0-mongod4.0"
+	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.2.0-mongod4.0"
 
 	return nil
 }
