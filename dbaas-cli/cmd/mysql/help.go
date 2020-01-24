@@ -21,8 +21,7 @@ var helpCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		a := os.Args[0]
-		c := exec.Command(a, PXCCmd.Name(), args[0], "--help")
+		c := exec.Command(os.Args[0], PXCCmd.Name(), args[0], "--help")
 		o, err := c.Output()
 		if err != nil {
 			return
