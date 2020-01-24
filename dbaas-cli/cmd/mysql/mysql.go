@@ -27,7 +27,7 @@ var dotPrinter dp.DotPrinter
 // PXCCmd represents the mysql command
 var PXCCmd = &cobra.Command{
 	Use:   "mysql",
-	Short: "Manage your MySQL cluster on Kubernetes",
+	Short: "Manage your MySQL instance",
 }
 
 func parseArgs(args []string) []string {

@@ -25,6 +25,7 @@ import (
 var describeCmd = &cobra.Command{
 	Use:   "describe-db <mongo-cluster-name>",
 	Short: "Describe MongoDB cluster or list clusters",
+	Long:  "Lists all database instances or clusters currently present or provides details about the database instance or cluster with the given name.",
 	Run: func(cmd *cobra.Command, args []string) {
 		name := ""
 		if len(args) > 0 {

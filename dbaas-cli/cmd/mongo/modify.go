@@ -29,6 +29,7 @@ import (
 var modifyCmd = &cobra.Command{
 	Use:   "modify-db <mongo-cluster-name>",
 	Short: "Modify MongoDBL cluster ",
+	Long:  "Changes any of the optional values associated to an existing database instance or cluster with the given name.",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return errors.New("You have to specify resource name")
