@@ -38,7 +38,7 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(*modifyOptions) > 0 {
+		if len(*modifyOptions) == 0 {
 			dotPrinter.Stop("error")
 			log.Error("options not passed")
 			return
