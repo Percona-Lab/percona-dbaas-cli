@@ -2,7 +2,6 @@ package psmdb
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
@@ -142,7 +141,6 @@ func (p *PSMDB) UpdateDBCluster(name, opts string) error {
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
-	fmt.Println(cr)
 	err = p.cmd.Upgrade("psmdb", name, cr)
 	if err != nil {
 		return errors.Wrap(err, "upgrade cluster")
