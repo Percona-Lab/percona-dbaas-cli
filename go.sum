@@ -106,6 +106,7 @@ github.com/golang/protobuf v1.3.2 h1:6nsPYzhq5kReh6QImI3k5qWzO4PEbvbIW2cwSfR/6xs
 github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/google/btree v0.0.0-20180813153112-4030bb1f1f0c/go.mod h1:lNA+9X1NB3Zf8V7Ke586lFgjr2dZNuvo3lPJSGZ5JPQ=
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
+github.com/google/go-cmp v0.3.0 h1:crn/baboCvb5fXaQ0IJ1SGTsTVrWpDsCWC8EGETZijY=
 github.com/google/go-cmp v0.3.0/go.mod h1:8QqcDgzrUqlUb/G2PQTWiueGozuR1884gddMywk6iLU=
 github.com/google/gofuzz v0.0.0-20161122191042-44d81051d367/go.mod h1:HP5RmnzzSNb993RKQDq4+1A4ia9nllfqcQFTQJedwGI=
 github.com/google/gofuzz v1.0.0 h1:A8PeW59pxE9IoFRqBp37U+mSNaQoZ46F1f0f863XSXw=
@@ -182,11 +183,16 @@ github.com/percona/percona-server-mongodb-operator v0.0.0-20190920082537-70382ea
 github.com/percona/percona-server-mongodb-operator v0.0.0-20190920082537-70382eaea511/go.mod h1:gogg6e/sIt2D8iNN4jQLEwE+TY5rH7OqzftSLLwH0M8=
 github.com/percona/percona-server-mongodb-operator v0.0.0-20200108163216-2e5889710e1b h1:TxZDsGUEfsEwxCX2/UJi/ZvsK7TaOr761YzdxMhJkOQ=
 github.com/percona/percona-server-mongodb-operator v0.0.0-20200108163216-2e5889710e1b/go.mod h1:gogg6e/sIt2D8iNN4jQLEwE+TY5rH7OqzftSLLwH0M8=
+github.com/percona/percona-server-mongodb-operator v0.0.0-20200116074003-b1e2b15a0a98 h1:Tp4zAAaPS+jvu9Bk74OK+1K5QdjgdhFfvPcfUc0llUE=
+github.com/percona/percona-server-mongodb-operator v0.0.0-20200116074003-b1e2b15a0a98/go.mod h1:gogg6e/sIt2D8iNN4jQLEwE+TY5rH7OqzftSLLwH0M8=
 github.com/percona/percona-xtradb-cluster-operator v0.0.0-20190729091217-40c60f550f94 h1:vz+ePFEwFsM0NbiJdCfoV+9V0+nNR7/FAh31fig38DE=
 github.com/percona/percona-xtradb-cluster-operator v0.0.0-20190729091217-40c60f550f94/go.mod h1:QvGXz1h9lhCsGHDkKlbmRDEsQVEyZUZ2cQda+MwqYTY=
 github.com/percona/percona-xtradb-cluster-operator v0.0.0-20190920084837-406b624f1baf h1:40aUTjuCqR+9Rck3nJUyrYZ2jxzShfImtkzXoU9kbM4=
 github.com/percona/percona-xtradb-cluster-operator v0.0.0-20190920084837-406b624f1baf/go.mod h1:QvGXz1h9lhCsGHDkKlbmRDEsQVEyZUZ2cQda+MwqYTY=
+github.com/percona/percona-xtradb-cluster-operator v0.0.0-20200106113434-50466df00b88 h1:pspi0Vlwq5IyQBmKEX0JKflV9Xj41vwpZa9kL4K5bJo=
+github.com/percona/percona-xtradb-cluster-operator v0.0.0-20200106113434-50466df00b88/go.mod h1:QvGXz1h9lhCsGHDkKlbmRDEsQVEyZUZ2cQda+MwqYTY=
 github.com/percona/percona-xtradb-cluster-operator v0.0.0-20200121175245-f7524b4571e4 h1:YlIUHrHQkiA6yLueC+lCsI7OC9nOIrsvkcauyeMZrD8=
+github.com/percona/percona-xtradb-cluster-operator v0.0.0-20200127190134-e91a97e95447 h1:ScGgozqJUbDzAjCM6GAHK6K62aE+B6G/1Wp/aWGhdAg=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=

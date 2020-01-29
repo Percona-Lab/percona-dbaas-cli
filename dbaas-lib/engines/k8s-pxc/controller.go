@@ -82,6 +82,9 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	if err != nil {
 		return db, errors.Wrap(err, "get namspace name")
 	}
+	if len(ns) == 0 {
+		ns = "default"
+	}
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
