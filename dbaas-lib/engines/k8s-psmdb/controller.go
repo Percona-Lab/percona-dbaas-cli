@@ -2,6 +2,7 @@ package psmdb
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
@@ -80,6 +81,9 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	if err != nil {
 		return db, errors.Wrap(err, "get namspace name")
 	}
+	if len(ns) == 0 {
+		ns = "default"
+	}
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
@@ -138,6 +142,7 @@ func (p *PSMDB) UpdateDBCluster(name, opts string) error {
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
+	fmt.Println(cr)
 	err = p.cmd.Upgrade("psmdb", name, cr)
 	if err != nil {
 		return errors.Wrap(err, "upgrade cluster")

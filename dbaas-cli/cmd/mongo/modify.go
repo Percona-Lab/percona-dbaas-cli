@@ -39,8 +39,12 @@ var modifyCmd = &cobra.Command{
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(*modifyOptions) > 0 {
-			*modifyOptions = addSpec(*modifyOptions)
+			dotPrinter.Stop("error")
+			log.Error("options not passed")
+			return
 		}
+		*modifyOptions = addSpec(*modifyOptions)
+
 		instance := dbaas.Instance{
 			Name:          args[0],
 			EngineOptions: *modifyOptions,
