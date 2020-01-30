@@ -112,5 +112,9 @@ func (cr *PerconaServerMongoDB) SetDefaults() error {
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.2.0-mongod4.0"
 
+	cr.Spec.PMM.Enabled = false
+	cr.Spec.PMM.ServerHost = "monitoring-service"
+	cr.Spec.PMM.Image = "percona/percona-server-mongodb-operator:1.2.0-pmm"
+
 	return nil
 }
