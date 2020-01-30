@@ -11,7 +11,8 @@ type customInt int64
 
 func TestOptions(t *testing.T) {
 	type T3 struct {
-		StringValP *string `json:"sp1"`
+		StringValP  *string `json:"sp1"`
+		StringValP2 *string `json:"sp2"`
 	}
 	type T2 struct {
 		StringVal  string         `json:"s1"`
@@ -33,7 +34,8 @@ func TestOptions(t *testing.T) {
 	var customVar customInt
 	customVar = 2356
 	t3 := T3{
-		StringValP: &str,
+		StringValP:  &str,
+		StringValP2: &str,
 	}
 	cmp := T{
 		Level0: T2{
@@ -50,7 +52,7 @@ func TestOptions(t *testing.T) {
 
 	v := T{}
 
-	err := options.Parse(&v, reflect.TypeOf(v), "L.S1=value1,l.s2=value2,l.i1=42,l.i2=666,l.m1=test:1,l.sl1=1;2,l.c1=2356,l1.sp1=value2")
+	err := options.Parse(&v, reflect.TypeOf(v), "L.S1=value1,l.s2=value2,l.i1=42,l.i2=666,l.m1=test:1,l.sl1=1;2,l.c1=2356,l1.sp1=value2,l1.sp2=value2")
 	if err != nil {
 		t.Errorf("Parse error: %v", err)
 	}
