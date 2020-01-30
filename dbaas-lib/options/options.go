@@ -35,7 +35,9 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 				} else if rv.Kind() == reflect.Interface {
 					rv = reflect.Indirect(rv.Elem()).FieldByName(f)
 				} else if rv.Kind() == reflect.Ptr {
-					rv = reflect.Indirect(rv.Elem()).FieldByName(f)
+					nv := reflect.New(rv.Type().Elem())
+					rv.Set(nv)
+					rv = reflect.Indirect(rv).FieldByName(f)
 				} else {
 					rv = rv.FieldByName(f)
 				}
