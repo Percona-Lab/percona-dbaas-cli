@@ -50,8 +50,7 @@ func (p Cmd) delete(typ, name string) error {
 
 func (p Cmd) deletePVC(operatorName, appName string) error {
 	out, err := p.runCmd("kubectl", "delete", "pvc",
-		"-l", "app.kubernetes.io/part-of="+operatorName,
-		"-l", "app.kubernetes.io/instance="+appName,
+		"-l", "app.kubernetes.io/managed-by="+operatorName+",app.kubernetes.io/instance="+appName,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "get cr: %s", out)
