@@ -113,6 +113,12 @@ func (cr *PerconaXtraDBCluster) SetDefaults() error {
 			},
 		},
 	}
+	pmm := v130.PMMSpec{
+		Enabled:    false,
+		ServerHost: "monitoring-service",
+		Image:      "percona/percona-xtradb-cluster-operator:1.3.0-pmm",
+	}
+	cr.Spec.PMM = &pmm
 
 	cr.Spec.Backup = &v130.PXCScheduledBackup{
 		Image: "percona/percona-xtradb-cluster-operator:1.3.0-backup",
