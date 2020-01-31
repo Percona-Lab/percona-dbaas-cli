@@ -61,12 +61,12 @@ var describeCmd = &cobra.Command{
 		log.Println("NAME                STATUS")
 		for _, db := range listDB {
 			space := "          "
-			if len(db.ResourceName) <= 10 {
-				for i := 0; i < 10-len(db.ResourceName); i++ {
+			if len(db.ResourceName) <= 12 {
+				for i := 0; i < 12-len(db.ResourceName); i++ {
 					space = space + " "
 				}
 			} else {
-				db.ResourceName = db.ResourceName[:10]
+				db.ResourceName = db.ResourceName[:12]
 			}
 			log.Println(db.ResourceName + space + db.Status)
 		}
