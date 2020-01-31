@@ -73,7 +73,7 @@ func (cr *PerconaXtraDBCluster) GetOperatorImage() string {
 func (cr *PerconaXtraDBCluster) SetDefaults() error {
 	one := intstr.FromInt(1)
 
-	cr.TypeMeta.APIVersion = "pxc.percona.com/v1"
+	cr.TypeMeta.APIVersion = "pxc.percona.com/v1-2-0"
 	cr.TypeMeta.Kind = "PerconaXtraDBCluster"
 	cr.ObjectMeta.Finalizers = []string{"delete-pxc-pods-in-order"}
 
