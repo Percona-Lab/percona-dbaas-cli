@@ -107,7 +107,7 @@ func (cr *PerconaServerMongoDB) SetDefaults() error {
 	cr.Spec.Replsets = []*v120.ReplsetSpec{
 		rs,
 	}
-	cr.TypeMeta.APIVersion = "psmdb.percona.com/v1"
+	cr.TypeMeta.APIVersion = "psmdb.percona.com/v1-2-0"
 	cr.TypeMeta.Kind = "PerconaServerMongoDB"
 
 	cr.Spec.Image = "percona/percona-server-mongodb-operator:1.2.0-mongod4.0"
