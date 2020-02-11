@@ -15,6 +15,10 @@
 package mysql
 
 import (
+	"fmt"
+	"os"
+	"text/tabwriter"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -58,18 +62,15 @@ var describeCmd = &cobra.Command{
 			log.Println("Nothing to show")
 			return
 		}
-		log.Println("NAME                STATUS")
+		w := new(tabwriter.Writer)
+		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+		fmt.Fprintln(w, "NAME\tSTATUS\t")
 		for _, db := range listDB {
-			space := "          "
-			if len(db.ResourceName) <= 12 {
-				for i := 0; i < 12-len(db.ResourceName); i++ {
-					space = space + " "
-				}
-			} else {
-				db.ResourceName = db.ResourceName[:12]
-			}
-			log.Println(db.ResourceName + space + db.Status)
+			fmt.Fprintln(w, fmt.Sprintf("%s\t%s", db.ResourceName, db.Status))
+
 		}
+		fmt.Fprintln(w)
+		w.Flush()
 	},
 }
 
