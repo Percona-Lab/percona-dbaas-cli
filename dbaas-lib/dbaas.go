@@ -18,7 +18,7 @@ type Instance struct {
 
 // CreateDB creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
 func CreateDB(instance Instance) error {
-	err := checkPrroviderAndEngine(instance)
+	err := checkProviderAndEngine(instance)
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func CreateDB(instance Instance) error {
 
 // ModifyDB modifies DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
 func ModifyDB(instance Instance) error {
-	err := checkPrroviderAndEngine(instance)
+	err := checkProviderAndEngine(instance)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func ModifyDB(instance Instance) error {
 }
 
 func DescribeDB(instance Instance) (structs.DB, error) {
-	err := checkPrroviderAndEngine(instance)
+	err := checkProviderAndEngine(instance)
 	if err != nil {
 		return structs.DB{}, err
 	}
@@ -54,7 +54,7 @@ func DescribeDB(instance Instance) (structs.DB, error) {
 }
 
 func ListDB(instance Instance) ([]structs.DB, error) {
-	err := checkPrroviderAndEngine(instance)
+	err := checkProviderAndEngine(instance)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func ListDB(instance Instance) ([]structs.DB, error) {
 }
 
 func DeleteDB(instance Instance, saveData bool) (string, error) {
-	err := checkPrroviderAndEngine(instance)
+	err := checkProviderAndEngine(instance)
 	if err != nil {
 		return "", err
 	}
@@ -71,7 +71,7 @@ func DeleteDB(instance Instance, saveData bool) (string, error) {
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, saveData)
 }
 
-func checkPrroviderAndEngine(instance Instance) error {
+func checkProviderAndEngine(instance Instance) error {
 	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
 		return errors.New("wrong provider")
 	}
