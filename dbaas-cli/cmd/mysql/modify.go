@@ -38,6 +38,11 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		noWait, err := cmd.Flags().GetBool("no-wait")
+		if err != nil {
+			log.Error("get no-wait flag: ", err)
+		}
+
 		if len(*modifyOptions) == 0 {
 			log.Error("options not passed")
 			return
@@ -50,15 +55,16 @@ var modifyCmd = &cobra.Command{
 			Engine:        *modifyEngine,
 			Provider:      *modifyProvider,
 		}
-
-		dotPrinter.Start("Modifying")
-		err := dbaas.ModifyDB(instance)
+		if !noWait {
+			dotPrinter.Start("Modifying")
+		}
+		err = dbaas.ModifyDB(instance)
 		if err != nil {
 			dotPrinter.Stop("error")
 			log.Error("modify db: ", err)
 			return
 		}
-		time.Sleep(time.Second * 3) //let k8s time for applying new cr
+		time.Sleep(time.Second * 6) //let k8s time for applying new cr
 		tries := 0
 		tckr := time.NewTicker(500 * time.Millisecond)
 		defer tckr.Stop()
@@ -69,12 +75,18 @@ var modifyCmd = &cobra.Command{
 				//log.Error("check db: ", err)
 				continue
 			}
-			if cluster.Status == "ready" {
+			cluster.Pass = ""
+			switch cluster.Status {
+			case "ready":
 				dotPrinter.Stop("done")
 				log.Println("Database modified successfully, connection details are below:")
-				cluster.Pass = ""
-				log.Println(cluster)
+				log.WithField("database", cluster).Info("information")
 				return
+			case "initializing":
+				if noWait {
+					log.WithField("database", cluster).Info("information")
+					return
+				}
 			}
 			if tries >= maxTries {
 				dotPrinter.Stop("error")
@@ -92,7 +104,7 @@ var modifyProvider *string
 var modifyEngine *string
 
 func init() {
-	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options")
+	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options in 'p1.p2=text' format. Use params from https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html")
 	modifyProvider = modifyCmd.Flags().String("provider", "k8s", "Provider")
 	modifyEngine = modifyCmd.Flags().String("engine", "pxc", "Engine")
 

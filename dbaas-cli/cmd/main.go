@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -41,8 +42,10 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.PersistentFlags().StringP("output", "o", "", `Answers format. Can be "json" or "text". "text" is set by default`)
 	rootCmd.AddCommand(mysql.PXCCmd)
 	rootCmd.AddCommand(mongo.MongoCmd)
+	rootCmd.PersistentFlags().Bool("no-wait", false, "Dont wait while command is done")
 }
 
 func main() {
@@ -53,12 +56,17 @@ func main() {
 }
 
 func detectFormat(cmd *cobra.Command) error {
-	format := ""
+	format, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return err
+	}
 	switch format {
 	case "json":
 		log.SetFormatter(&log.JSONFormatter{
 			DisableTimestamp: true,
+			PrettyPrint:      true,
 		})
+		//log.SetFormatter(new(MyJSONFormatter))
 	default:
 		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
 	}
@@ -78,10 +86,10 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 		b = &bytes.Buffer{}
 	}
 	if entry.Level == log.ErrorLevel {
-		b.WriteString("[Error] ")
+		b.WriteString("[Error] " + entry.Message)
 	}
 	if entry.Message != "" {
-		b.WriteString(entry.Message)
+		//	b.WriteString(entry.Message)
 	}
 
 	if len(entry.Data) == 0 {
@@ -90,8 +98,23 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 	}
 
 	for _, v := range entry.Data {
-		fmt.Fprint(b, "\n", v)
+		fmt.Fprint(b, v)
 	}
 	b.WriteString("\n")
 	return b.Bytes(), nil
+}
+
+type MyJSONFormatter struct {
+}
+
+func (f *MyJSONFormatter) Format(entry *log.Entry) ([]byte, error) {
+	// Note this doesn't include Time, Level and Message which are available on
+	// the Entry. Consult `godoc` on information about those fields or read the
+	// source of the official loggers.
+	fmt.Println(entry.Message)
+	serialized, err := json.Marshal(entry.Data)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal fields to JSON, %v", err)
+	}
+	return append(serialized, '\n'), nil
 }

@@ -44,6 +44,10 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		noWait, err := cmd.Flags().GetBool("no-wait")
+		if err != nil {
+			log.Error("get no-wait flag: ", err)
+		}
 		if len(*options) > 0 {
 			*options = addSpec(*options)
 		}
@@ -52,10 +56,14 @@ var createCmd = &cobra.Command{
 			EngineOptions: *options,
 			Engine:        *engine,
 			Provider:      *provider,
+			RootPass:      *rootPass,
 		}
 
-		dotPrinter.Start("Starting")
-		err := dbaas.CreateDB(instance)
+		if !noWait {
+			dotPrinter.Start("Starting")
+		}
+
+		err = dbaas.CreateDB(instance)
 		if err != nil {
 			dotPrinter.Stop("error")
 			log.Error("create db: ", err)
@@ -71,12 +79,19 @@ var createCmd = &cobra.Command{
 				//log.Error("check db: ", err)
 				continue
 			}
-			if cluster.Status == "ready" {
+			switch cluster.Status {
+			case "ready":
 				dotPrinter.Stop("done")
 				log.Println("Database started successfully, connection details are below:")
 				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
-				log.Println(cluster)
+				log.WithField("database", cluster).Info("information")
 				return
+			case "initializing":
+				if noWait {
+					cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
+					log.WithField("database", cluster).Info("information")
+					return
+				}
 			}
 			if tries >= maxTries {
 				dotPrinter.Stop("error")
@@ -91,11 +106,13 @@ var createCmd = &cobra.Command{
 var options *string
 var provider *string
 var engine *string
+var rootPass *string
 
 func init() {
-	options = createCmd.Flags().String("options", "", "Engine options")
+	options = createCmd.Flags().String("options", "", "Engine options in 'p1.p2=text' format. Use params from https://www.percona.com/doc/kubernetes-operator-for-psmongodb/operator.html")
 	provider = createCmd.Flags().String("provider", "k8s", "Provider")
 	engine = createCmd.Flags().String("engine", "psmdb", "Engine")
+	rootPass = createCmd.Flags().String("root-pass", "", "Password for root user")
 
 	MongoCmd.AddCommand(createCmd)
 }

@@ -22,6 +22,7 @@ type PerconaXtraDBCluster struct {
 }
 
 var defaultAffinityTopologyKey = "kubernetes.io/hostname"
+var affinityTopologyKeyOff = "none"
 
 func (cr *PerconaXtraDBCluster) GetName() string {
 	return cr.ObjectMeta.Name
@@ -34,6 +35,15 @@ func (cr *PerconaXtraDBCluster) SetLabels(labels map[string]string) {
 func (cr *PerconaXtraDBCluster) MarshalRequests() error {
 	_, err := cr.Spec.PXC.VolumeSpec.PersistentVolumeClaim.Resources.Requests[corev1.ResourceStorage].MarshalJSON()
 	return err
+}
+
+// SetupMiniConfig is for seeting up config for working with minishift and minikube
+func (cr *PerconaXtraDBCluster) SetupMiniConfig() {
+	none := affinityTopologyKeyOff
+	cr.Spec.PXC.Affinity.TopologyKey = &none
+	cr.Spec.PXC.Resources = nil
+	cr.Spec.ProxySQL.Affinity.TopologyKey = &none
+	cr.Spec.ProxySQL.Resources = nil
 }
 
 func (cr *PerconaXtraDBCluster) GetCR() (string, error) {

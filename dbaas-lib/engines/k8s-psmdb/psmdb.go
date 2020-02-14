@@ -56,8 +56,9 @@ func init() {
 
 // PSMDB represents PSMDB Operator controller
 type PSMDB struct {
-	cmd  *k8s.Cmd
-	conf PSMDBCluster
+	cmd          *k8s.Cmd
+	conf         PSMDBCluster
+	platformType k8s.PlatformType
 }
 
 type Version string
@@ -125,6 +126,7 @@ func NewPSMDBController(envCrt, provider string) (*PSMDB, error) {
 			return nil, errors.Wrap(err, "new Cmd")
 		}
 		psmdb.cmd = k8sCmd
+		psmdb.platformType = k8sCmd.GetPlatformType()
 	}
 	return &psmdb, nil
 }

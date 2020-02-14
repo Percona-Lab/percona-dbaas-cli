@@ -65,6 +65,16 @@ func (cr *PerconaServerMongoDB) GetCR() (string, error) {
 	return string(b), nil
 }
 
+var affinityTopologyKeyOff = "none"
+
+func (cr *PerconaServerMongoDB) SetupMiniConfig() {
+	none := affinityTopologyKeyOff
+	for i := range cr.Spec.Replsets {
+		cr.Spec.Replsets[i].Resources = nil
+		cr.Spec.Replsets[i].MultiAZ.Affinity.TopologyKey = &none
+	}
+}
+
 // Upgrade upgrades culster with given images
 func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["psmdb"]; ok {

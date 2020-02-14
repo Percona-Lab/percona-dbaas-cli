@@ -25,4 +25,5 @@ type PXDBCluster interface {
 	SetName(name string)
 	SetUsersSecretName(name string)
 	GetOperatorImage() string
+	SetupMiniConfig() //For Minikube and Minishift
 }

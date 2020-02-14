@@ -49,7 +49,7 @@ var describeCmd = &cobra.Command{
 				return
 			}
 			db.Pass = ""
-			log.Print(db)
+			log.WithField("database", db).Info("information")
 			return
 		}
 
@@ -62,15 +62,25 @@ var describeCmd = &cobra.Command{
 			log.Println("Nothing to show")
 			return
 		}
-		w := new(tabwriter.Writer)
-		w.Init(os.Stdout, 0, 8, 0, '\t', 0)
-		fmt.Fprintln(w, "NAME\tSTATUS\t")
-		for _, db := range listDB {
-			fmt.Fprintln(w, fmt.Sprintf("%s\t%s", db.ResourceName, db.Status))
-
+		format, err := cmd.Flags().GetString("output")
+		if err != nil {
+			log.Error("get output flag: ", err)
+			return
 		}
-		fmt.Fprintln(w)
-		w.Flush()
+		switch format {
+		case "json":
+			log.WithField("database-list", listDB).Info("information")
+		default:
+			w := new(tabwriter.Writer)
+			w.Init(os.Stdout, 0, 8, 0, '\t', 0)
+			fmt.Fprintln(w, "NAME\tSTATUS\t")
+			for _, db := range listDB {
+				fmt.Fprintln(w, fmt.Sprintf("%s\t%s", db.ResourceName, db.Status))
+
+			}
+			fmt.Fprintln(w)
+			w.Flush()
+		}
 	},
 }
 

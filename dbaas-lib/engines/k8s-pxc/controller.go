@@ -1,20 +1,38 @@
 package pxc
 
 import (
+	"crypto/rand"
 	"encoding/json"
+	"math/big"
+	mrand "math/rand"
+	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PXC) CreateDBCluster(name, opts string) error {
+func (p *PXC) CreateDBCluster(name, opts, rootPass string) error {
 	err := p.ParseOptions(opts)
 	if err != nil {
 		return err
 	}
+
 	p.conf.SetName(name)
 	p.conf.SetUsersSecretName(name)
+	switch p.platformType {
+	case k8s.PlatformMinishift, k8s.PlatformMinikube:
+		p.conf.SetupMiniConfig()
+	}
+
+	if len(rootPass) > 0 {
+		err = p.SetRootPass(name, rootPass)
+		if err != nil {
+			return errors.Wrap(err, "set root password")
+		}
+	}
+
 	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
@@ -55,6 +73,10 @@ func (p *PXC) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 		}
 		return "pvc/" + pvc.Meta.Name, nil
 	}
+	err = p.cmd.DeleteObject("secret", name+"-secrets")
+	if err != nil {
+		return "", errors.Wrap(err, "delete secret")
+	}
 
 	return "", nil
 }
@@ -62,7 +84,7 @@ func (p *PXC) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 // GetDBCluster return DB object
 func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	var db structs.DB
-	secrets, err := p.cmd.GetSecrets(name)
+	secrets, err := p.cmd.GetSecrets(name + "-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
 
@@ -152,4 +174,78 @@ func (p *PXC) UpdateDBCluster(name, opts string) error {
 	}
 
 	return nil
+}
+
+func (p *PXC) SetRootPass(clusterName, rootPass string) error {
+	secretName := clusterName + "-secrets"
+	ext, err := p.cmd.IsObjExists("secret", secretName)
+	if err != nil {
+		return errors.Wrap(err, "check if secrets exists")
+	}
+	data := map[string][]byte{}
+	if ext {
+		data, err = p.cmd.GetSecrets(secretName)
+		if err != nil {
+			return errors.Wrap(err, "get secrets")
+		}
+		for k := range data {
+			if k == "root" {
+				data[k] = []byte(rootPass)
+			}
+		}
+		err = p.cmd.UpdateSecrets(secretName, data)
+		if err != nil {
+			return errors.Wrap(err, "update secrets")
+		}
+
+		return nil
+	}
+
+	data["root"] = []byte(rootPass)
+	data["xtrabackup"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create xtrabackup users password")
+	}
+	data["monitor"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create monitor users password")
+	}
+	data["clustercheck"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create clustercheck users password")
+	}
+	data["proxyadmin"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create proxyadmin users password")
+	}
+
+	err = p.cmd.CreateSecret(secretName, data)
+	if err != nil {
+		return errors.Wrap(err, "create secrets")
+	}
+
+	return nil
+}
+
+const (
+	passwordMaxLen = 20
+	passwordMinLen = 16
+	passSymbols    = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"abcdefghijklmnopqrstuvwxyz" +
+		"0123456789"
+)
+
+func generatePass() ([]byte, error) {
+	mrand.Seed(time.Now().UnixNano())
+	ln := mrand.Intn(passwordMaxLen-passwordMinLen) + passwordMinLen
+	b := make([]byte, ln)
+	for i := 0; i < ln; i++ {
+		randInt, err := rand.Int(rand.Reader, big.NewInt(int64(len(passSymbols))))
+		if err != nil {
+			return nil, err
+		}
+		b[i] = passSymbols[randInt.Int64()]
+	}
+
+	return b, nil
 }
