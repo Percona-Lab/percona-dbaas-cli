@@ -66,7 +66,6 @@ func detectFormat(cmd *cobra.Command) error {
 			DisableTimestamp: true,
 			PrettyPrint:      true,
 		})
-		//log.SetFormatter(new(MyJSONFormatter))
 	default:
 		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
 	}
@@ -88,8 +87,8 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 	if entry.Level == log.ErrorLevel {
 		b.WriteString("[Error] " + entry.Message)
 	}
-	if entry.Message != "" {
-		//	b.WriteString(entry.Message)
+	if entry.Message != "" && entry.Level != log.ErrorLevel {
+		b.WriteString(entry.Message)
 	}
 
 	if len(entry.Data) == 0 {
