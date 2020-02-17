@@ -108,7 +108,7 @@ var engine *string
 var rootPass *string
 
 func init() {
-	options = createCmd.Flags().String("options", "", "Engine options in 'p1.p2=text' format. Use params from https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html")
+	options = createCmd.Flags().String("options", "", "Engine options in 'p1.p2=text' format. For k8s/pxc use params from https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html")
 	provider = createCmd.Flags().String("provider", "k8s", "Provider")
 	engine = createCmd.Flags().String("engine", "pxc", "Engine")
 	rootPass = createCmd.Flags().String("root-pass", "", "Password for root user")
