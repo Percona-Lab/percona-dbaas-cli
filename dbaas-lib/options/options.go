@@ -21,7 +21,7 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 	for _, str := range optArr {
 		v := strings.Split(str, "=")
 		if _, ok := opts[getStringWithoutSquareBrackets(v[0])]; !ok {
-			return errors.Errorf("invalidd option %s", v[0])
+			return errors.Errorf("invalid option %s", v[0])
 		}
 		if len(v) > 1 {
 			fs := strings.Split(opts[getStringWithoutSquareBrackets(v[0])], ".")
