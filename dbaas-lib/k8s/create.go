@@ -154,7 +154,7 @@ func (p Cmd) UpdateSecrets(name string, newData map[string][]byte) error {
 
 	sj, err := json.Marshal(secretsObj)
 	if err != nil {
-		errors.Wrap(err, "json marshal")
+		return errors.Wrap(err, "json marshal")
 	}
 
 	return errors.WithMessage(p.apply(string(sj)), "apply")

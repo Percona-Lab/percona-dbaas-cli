@@ -58,11 +58,7 @@ var createCmd = &cobra.Command{
 			Provider:      *provider,
 			RootPass:      *rootPass,
 		}
-
-		if !noWait {
-			dotPrinter.Start("Starting")
-		}
-
+		dotPrinter.Start("Starting")
 		err = dbaas.CreateDB(instance)
 		if err != nil {
 			dotPrinter.Stop("error")
@@ -82,12 +78,12 @@ var createCmd = &cobra.Command{
 			switch cluster.Status {
 			case "ready":
 				dotPrinter.Stop("done")
-				log.Println("Database started successfully, connection details are below:")
 				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
-				log.WithField("database", cluster).Info("information")
+				log.WithField("database", cluster).Info("Database started successfully, connection details are below:")
 				return
 			case "initializing":
 				if noWait {
+					dotPrinter.Stop("initializing")
 					cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 					log.WithField("database", cluster).Info("information")
 					return

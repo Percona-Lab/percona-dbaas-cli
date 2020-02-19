@@ -78,8 +78,7 @@ var modifyCmd = &cobra.Command{
 			switch cluster.Status {
 			case "ready":
 				dotPrinter.Stop("done")
-				log.Println("Database modified successfully, connection details are below:")
-				log.WithField("database", cluster).Info("information")
+				log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
 				return
 			case "initializing":
 				if noWait {

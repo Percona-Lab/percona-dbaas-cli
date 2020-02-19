@@ -149,17 +149,12 @@ func (p Cmd) GetObjects(typ string) ([]byte, error) {
 func (p Cmd) DeleteObject(typ, name string) error {
 	if len(p.Namespace) > 0 {
 		_, err := p.runCmd(p.execCommand, "delete", typ+"/"+name, "-n", p.Namespace)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
+
 	}
 	_, err := p.runCmd(p.execCommand, "delete", typ+"/"+name)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 func (p Cmd) apply(k8sObj string) error {
