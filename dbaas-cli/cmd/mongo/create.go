@@ -48,6 +48,14 @@ var createCmd = &cobra.Command{
 		if err != nil {
 			log.Error("get no-wait flag: ", err)
 		}
+		jsonFormat := false
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			log.Error("get output flag: ", err)
+		}
+		if output == "json" {
+			jsonFormat = true
+		}
 		if len(*options) > 0 {
 			*options = addSpec(*options)
 		}
@@ -58,10 +66,14 @@ var createCmd = &cobra.Command{
 			Provider:      *provider,
 			RootPass:      *rootPass,
 		}
-		dotPrinter.Start("Starting")
+		if !jsonFormat {
+			dotPrinter.Start("Starting")
+		}
 		err = dbaas.CreateDB(instance)
 		if err != nil {
-			dotPrinter.Stop("error")
+			if !jsonFormat {
+				dotPrinter.Stop("error")
+			}
 			log.Error("create db: ", err)
 			return
 		}
@@ -77,20 +89,26 @@ var createCmd = &cobra.Command{
 			}
 			switch cluster.Status {
 			case "ready":
-				dotPrinter.Stop("done")
+				if !jsonFormat {
+					dotPrinter.Stop("done")
+				}
 				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 				log.WithField("database", cluster).Info("Database started successfully, connection details are below:")
 				return
 			case "initializing":
 				if noWait {
-					dotPrinter.Stop("initializing")
+					if !jsonFormat {
+						dotPrinter.Stop("initializing")
+					}
 					cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 					log.WithField("database", cluster).Info("information")
 					return
 				}
 			}
 			if tries >= maxTries {
-				dotPrinter.Stop("error")
+				if !jsonFormat {
+					dotPrinter.Stop("error")
+				}
 				log.Error("unable to start cluster. cluster status: ", cluster.Status)
 				return
 			}
