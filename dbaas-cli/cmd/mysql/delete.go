@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -40,6 +41,13 @@ var delCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			log.Error("get output flag: ", err)
+		}
+		if output == "json" {
+			dotPrinter.Print = false
+		}
 		if !*forced {
 			var yn string
 			preservText := "YOUR DATA WILL BE SAVED\n"
@@ -56,7 +64,10 @@ var delCmd = &cobra.Command{
 				return
 			}
 		}
-		dotPrinter.Start("Deleting")
+		noWait, err := cmd.Flags().GetBool("no-wait")
+		if err != nil {
+			log.Error("get no-wait flag: ", err)
+		}
 		i := dbaas.Instance{
 			Name:     args[0],
 			Engine:   *delEngine,
@@ -66,6 +77,13 @@ var delCmd = &cobra.Command{
 		if !*preserve {
 			deletePVC = true
 		}
+
+		if noWait {
+			go dbaas.DeleteDB(i, deletePVC)
+			time.Sleep(time.Second * 3)
+			return
+		}
+		dotPrinter.Start("Deleting")
 		dataStorage, err := dbaas.DeleteDB(i, deletePVC)
 		if err != nil {
 			dotPrinter.Stop("error")

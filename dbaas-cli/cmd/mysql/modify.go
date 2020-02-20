@@ -38,13 +38,12 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		jsonFormat := false
 		output, err := cmd.Flags().GetString("output")
 		if err != nil {
 			log.Error("get output flag: ", err)
 		}
 		if output == "json" {
-			jsonFormat = true
+			dotPrinter.Print = false
 		}
 		noWait, err := cmd.Flags().GetBool("no-wait")
 		if err != nil {
@@ -63,14 +62,10 @@ var modifyCmd = &cobra.Command{
 			Engine:        *modifyEngine,
 			Provider:      *modifyProvider,
 		}
-		if !jsonFormat {
-			dotPrinter.Start("Modifying")
-		}
+		dotPrinter.Start("Modifying")
 		err = dbaas.ModifyDB(instance)
 		if err != nil {
-			if !jsonFormat {
-				dotPrinter.Stop("error")
-			}
+			dotPrinter.Stop("error")
 			log.Error("modify db: ", err)
 			return
 		}
@@ -88,9 +83,7 @@ var modifyCmd = &cobra.Command{
 			cluster.Pass = ""
 			switch cluster.Status {
 			case "ready":
-				if !jsonFormat {
-					dotPrinter.Stop("done")
-				}
+				dotPrinter.Stop("done")
 				log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
 				return
 			case "initializing":

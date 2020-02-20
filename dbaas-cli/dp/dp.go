@@ -7,13 +7,15 @@ import (
 )
 
 type DotPrinter struct {
-	stop chan string
-	wg   sync.WaitGroup
+	stop  chan string
+	wg    sync.WaitGroup
+	Print bool
 }
 
 func New() DotPrinter {
 	return DotPrinter{
-		stop: make(chan string),
+		stop:  make(chan string),
+		Print: true,
 	}
 }
 
@@ -30,13 +32,19 @@ func (d *DotPrinter) start(message string) {
 	d.wg.Add(1)
 	tckr := time.NewTicker(time.Second * 5)
 	defer tckr.Stop()
-	fmt.Printf(message)
+	if d.Print {
+		fmt.Printf(message)
+	}
 	for {
 		select {
 		case <-tckr.C:
-			fmt.Print(".")
+			if d.Print {
+				fmt.Print(".")
+			}
 		case msg := <-d.stop:
-			fmt.Printf("[%s]\n", msg)
+			if d.Print {
+				fmt.Printf("[%s]\n", msg)
+			}
 			d.wg.Done()
 			return
 		}
