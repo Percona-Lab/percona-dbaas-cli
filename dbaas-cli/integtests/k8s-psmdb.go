@@ -81,14 +81,11 @@ func (psmdb *KuberPSMDB) CreateDBAfterPreserve(rootPass string) error {
 	}
 
 	fmt.Println(o)
-	oSlice := strings.Split(o, "[done]")
-	if len(oSlice) < 2 {
-		return errors.New("unexpected output")
-	}
+
 	var data struct {
 		DB DB `json:"database"`
 	}
-	err = json.Unmarshal([]byte(oSlice[1]), &data)
+	err = json.Unmarshal([]byte(o), &data)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal json out")
 	}
@@ -110,7 +107,7 @@ func (psmdb *KuberPSMDB) CreateDBWithNoWait() error {
 
 func (psmdb *KuberPSMDB) CreateDB(rootPass string) (o string, err error) {
 	if len(rootPass) > 0 {
-		return runCmd(psmdb.cmd, psmdb.subCmd, "create-db", psmdb.dbName, "--root-pass", rootPass)
+		return runCmd(psmdb.cmd, psmdb.subCmd, "create-db", psmdb.dbName, "--password", rootPass)
 	}
 	return runCmd(psmdb.cmd, psmdb.subCmd, "create-db", psmdb.dbName, "-o", "json")
 }

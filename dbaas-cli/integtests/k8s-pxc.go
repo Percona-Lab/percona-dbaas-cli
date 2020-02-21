@@ -80,14 +80,11 @@ func (pxc *KuberPXC) CreateDBAfterPreserve(rootPass string) error {
 		return errors.New("data not preserve")
 	}
 	fmt.Println(o)
-	oSlice := strings.Split(o, "[done]")
-	if len(oSlice) < 2 {
-		return errors.New("unexpected output")
-	}
+
 	var data struct {
 		DB DB `json:"database"`
 	}
-	err = json.Unmarshal([]byte(oSlice[1]), &data)
+	err = json.Unmarshal([]byte(o), &data)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal json out")
 	}
@@ -110,7 +107,7 @@ func (pxc *KuberPXC) CreateDBWithNoWait() error {
 
 func (pxc *KuberPXC) CreateDB(rootPass string) (o string, err error) {
 	if len(rootPass) > 0 {
-		return runCmd(pxc.cmd, pxc.subCmd, "create-db", pxc.dbName, "--root-pass", rootPass)
+		return runCmd(pxc.cmd, pxc.subCmd, "create-db", pxc.dbName, "--password", rootPass)
 	}
 	return runCmd(pxc.cmd, pxc.subCmd, "create-db", pxc.dbName, "-o", "json")
 }
@@ -186,7 +183,7 @@ func (pxc *KuberPXC) ModifyDB() error {
 }
 
 func (pxc *KuberPXC) DeleteDB(preserve bool) error {
-	fmt.Println("Run delete-db"+pxc.dbName+". Preserve flag is", preserve)
+	fmt.Println("Run delete-db "+pxc.dbName+". Preserve flag is", preserve)
 	preserveFlag := ""
 	if preserve {
 		preserveFlag = "--preserve-data"
