@@ -29,9 +29,10 @@ pipeline {
                 sh '''
                     curl -s -L https://github.com/mitchellh/golicense/releases/latest/download/golicense_0.2.0_linux_x86_64.tar.gz \
                         | sudo tar -C /usr/local/bin --wildcards -zxvpf -
-                    curl -s -L https://github.com/src-d/go-license-detector/releases/latest/download/license-detector.linux_amd64.gz \
-                        | gunzip > license-detector
-                    sudo mv license-detector /usr/local/bin/license-detector
+                #    curl -s -L https://github.com/src-d/go-license-detector/releases/latest/download/license-detector.linux_amd64.gz \
+                #        | gunzip | sudo tee /usr/local/bin/license-detector > /dev/null
+                    curl -s -L https://github.com/src-d/go-license-detector/releases/download/v3.0.2/license-detector.linux_amd64.gz \
+                        | gunzip | sudo tee /usr/local/bin/license-detector > /dev/null
                     sudo chmod +x /usr/local/bin/license-detector 
                 '''
             }
