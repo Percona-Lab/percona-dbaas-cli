@@ -21,6 +21,10 @@ func (pxc *KuberPXC) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "create-db")
 	}
+	err = pxc.CheckDBClusterReady()
+	if err != nil {
+		return errors.Wrap(err, "check db ready")
+	}
 	err = pxc.ListDB()
 	if err != nil {
 		return errors.Wrap(err, "list")
@@ -33,13 +37,25 @@ func (pxc *KuberPXC) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "modify-db")
 	}
+	err = pxc.CheckDBClusterReady()
+	if err != nil {
+		return errors.Wrap(err, "check db ready")
+	}
 	err = pxc.DeleteDB(true)
 	if err != nil {
 		return errors.Wrap(err, "delete-db with preserve")
 	}
+	err = pxc.CheckPVCExist()
+	if err != nil {
+		return errors.Wrap(err, "check pvc")
+	}
 	err = pxc.CreateDBAfterPreserve(rootPass)
 	if err != nil {
 		return errors.Wrap(err, "create-db after preserve")
+	}
+	err = pxc.CheckDBClusterReady()
+	if err != nil {
+		return errors.Wrap(err, "check db ready")
 	}
 	err = pxc.DeleteDB(false)
 	if err != nil {
@@ -110,6 +126,34 @@ func (pxc *KuberPXC) CreateDB(rootPass string) (o string, err error) {
 		return runCmd(pxc.cmd, pxc.subCmd, "create-db", pxc.dbName, "--password", rootPass)
 	}
 	return runCmd(pxc.cmd, pxc.subCmd, "create-db", pxc.dbName, "-o", "json")
+}
+
+func (pxc *KuberPXC) CheckDBClusterReady() error {
+	var cluster k8sStatus
+	o, err := GetK8SObject("pxc", pxc.dbName)
+	if err != nil {
+		return errors.Wrap(err, "get k8s object pxc/"+pxc.dbName)
+	}
+	err = json.Unmarshal(o, &cluster)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal")
+	}
+	if cluster.Status.Status != "ready" {
+		return errors.New("cluster not ready")
+	}
+	return nil
+}
+
+func (pxc *KuberPXC) CheckPVCExist() error {
+	o, err := GetK8SObject("pvc", "datadir-"+pxc.dbName+"-pxc-0")
+	if err != nil {
+		return errors.Wrap(err, "get k8s object pvc/datadir-"+pxc.dbName+"-pxc-0")
+	}
+
+	if strings.Contains(string(o), "NotFound") {
+		return errors.New("pvc not exist")
+	}
+	return nil
 }
 
 func (pxc *KuberPXC) ListDB() error {

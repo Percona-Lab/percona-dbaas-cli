@@ -17,9 +17,13 @@ type KuberPSMDB struct {
 func (psmdb *KuberPSMDB) Run() error {
 	fmt.Println("Run k8s-psmdb test")
 	rootPass := "clisecretpass"
-	err := psmdb.CreateDBWithPass(rootPass)
+	/*err := psmdb.CreateDBWithPass(rootPass)
 	if err != nil {
 		return errors.Wrap(err, "create-db")
+	}
+	err = psmdb.CheckDBClusterReady()
+	if err != nil {
+		return errors.Wrap(err, "check db ready")
 	}
 	err = psmdb.ListDB()
 	if err != nil {
@@ -33,13 +37,25 @@ func (psmdb *KuberPSMDB) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "modify-db")
 	}
+	err = psmdb.CheckDBClusterReady()
+	if err != nil {
+		return errors.Wrap(err, "check db ready")
+	}
 	err = psmdb.DeleteDB(true)
 	if err != nil {
 		return errors.Wrap(err, "delete-db")
+	}*/
+	err := psmdb.CheckPVCExist()
+	if err != nil {
+		return errors.Wrap(err, "check pvc")
 	}
 	err = psmdb.CreateDBAfterPreserve(rootPass)
 	if err != nil {
 		return errors.Wrap(err, "create-db after preserve")
+	}
+	err = psmdb.CheckDBClusterReady()
+	if err != nil {
+		return errors.Wrap(err, "check db ready")
 	}
 	err = psmdb.DeleteDB(false)
 	if err != nil {
@@ -110,6 +126,34 @@ func (psmdb *KuberPSMDB) CreateDB(rootPass string) (o string, err error) {
 		return runCmd(psmdb.cmd, psmdb.subCmd, "create-db", psmdb.dbName, "--password", rootPass)
 	}
 	return runCmd(psmdb.cmd, psmdb.subCmd, "create-db", psmdb.dbName, "-o", "json")
+}
+
+func (psmdb *KuberPSMDB) CheckDBClusterReady() error {
+	var cluster k8sStatus
+	o, err := GetK8SObject("psmdb", psmdb.dbName)
+	if err != nil {
+		return errors.Wrap(err, "get k8s object psmdb/"+psmdb.dbName)
+	}
+	err = json.Unmarshal(o, &cluster)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal")
+	}
+	if cluster.Status.Status != "ready" {
+		return errors.New("cluster not ready")
+	}
+	return nil
+}
+
+func (psmdb *KuberPSMDB) CheckPVCExist() error {
+	o, err := GetK8SObject("pvc", "mongod-data-"+psmdb.dbName+"-rs0-0")
+	if err != nil {
+		return errors.Wrap(err, "get k8s object pvc/mongod-data-"+psmdb.dbName+"-rs0-0")
+	}
+
+	if strings.Contains(string(o), "NotFound") {
+		return errors.New("pvc not exist")
+	}
+	return nil
 }
 
 func (psmdb *KuberPSMDB) ListDB() error {

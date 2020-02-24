@@ -8,11 +8,6 @@ import (
 
 type TestEngine interface {
 	Run() error
-	CreateDB(rootPass string) (o string, err error)
-	ListDB() error
-	DescribeDB() error
-	ModifyDB() error
-	DeleteDB(bool) error
 }
 
 func main() {
