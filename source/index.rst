@@ -20,6 +20,7 @@ Installation
    :maxdepth: 1
 
    kubernetes
+   basic-usage
 
 MySQL mode
 =============
@@ -28,7 +29,6 @@ MySQL mode
    :maxdepth: 1
 
    mysql-usage
-   mysql-examples
    mysql-limitations
    mysql-options
 
@@ -39,7 +39,6 @@ MongoDB mode
    :maxdepth: 1
 
    mongodb-usage
-   mongodb-examples
    mongodb-limitations
    mongodb-options
 
