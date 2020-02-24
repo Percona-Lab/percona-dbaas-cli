@@ -1,5 +1,5 @@
-Using with Kubernetes
-==================================
+Using with Google Kubernetes Engine
+====================================
 
 Setting Up Kubernetes
 ----------------------------------

@@ -1,9 +1,9 @@
-
 List of Options
 ----------------------------------
 
-Any valid option from the CustomResource can be set using the ``--options``
-flag, a list of valid commonly used options is below:
+Any valid option from the Percona Server for MongoDB Operator `Custom Resource <https://www.percona.com/doc/kubernetes-operator-for-psmongodb/operator.html>`_ can be set using the ``--options`` flag.
+
+Here is the list of valid commonly used options:
 
 * ``replsets.[rs0].size`` - The number of members in the ReplSet.  By default
   it's internally named rs0.  Can be any valid number, although we recommend

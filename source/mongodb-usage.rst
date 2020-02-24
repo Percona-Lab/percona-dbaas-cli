@@ -1,15 +1,16 @@
-Supported Sub-Commands
+Supported subcommands
 ========================
+
+Following subcommands can be used with the ``mongodb`` engine:
 
 .. contents::
    :local:
    :depth: 1
 
-
 ``create-db``
 -------------
 
-Creates a new databases instance or cluster with the given name.
+This subcommand creates a new databases instance or cluster with the given name.
 
 Example Usage
 *************
@@ -20,7 +21,7 @@ The following code should create the "example" MongoDB database:
 
    ./percona-dbaas mongodb create-db example
 
-The output of this command should look as follows:
+The output of the above command should look as follows:
 
 .. code:: text
 
@@ -42,8 +43,8 @@ The output of this command should look as follows:
 ``describe-db``
 ---------------
 
-Lists all database instances or clusters currently present or provides details
-about the database instance or cluster with the given name.
+This subcommand lists all database instances or clusters currently present or
+provides details about the database instance or cluster with the given name.
 
 
 Example Usage: Listing Databases
@@ -53,9 +54,9 @@ Example Usage: Listing Databases
 
    ./percona-dbaas mongodb describe-db
 
-Example Output:
+The output of the above command should look as follows:
 
-.. code:: bash
+.. code:: text
 
    NAME                STATUS
    example             ready
@@ -68,9 +69,9 @@ Example Usage: Getting Details on a Database
 
    ./percona-dbaas mongodb describe-db example2
 
-Example Output:
+The output of the above command should look as follows:
 
-.. code:: bash
+.. code:: text
 
    Provider:          k8s
    Engine:            psmdb
@@ -87,7 +88,8 @@ Example Output:
 ``modify-db``
 -------------
 
-Changes any of the optional values associated to an existing database instance or cluster with the given name.
+This subcommand changes any of the optional values associated to an existing
+database instance or cluster with the given name.
 
 Example Usage
 *************
@@ -96,17 +98,28 @@ Example Usage
 
    ./percona-dbaas mongodb modify-db example --options="pxc.size=5"
 
-Example Output:
+The output of the above command should look as follows:
 
 .. code:: text
 
-   
+   Modifying..........................[done]
+   Database modified successfully, connection details are below:
+   Provider:          k8s
+   Engine:            psmdb
+   Resource Name:     example
+   Resource Endpoint: example.example.psmdb.svc.local
+   Port:              27017
+   User:              clusterAdmin
+   Status:            ready
 
+   To access database please run the following commands:
+   kubectl port-forward svc/example2-example2 27017:27017 &
+   mongo mongodb://clusterAdmin:PASSWORD@localhost:27017/admin?ssl=false
 
 ``delete-db``
 -------------
 
-Deletes a database instance or cluster with the given name.
+This subcommand deletes a database instance or cluster with the given name.
 
 Example Usage
 *************
@@ -115,6 +128,13 @@ Example Usage
 
    ./percona-dbaas mongodb delete-db example
 
-Example Output:
+The output of the above command should look as follows:
+
+.. code:: text
+
+   ARE YOU SURE YOU WANT TO DELETE THE DATABASE 'example'? Yes/No
+   ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG TO SAVE IT.
+   yes
+   Deleting........................[done]
 
 

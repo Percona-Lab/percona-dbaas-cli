@@ -1,8 +1,9 @@
 List of Options
 ----------------------------------
 
-Any valid option from the CustomResource can be set using the ``--options``
-flag, a list of valid commonly used options is below:
+Any valid option from the Percona XtraDB Cluster Operator `Custom Resource <https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html>`_ can be set using the ``--options`` flag.
+
+Here is the list of valid commonly used options:
 
 * ``pxc.size`` - The number of members of your PXC database cluster.  Must be
   an odd number (1, 3, 5, 7, et al)

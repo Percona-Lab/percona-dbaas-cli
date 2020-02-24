@@ -1,4 +1,4 @@
-Basic Usage:
+Basic Usage
 ==================================
 
 The basic form of the command looks as follows:
@@ -7,15 +7,16 @@ The basic form of the command looks as follows:
 
    percona-dbaas <engine> <subcommand> name [--optional-parameters]
 
-Three mandatory parameters are *engine*, *subcommand* and *name*.
+The mandatory parameters are *engine* and *subcommand*.
 
-Engine specifies the family of databases the command will deal with. Currently,
-two engines are supported, and here they are:
+*Engine* specifies the family of database services the command will deal with, and
+is bound to a specific Kubernetes Operator. Currently, two engines are
+supported:
 
-* ``mysql`` - allows to manage MySQL databases,
-* ``mongodb`` - allows to manage MongoDB databases.
+* ``mysql`` - allows to manage MySQL databases within the Percona XtraDB Cluster via the `Percona XtraDB Cluster Operator <https://www.percona.com/doc/kubernetes-operator-for-pxc/index.html>`_,
+* ``mongodb`` - allows to manage MongoDB databases via the `Percona Server for MongoDB Operator <percona.com/doc/kubernetes-operator-for-psmongodb/index.html>`_.
 
-Subcommand is specific to the engine and defines the action which should be done
+*Subcommand* is specific to the engine and defines the action which should be done
 (creating new databse or modifying an existing one, etc.).
 
-Fnially, the name is used as a subcommand parameter to specify the object under action.
+Finally, the *name* parameter typically follows subcommand to specify the object under action.

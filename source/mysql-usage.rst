@@ -1,6 +1,7 @@
-Supported Sub-Commands:
+Supported subcommands
 ========================
 
+Following subcommands can be used with the ``mysql`` engine:
 
 .. contents::
    :local:
@@ -10,17 +11,20 @@ Supported Sub-Commands:
 ``create-db``
 ---------------
 
-Creates a new databases instance or cluster with the given name.
+This subcommand creates a new databases instance or cluster with the given name.
 
 
 Example Usage
 **********************************
 
+The following code should create the "example" database within the
+Percona XtraDB Cluster:
+
 .. code:: bash
 
    ./percona-dbaas mysql create-db example
 
-Example Output:
+The output of the above command should look as follows:
 
 .. code:: text
 
@@ -43,8 +47,8 @@ Example Output:
 ``describe-db``
 ---------------
 
-Lists all database instances or clusters currently present or provides details
-about the database instance or cluster with the given name.
+This subcommand lists all database instances or clusters currently present or
+provides details about the database instance or cluster with the given name.
 
 Example Usage: Listing Databases
 *************************************
@@ -53,7 +57,7 @@ Example Usage: Listing Databases
 
    ./percona-dbaas mysql describe-db
 
-Example Output:
+The output of the above command should look as follows:
 
 .. code:: text
 
@@ -68,9 +72,9 @@ Example Usage: Getting Details on a Database
 
    ./percona-dbaas mysql describe-db example
 
-Example Output:
+The output of the above command should look as follows:
 
-.. code:: bash
+.. code:: text
 
    Provider:          k8s
    Engine:            pxc
@@ -87,7 +91,7 @@ Example Output:
 ``modify-db``
 ---------------
 
-Changes any of the optional values associated to an existing database instance
+This subcommand changes any of the optional values associated to an existing database instance
 or cluster with the given name.
 
 Example Usage
@@ -97,9 +101,9 @@ Example Usage
 
    ./percona-dbaas mysql modify-db example --options="pxc.size=5"
 
-Example Output:
+The output of the above command should look as follows:
 
-.. code:: bash
+.. code:: text
 
    Modifying..........................[done]
    Database modified successfully, connection details are below:
@@ -118,7 +122,7 @@ Example Output:
 ``delete-db``
 ---------------
 
-Deletes a database instance or cluster with the given name.
+This subcommand deletes a database instance or cluster with the given name.
 
 Example Usage
 *************
@@ -127,9 +131,9 @@ Example Usage
 
    ./percona-dbaas mysql delete-db example
 
-Example Output:
+The output of the above command should look as follows:
 
-.. code:: bash
+.. code:: text
 
    ARE YOU SURE YOU WANT TO DELETE THE DATABASE 'example'? Yes/No
    ALL YOUR DATA WILL BE LOST. USE '--preserve-data' FLAG TO SAVE IT.

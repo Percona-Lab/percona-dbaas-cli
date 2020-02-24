@@ -44,7 +44,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'Percona DBaaS Management Tool'
+project = u'Percona DBaaS CLI Management Tool'
 copyright = u'Percona LLC and/or its affiliates 2009-2020'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -166,10 +166,10 @@ html_theme_path = ['.', './percona-theme']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-html_title = 'Percona Kubernetes Operator for Percona Server for MongoDB Documentation'
+html_title = 'Percona DBaaS CLI Management Tool Documentation'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = 'Percona Kubernetes Operator for Percona Server for MongoDB Documentation'
+html_short_title = 'Percona DBaaS CLI Management Tool Documentation'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -276,7 +276,7 @@ latex_toplevel_sectioning = 'part'
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'PerconaDBaaSCLITool.tex', u'Percona DBaaS Management Tool Documentation',
+    ('index', 'PerconaDBaaSCLITool.tex', u'Percona DBaaS CLI Management Tool Documentation',
      [u'Percona LLC and/or its affiliates 2009-2020'], 1)
 ]
 
