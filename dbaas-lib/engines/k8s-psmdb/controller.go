@@ -27,7 +27,7 @@ func (p *PSMDB) CreateDBCluster(name, opts, rootPass string) error {
 	}
 
 	if len(rootPass) > 0 {
-		err = p.SetRootPass(name, rootPass)
+		err = p.SetupPasswords(name, rootPass)
 		if err != nil {
 			return errors.Wrap(err, "set root password")
 		}
@@ -170,7 +170,7 @@ func (p *PSMDB) UpdateDBCluster(name, opts string) error {
 	return nil
 }
 
-func (p *PSMDB) SetRootPass(clusterName, rootPass string) error {
+func (p *PSMDB) SetupPasswords(clusterName, rootPass string) error {
 	secretName := clusterName + "-psmdb-users-secrets"
 	ext, err := p.cmd.IsObjExists("secret", secretName)
 	if err != nil {

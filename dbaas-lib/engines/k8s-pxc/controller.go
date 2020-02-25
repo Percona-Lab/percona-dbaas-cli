@@ -27,7 +27,7 @@ func (p *PXC) CreateDBCluster(name, opts, rootPass string) error {
 	}
 
 	if len(rootPass) > 0 {
-		err = p.SetRootPass(name, rootPass)
+		err = p.SetupPasswords(name, rootPass)
 		if err != nil {
 			return errors.Wrap(err, "set root password")
 		}
@@ -176,7 +176,7 @@ func (p *PXC) UpdateDBCluster(name, opts string) error {
 	return nil
 }
 
-func (p *PXC) SetRootPass(clusterName, rootPass string) error {
+func (p *PXC) SetupPasswords(clusterName, rootPass string) error {
 	secretName := clusterName + "-secrets"
 	ext, err := p.cmd.IsObjExists("secret", secretName)
 	if err != nil {

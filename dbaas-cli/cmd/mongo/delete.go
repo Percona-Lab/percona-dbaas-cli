@@ -25,6 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/dp"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 )
 
@@ -45,9 +46,11 @@ var delCmd = &cobra.Command{
 		if err != nil {
 			log.Error("get output flag: ", err)
 		}
+		dotPrinterInBackground := false
 		if output == "json" {
-			dotPrinter.Print = false
+			dotPrinterInBackground = true
 		}
+		dotPrinter := dp.New(dotPrinterInBackground)
 		if !*forced {
 			var yn string
 			preservText := "YOUR DATA WILL BE SAVED\n"
