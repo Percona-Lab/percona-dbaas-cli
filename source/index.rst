@@ -2,12 +2,12 @@
 Percona DBaaS Command Line Tool
 ==================================
 
-The Percona DBaaS Command Line Tool (percona-dbaas-cli) is a powerfull
-instrument providing a unify way for the user to have a Database as a Service
+The Percona DBaaS Command Line Tool (percona-dbaas-cli) is a powerful
+instrument providing a unified way for the user to have a Database as a Service
 (DBaaS) like experience, built on top of the Kubernetes-based cloud
-infrastructure. It is a command-line interface makning a standardized way to
+infrastructure. It is a command-line interface making a standardized way to
 interact with Operators in Kubernetes. It works with the Percona Operators,
-and is intended to be used with other databse-related Operators which will be
+and is intended to be used with other database-related Operators which will be
 supported in the future.
 
 Thus, percona-dbaas-cli acts as a middleware between the Kubernetes Operators

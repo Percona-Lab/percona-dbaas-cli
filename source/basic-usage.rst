@@ -17,6 +17,6 @@ supported:
 * ``mongodb`` - allows to manage MongoDB databases via the `Percona Server for MongoDB Operator <percona.com/doc/kubernetes-operator-for-psmongodb/index.html>`_.
 
 *Subcommand* is specific to the engine and defines the action which should be done
-(creating new databse or modifying an existing one, etc.).
+(creating a new database or modifying an existing one, etc.).
 
 Finally, the *name* parameter typically follows subcommand to specify the object under action.

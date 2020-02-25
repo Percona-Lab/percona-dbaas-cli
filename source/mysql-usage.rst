@@ -11,7 +11,7 @@ Following subcommands can be used with the ``mysql`` engine:
 ``create-db``
 ---------------
 
-This subcommand creates a new databases instance or cluster with the given name.
+This subcommand creates a new database instance or cluster with the given name.
 
 
 Example Usage
