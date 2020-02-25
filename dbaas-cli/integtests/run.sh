@@ -2,11 +2,8 @@
 
 echo Build percona dbaas
 cd ../cmd
-go build -o percona-dbaas
-
-echo Build integtests
-cd ../integtests
-go build
+go build -o ../bin/percona-dbaas 
 
 echo Run tests
-./integtests
+cd ../integtests
+go run ./ ../bin/percona-dbaas

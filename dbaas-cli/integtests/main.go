@@ -11,7 +11,13 @@ type TestEngine interface {
 }
 
 func main() {
-	for _, testEngine := range getTestEngines() {
+	if len(os.Args) < 2 {
+		fmt.Println("binary path not specified")
+		os.Exit(1)
+	}
+
+	cmd := os.Args[1]
+	for _, testEngine := range getTestEngines(cmd) {
 		err := testEngine.Run()
 		if err != nil {
 			fmt.Println(err)
@@ -21,8 +27,7 @@ func main() {
 	fmt.Println("Tests done")
 }
 
-func getTestEngines() []TestEngine {
-	cmd := "../cmd/percona-dbaas"
+func getTestEngines(cmd string) []TestEngine {
 	k8sPXC := KuberPXC{
 		cmd:    cmd,
 		subCmd: "mysql",
