@@ -17,7 +17,7 @@ type KuberPSMDB struct {
 func (psmdb *KuberPSMDB) Run() error {
 	fmt.Println("Run k8s-psmdb test")
 	rootPass := "clisecretpass"
-	/*err := psmdb.CreateDBWithPass(rootPass)
+	err := psmdb.CreateDBWithPass(rootPass)
 	if err != nil {
 		return errors.Wrap(err, "create-db")
 	}
@@ -44,8 +44,8 @@ func (psmdb *KuberPSMDB) Run() error {
 	err = psmdb.DeleteDB(true)
 	if err != nil {
 		return errors.Wrap(err, "delete-db")
-	}*/
-	err := psmdb.CheckPVCExist()
+	}
+	err = psmdb.CheckPVCExist()
 	if err != nil {
 		return errors.Wrap(err, "check pvc")
 	}
@@ -147,7 +147,7 @@ func (psmdb *KuberPSMDB) CheckDBClusterReady() error {
 func (psmdb *KuberPSMDB) CheckPVCExist() error {
 	o, err := GetK8SObject("pvc", "mongod-data-"+psmdb.dbName+"-rs0-0")
 	if err != nil {
-		return errors.Wrap(err, "get k8s object pvc/mongod-data-"+psmdb.dbName+"-rs0-0")
+		return errors.Wrapf(err, "get k8s object pvc/mongod-data-%s-rs0-0", psmdb.dbName)
 	}
 
 	if strings.Contains(string(o), "NotFound") {
@@ -164,7 +164,7 @@ func (psmdb *KuberPSMDB) ListDB() error {
 	}
 	fmt.Println(o)
 	if !strings.Contains(o, psmdb.dbName) {
-		return errors.New("list db not work. Output: " + o)
+		return errors.Errorf("list db not work. Output: %s", o)
 	}
 
 	fmt.Println("Run describe-db in JSON")
@@ -187,21 +187,21 @@ func (psmdb *KuberPSMDB) DescribeDB() error {
 	fmt.Println("Run describe-db " + psmdb.dbName)
 	o, err := runCmd(psmdb.cmd, psmdb.subCmd, "describe-db", psmdb.dbName)
 	if err != nil {
-		return errors.Wrap(err, "run describe-db for"+psmdb.dbName+" cmd")
+		return errors.Wrapf(err, "run describe-db for %s cmd", psmdb.dbName)
 	}
 	fmt.Println(o)
 	if !strings.Contains(o, "ready") && !strings.Contains(o, psmdb.dbName) {
-		return errors.New("db not start correctly. Output: " + o)
+		return errors.Errorf("db not start correctly. Output: %s", o)
 	}
 
 	fmt.Println("Run describe-db " + psmdb.dbName + " in json")
 	o, err = runCmd(psmdb.cmd, psmdb.subCmd, "describe-db", psmdb.dbName, "-o", "json")
 	if err != nil {
-		return errors.Wrap(err, "run describe-db for"+psmdb.dbName+" cmd")
+		return errors.Wrapf(err, "run describe-db for %s cmd", psmdb.dbName)
 	}
 	fmt.Println(o)
 	if !strings.Contains(o, "ready") && !strings.Contains(o, psmdb.dbName) {
-		return errors.New("db not start correctly. Output: " + o)
+		return errors.Errorf("db not start correctly. Output: %s", o)
 	}
 	return nil
 }
@@ -213,7 +213,7 @@ func (psmdb *KuberPSMDB) ModifyDB() error {
 		return errors.Wrap(err, "run modify-db cmd")
 	}
 	if !strings.Contains(o, "ready") {
-		return errors.New("db not modified correctly. Output: " + o)
+		return errors.Errorf("db not modified correctly. Output: %s", o)
 	}
 	return nil
 }
@@ -229,7 +229,7 @@ func (psmdb *KuberPSMDB) DeleteDB(preserve bool) error {
 		return errors.Wrap(err, "run delete-db cmd")
 	}
 	if !strings.Contains(o, "done") {
-		return errors.New("db not deleted correctly. Output: " + o)
+		return errors.Errorf("db not deleted correctly. Output: %s", o)
 	}
 	return nil
 }

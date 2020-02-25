@@ -147,7 +147,7 @@ func (pxc *KuberPXC) CheckDBClusterReady() error {
 func (pxc *KuberPXC) CheckPVCExist() error {
 	o, err := GetK8SObject("pvc", "datadir-"+pxc.dbName+"-pxc-0")
 	if err != nil {
-		return errors.Wrap(err, "get k8s object pvc/datadir-"+pxc.dbName+"-pxc-0")
+		return errors.Wrapf(err, "get k8s object pvc/datadir-%s-pxc-0", pxc.dbName)
 	}
 
 	if strings.Contains(string(o), "NotFound") {
@@ -164,7 +164,7 @@ func (pxc *KuberPXC) ListDB() error {
 	}
 	fmt.Println(o)
 	if !strings.Contains(o, pxc.dbName) {
-		return errors.New("list db not work. Output: " + o)
+		return errors.Errorf("list db not work. Output: %s", o)
 	}
 
 	fmt.Println("Run describe-db in JSON")
@@ -188,17 +188,17 @@ func (pxc *KuberPXC) DescribeDB() error {
 	fmt.Println("Run describe-db " + pxc.dbName)
 	o, err := runCmd(pxc.cmd, pxc.subCmd, "describe-db", pxc.dbName)
 	if err != nil {
-		return errors.Wrap(err, "run describe-db for"+pxc.dbName+" cmd")
+		return errors.Wrapf(err, "run describe-db for %s cmd", pxc.dbName)
 	}
 	fmt.Println(o)
 	if !strings.Contains(o, "ready") && !strings.Contains(o, pxc.dbName) {
-		return errors.New("db not start correctly. Output: " + o)
+		return errors.Errorf("db not start correctly. Output: %s", o)
 	}
 
 	fmt.Println("Run describe-db " + pxc.dbName + " with json")
 	o, err = runCmd(pxc.cmd, pxc.subCmd, "describe-db", pxc.dbName, "-o", "json")
 	if err != nil {
-		return errors.Wrap(err, "run describe-db for"+pxc.dbName+" cmd")
+		return errors.Wrapf(err, "run describe-db for %s cmd", pxc.dbName)
 	}
 	fmt.Println(o)
 	var data struct {
@@ -221,7 +221,7 @@ func (pxc *KuberPXC) ModifyDB() error {
 		return errors.Wrap(err, "run modify-db cmd")
 	}
 	if !strings.Contains(o, "ready") {
-		return errors.New("db not modified correctly. Output: " + o)
+		return errors.Errorf("db not modified correctly. Output: %s", o)
 	}
 	return nil
 }
@@ -238,7 +238,7 @@ func (pxc *KuberPXC) DeleteDB(preserve bool) error {
 	}
 	fmt.Println(o)
 	if !strings.Contains(o, "done") {
-		return errors.New("db not deleted correctly. Output: " + o)
+		return errors.Errorf("db not deleted correctly. Output: %s", o)
 	}
 	return nil
 }
