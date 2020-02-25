@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/dp"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb"
 )
@@ -53,11 +53,15 @@ var createCmd = &cobra.Command{
 		if err != nil {
 			log.Error("get output flag: ", err)
 		}
-		dotPrinterInBackground := false
-		if output == "json" {
-			dotPrinterInBackground = true
+
+		var dotPrinter pb.ProgressBar
+		switch output {
+		case "json":
+			dotPrinter = pb.NewNoOp()
+		default:
+			dotPrinter = pb.NewDotPrinter()
 		}
-		dotPrinter := dp.New(dotPrinterInBackground)
+
 		if len(*options) > 0 {
 			*options = addSpec(*options)
 		}

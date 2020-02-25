@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/dp"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
@@ -43,11 +43,15 @@ var modifyCmd = &cobra.Command{
 		if err != nil {
 			log.Error("get output flag: ", err)
 		}
-		dotPrinterInBackground := false
-		if output == "json" {
-			dotPrinterInBackground = true
+
+		var dotPrinter pb.ProgressBar
+		switch output {
+		case "json":
+			dotPrinter = pb.NewNoOp()
+		default:
+			dotPrinter = pb.NewDotPrinter()
 		}
-		dotPrinter := dp.New(dotPrinterInBackground)
+
 		noWait, err := cmd.Flags().GetBool("no-wait")
 		if err != nil {
 			log.Error("get no-wait flag: ", err)
