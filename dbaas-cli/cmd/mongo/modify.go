@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
@@ -38,6 +39,23 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
+		output, err := cmd.Flags().GetString("output")
+		if err != nil {
+			log.Error("get output flag: ", err)
+		}
+
+		var dotPrinter pb.ProgressBar
+		switch output {
+		case "json":
+			dotPrinter = pb.NewNoOp()
+		default:
+			dotPrinter = pb.NewDotPrinter()
+		}
+
+		noWait, err := cmd.Flags().GetBool("no-wait")
+		if err != nil {
+			log.Error("get no-wait flag: ", err)
+		}
 		if len(*modifyOptions) == 0 {
 			log.Error("options not passed")
 			return
@@ -50,9 +68,8 @@ var modifyCmd = &cobra.Command{
 			Engine:        *modifyEngine,
 			Provider:      *modifyProvider,
 		}
-
 		dotPrinter.Start("Modifying")
-		err := dbaas.ModifyDB(instance)
+		err = dbaas.ModifyDB(instance)
 		if err != nil {
 			dotPrinter.Stop("error")
 			log.Error("modify db: ", err)
@@ -69,17 +86,21 @@ var modifyCmd = &cobra.Command{
 				//log.Error("check db: ", err)
 				continue
 			}
-			if cluster.Status == "ready" {
+			cluster.Pass = ""
+			switch cluster.Status {
+			case "ready":
 				dotPrinter.Stop("done")
-				log.Println("Database modified successfully, connection details are below:")
-				cluster.Pass = ""
-				log.Println(cluster)
+				log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
 				return
+			case "initializing":
+				if noWait {
+					log.WithField("database", cluster).Info("information")
+					return
+				}
 			}
 			if tries >= maxTries {
 				dotPrinter.Stop("error")
 				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
-
 				return
 			}
 			tries++
@@ -92,7 +113,7 @@ var modifyProvider *string
 var modifyEngine *string
 
 func init() {
-	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options")
+	modifyOptions = modifyCmd.Flags().String("options", "", "Engine options in 'p1.p2=text' format. Use params from https://www.percona.com/doc/kubernetes-operator-for-psmongodb/operator.html")
 	modifyProvider = modifyCmd.Flags().String("provider", "k8s", "Provider")
 	modifyEngine = modifyCmd.Flags().String("engine", "psmdb", "Engine")
 

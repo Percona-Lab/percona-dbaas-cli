@@ -138,6 +138,28 @@ func (p Cmd) CreateSecret(name string, data map[string][]byte) error {
 	return errors.WithMessage(p.apply(string(sj)), "apply")
 }
 
+// UpdateSecrets updates k8s secret object with the given name and data
+func (p Cmd) UpdateSecrets(name string, newData map[string][]byte) error {
+	data, err := p.GetObject("secret", name)
+	if err != nil {
+		return errors.Wrap(err, "get object")
+	}
+
+	secretsObj := &corev1.Secret{}
+	err = json.Unmarshal(data, secretsObj)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal")
+	}
+	secretsObj.Data = newData
+
+	sj, err := json.Marshal(secretsObj)
+	if err != nil {
+		return errors.Wrap(err, "json marshal")
+	}
+
+	return errors.WithMessage(p.apply(string(sj)), "apply")
+}
+
 func osAdminBundle(bs []BundleObject) string {
 	objs := []string{}
 	for _, b := range bs {
@@ -198,8 +220,8 @@ func (p Cmd) gkeUser() (string, error) {
 	return strings.TrimSpace(string(s)), nil
 }
 
-func (p Cmd) GetSecrets(appName string) (map[string][]byte, error) {
-	data, err := p.GetObject("secrets", appName+"-secrets")
+func (p Cmd) GetSecrets(secretName string) (map[string][]byte, error) {
+	data, err := p.GetObject("secrets", secretName)
 	if err != nil {
 		return nil, errors.Wrap(err, "get object")
 	}

@@ -1,4 +1,4 @@
-package dp
+package pb
 
 import (
 	"fmt"
@@ -6,15 +6,22 @@ import (
 	"time"
 )
 
+type ProgressBar interface {
+	Start(message string)
+	Stop(message string)
+}
+
 type DotPrinter struct {
 	stop chan string
 	wg   sync.WaitGroup
 }
 
-func New() DotPrinter {
-	return DotPrinter{
+func NewDotPrinter() *DotPrinter {
+	dp := DotPrinter{
 		stop: make(chan string),
 	}
+
+	return &dp
 }
 
 func (d *DotPrinter) Start(message string) {
@@ -42,3 +49,15 @@ func (d *DotPrinter) start(message string) {
 		}
 	}
 }
+
+type NoOp struct{}
+
+func NewNoOp() *NoOp {
+	no := NoOp{}
+
+	return &no
+}
+
+func (n *NoOp) Start(message string) {}
+
+func (n *NoOp) Stop(message string) {}

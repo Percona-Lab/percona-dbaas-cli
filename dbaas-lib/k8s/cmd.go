@@ -146,6 +146,17 @@ func (p Cmd) GetObjects(typ string) ([]byte, error) {
 	return p.runCmd(p.execCommand, "get", typ, "-o", "json")
 }
 
+func (p Cmd) DeleteObject(typ, name string) error {
+	if len(p.Namespace) > 0 {
+		_, err := p.runCmd(p.execCommand, "delete", typ+"/"+name, "-n", p.Namespace)
+		return err
+
+	}
+	_, err := p.runCmd(p.execCommand, "delete", typ+"/"+name)
+
+	return err
+}
+
 func (p Cmd) apply(k8sObj string) error {
 	namespace := ""
 	if len(p.Namespace) > 0 {

@@ -18,11 +18,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/dp"
 )
-
-var dotPrinter dp.DotPrinter
 
 // PXCCmd represents the mysql command
 var PXCCmd = &cobra.Command{
@@ -40,10 +36,6 @@ func parseArgs(args []string) []string {
 	}
 
 	return args
-}
-
-func init() {
-	dotPrinter = dp.New()
 }
 
 func addSpec(opts string) string {

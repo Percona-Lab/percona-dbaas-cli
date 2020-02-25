@@ -1,7 +1,7 @@
 package dbaas
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
@@ -14,6 +14,7 @@ type Instance struct {
 	ClusterSize   int
 	DiskSize      string
 	EngineOptions string
+	RootPass      string
 }
 
 // CreateDB creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
@@ -22,7 +23,7 @@ func CreateDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass)
 	if err != nil {
 		return err
 	}

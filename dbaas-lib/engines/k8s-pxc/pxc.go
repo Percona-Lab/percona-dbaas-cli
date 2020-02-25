@@ -69,8 +69,9 @@ func init() {
 
 // PXC represents PXC Operator controller
 type PXC struct {
-	cmd  *k8s.Cmd
-	conf PXDBCluster
+	cmd          *k8s.Cmd
+	conf         PXDBCluster
+	platformType k8s.PlatformType
 }
 
 type Version string
@@ -141,7 +142,9 @@ func NewPXCController(envCrt, provider string) (*PXC, error) {
 			return nil, errors.Wrap(err, "new Cmd")
 		}
 		pxc.cmd = k8sCmd
+		pxc.platformType = k8sCmd.GetPlatformType()
 	}
+
 	return &pxc, nil
 }
 

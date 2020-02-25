@@ -41,8 +41,10 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
+	rootCmd.PersistentFlags().StringP("output", "o", "text", `Answers format. Can be "json" or "text".`)
 	rootCmd.AddCommand(mysql.PXCCmd)
 	rootCmd.AddCommand(mongo.MongoCmd)
+	rootCmd.PersistentFlags().Bool("no-wait", false, "Dont wait while command is done")
 }
 
 func main() {
@@ -53,11 +55,15 @@ func main() {
 }
 
 func detectFormat(cmd *cobra.Command) error {
-	format := ""
+	format, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return err
+	}
 	switch format {
 	case "json":
 		log.SetFormatter(&log.JSONFormatter{
 			DisableTimestamp: true,
+			PrettyPrint:      true,
 		})
 	default:
 		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
@@ -78,10 +84,10 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 		b = &bytes.Buffer{}
 	}
 	if entry.Level == log.ErrorLevel {
-		b.WriteString("[Error] ")
+		b.WriteString("[Error] " + entry.Message)
 	}
-	if entry.Message != "" {
-		b.WriteString(entry.Message)
+	if entry.Message != "" && entry.Level != log.ErrorLevel && entry.Message != "information" {
+		b.WriteString(entry.Message + "\n")
 	}
 
 	if len(entry.Data) == 0 {
@@ -90,7 +96,7 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 	}
 
 	for _, v := range entry.Data {
-		fmt.Fprint(b, "\n", v)
+		fmt.Fprint(b, v)
 	}
 	b.WriteString("\n")
 	return b.Bytes(), nil

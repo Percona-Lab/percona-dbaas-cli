@@ -10,4 +10,5 @@ type PSMDBCluster interface {
 	SetLabels(labels map[string]string)
 	GetOperatorImage() string
 	SetDefaults() error
+	SetupMiniConfig()
 }

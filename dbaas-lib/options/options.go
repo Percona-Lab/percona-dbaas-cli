@@ -14,12 +14,13 @@ func Parse(to interface{}, typ reflect.Type, options string) error {
 	if options == "" {
 		return nil
 	}
-	options = strings.ToLower(options)
+
 	opts := make(map[string]string)
 	validConfKeys(typ, opts, "", "")
 	optArr := strings.Split(options, ",")
 	for _, str := range optArr {
 		v := strings.Split(str, "=")
+		v[0] = strings.ToLower(v[0])
 		if _, ok := opts[getStringWithoutSquareBrackets(v[0])]; !ok {
 			return errors.Errorf("invalid option %s", v[0])
 		}

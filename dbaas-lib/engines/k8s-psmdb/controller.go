@@ -1,20 +1,37 @@
 package psmdb
 
 import (
+	"crypto/rand"
 	"encoding/json"
+	"math/big"
+	mrand "math/rand"
+	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PSMDB) CreateDBCluster(name, opts string) error {
+func (p *PSMDB) CreateDBCluster(name, opts, rootPass string) error {
 	err := p.ParseOptions(opts)
 	if err != nil {
 		return errors.Wrap(err, "parse opts")
 	}
 	p.conf.SetName(name)
 	p.conf.SetUsersSecretName(name)
+
+	switch p.platformType {
+	case k8s.PlatformMinishift, k8s.PlatformMinikube:
+		p.conf.SetupMiniConfig()
+	}
+
+	if len(rootPass) > 0 {
+		err = p.SetupPasswords(name, rootPass)
+		if err != nil {
+			return errors.Wrap(err, "set root password")
+		}
+	}
 
 	cr, err := p.getCR(p.conf)
 	if err != nil {
@@ -43,7 +60,7 @@ func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error)
 		return "", errors.Wrap(err, "delete cluster")
 	}
 	if !delePVC {
-		pvcObj, err := p.cmd.GetObject("pvc", "datadir-"+name+"-psmdb-0")
+		pvcObj, err := p.cmd.GetObject("pvc", "mongod-data-"+name+"-rs0-0")
 		if err != nil {
 			return "", errors.Wrap(err, "get pvc")
 		}
@@ -54,6 +71,10 @@ func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error)
 		}
 		return "pvc/" + pvc.Meta.Name, nil
 	}
+	err = p.cmd.DeleteObject("secret", name+"-psmdb-users-secrets")
+	if err != nil {
+		return "", errors.Wrap(err, "delete secret")
+	}
 
 	return "", nil
 }
@@ -61,7 +82,7 @@ func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error)
 // GetDBCluster return DB object
 func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	var db structs.DB
-	secrets, err := p.cmd.GetSecrets(name + "-psmdb-users")
+	secrets, err := p.cmd.GetSecrets(name + "-psmdb-users-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
 
@@ -147,4 +168,78 @@ func (p *PSMDB) UpdateDBCluster(name, opts string) error {
 	}
 
 	return nil
+}
+
+func (p *PSMDB) SetupPasswords(clusterName, rootPass string) error {
+	secretName := clusterName + "-psmdb-users-secrets"
+	ext, err := p.cmd.IsObjExists("secret", secretName)
+	if err != nil {
+		return errors.Wrap(err, "check if secrets exists")
+	}
+	data := map[string][]byte{}
+	if ext {
+		data, err = p.cmd.GetSecrets(secretName)
+		if err != nil {
+			return errors.Wrap(err, "get secrets")
+		}
+		for k := range data {
+			if k == "MONGODB_CLUSTER_ADMIN_PASSWORD" {
+				data[k] = []byte(rootPass)
+			}
+		}
+		err = p.cmd.UpdateSecrets(secretName, data)
+		if err != nil {
+			return errors.Wrap(err, "update secrets")
+		}
+
+		return nil
+	}
+
+	data["MONGODB_BACKUP_USER"] = []byte("backup")
+	data["MONGODB_BACKUP_PASSWORD"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create backup users pass")
+	}
+	data["MONGODB_CLUSTER_ADMIN_USER"] = []byte("clusterAdmin")
+	data["MONGODB_CLUSTER_ADMIN_PASSWORD"] = []byte(rootPass)
+	data["MONGODB_CLUSTER_MONITOR_USER"] = []byte("clusterMonitor")
+	data["MONGODB_CLUSTER_MONITOR_PASSWORD"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create cluster monitor users pass")
+	}
+	data["MONGODB_USER_ADMIN_USER"] = []byte("userAdmin")
+	data["MONGODB_USER_ADMIN_PASSWORD"], err = generatePass()
+	if err != nil {
+		return errors.Wrap(err, "create admin users pass")
+	}
+
+	err = p.cmd.CreateSecret(secretName, data)
+	if err != nil {
+		return errors.Wrap(err, "create secrets")
+	}
+
+	return nil
+}
+
+const (
+	passwordMaxLen = 20
+	passwordMinLen = 16
+	passSymbols    = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+		"abcdefghijklmnopqrstuvwxyz" +
+		"0123456789"
+)
+
+func generatePass() ([]byte, error) {
+	mrand.Seed(time.Now().UnixNano())
+	ln := mrand.Intn(passwordMaxLen-passwordMinLen) + passwordMinLen
+	b := make([]byte, ln)
+	for i := 0; i < ln; i++ {
+		randInt, err := rand.Int(rand.Reader, big.NewInt(int64(len(passSymbols))))
+		if err != nil {
+			return nil, err
+		}
+		b[i] = passSymbols[randInt.Int64()]
+	}
+
+	return b, nil
 }
