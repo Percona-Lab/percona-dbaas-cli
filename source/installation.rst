@@ -1,33 +1,54 @@
-Installation of the percona-dbaas-cli
-=====================================
+Installation of the percona-dbaas-cli tool
+==========================================
 
-The Percona DBaaS CLI Tool is currently available on github as an experimental
-repository inside of Percona-Lab. Following steps are required to install it
-from source:
+Source code of the Percona DBaaS CLI Tool is currently available on github as an
+experimental repository inside of Percona-Lab.
 
-#. Clone the ``github.com/Percona-Lab/percona-dbaas-cli`` repo with the
-   following command:
+Percona provides dbaas-cli tool packages for automatic installation from software
+repositories for the following GNU/Linux distributions:
 
-   .. code:: bash
+* DEB packages for Debian based distributions such as Ubuntu,
+* RPM packages for Red Hat based distributions such as CentOS.
 
-      git clone https://github.com/Percona-Lab/percona-dbaas-cli
+Installing on Debian or Ubuntu
+-----------------------------------
 
-#. Enter to the ``percona-dbaas-cli`` directory and run the ``build-source``
-   script which downloads necessary prerequisites and creates the source
-   tarball:
-   
-   .. code:: bash
+1. Configure Percona repositories using the `percona-release <https://www.percona.com/doc/percona-repo-config/percona-release.html>`_ tool. First you’ll need to download and install the official percona-release package from Percona::
 
-      build/bin/build-source
+     wget https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+     sudo dpkg -i percona-release_latest.generic_all.deb
 
-#. Build the percona-dbaas-cli binary:
+#. Enable the testing component of the tools repository as follows::
 
-   .. code:: bash
+         sudo percona-release enable tools testing
 
-      build/bin/build-binary
+   See `percona-release official documentation <https://www.percona.com/doc/percona-repo-config/percona-release.html>`_ for details.
 
-   .. note:: You will need running docker and enough priviledges to access it.
+#. Install the ``percona-dbaas-cli`` package::
 
-#. Optionally you can run other scripts to create DEB or RPM packages, etc.
-   These scripts are located in the same subfolder and have self-explanatory
-   names.
+     sudo apt-get update
+     sudo apt-get install percona-dbaas-cli
+
+#. Once Percona DBaaS CLI Tool is installed you can run``percona-dbaas --help``
+   to see the brief information about the tool commands.
+
+Installing on  Red Hat and CentOS
+-------------------------------------
+
+1. Configure Percona repositories using the `percona-release <https://www.percona.com/doc/percona-repo-config/percona-release.html>`_ tool. First you’ll need to download and install the official percona-release package from Percona::
+
+     sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
+
+#. Enable the testing component of the tools repository as follows::
+
+         sudo percona-release enable tools testing
+
+   See `percona-release official documentation <https://www.percona.com/doc/percona-repo-config/percona-release.html>`_ for details.
+
+#. Install the ``percona-dbaas-cli`` package::
+
+      yum install percona-dbaas-cli
+
+#. Once Percona DBaaS CLI Tool is installed you can run``percona-dbaas --help``
+   to see the brief information about the tool commands.
+
