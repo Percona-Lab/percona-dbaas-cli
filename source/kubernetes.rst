@@ -15,8 +15,8 @@ to.
    gcloud container clusters create --zone us-central1-a your-cluster-name --cluster-version 1.15 --num-nodes=3
 
 After you have a running GKE cluster (or are prepared to use an existing one)
-you need to create a Cluster Role Binding for Kubernetes to know that your
-Google Cloud username is a valid Kubernetes cluster-admin.
+you need to create a Cluster Role Binding for Kubernetes to authorize your
+Google Cloud username as a valid Kubernetes cluster-admin.
 
 .. code:: bash
 
@@ -26,7 +26,8 @@ Google Cloud username is a valid Kubernetes cluster-admin.
 Kubernetes Namespaces
 ----------------------------------
 
-Create and switch context to your preferred namespace before running any
-commands. By default, we'll use the built-in ``default`` namespace.  Namespaces
-are a nice way to have multiple applications and databases share a single
-Kubernetes cluster in a clean fashion.
+`Namespaces <https://kubernetes.io/docs/tasks/administer-cluster/namespaces-walkthrough/>`_ are a nice way to have multiple applications and databases share a single Kubernetes cluster in a clean fashion.
+By default, the built-in ``default`` namespace is used. In case if that's not
+what was intended, create and/or switch the context to your preferred namespace
+before executing percona-dbaas-cli commands.
+
