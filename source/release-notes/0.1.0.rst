@@ -1,0 +1,63 @@
+.. _DBAASCLI-0.1.0:
+
+================================================================================
+*Percona DBaaS CLI Tool* 0.1.0
+================================================================================
+
+:Date: January 1, 1
+
+:Installation: `Installing Percona DBaaS CLI Tool <None>`_
+
+New Features
+================================================================================
+
+* :jirabug:`DBAASCLI-60`: Create integtests
+* :jirabug:`DBAASCLI-59`: improve UX
+* :jirabug:`DBAASCLI-58`: Online User Documentation for DBaaS CLI and Walkable Help
+* :jirabug:`DBAASCLI-57`: Code improvement
+* :jirabug:`DBAASCLI-56`: Add options parsing to psmdb
+* :jirabug:`DBAASCLI-37`: Add k8s-psmdb engine
+* :jirabug:`DBAASCLI-36`: implementing k8s/go-client
+* :jirabug:`DBAASCLI-35`: create simple CLI tool
+* :jirabug:`DBAASCLI-34`: Improve modify method
+* :jirabug:`DBAASCLI-33`: Implement modify-db method
+* :jirabug:`DBAASCLI-32`: Implement CreateDB method
+* :jirabug:`DBAASCLI-31`: Create DescribeDB method
+* :jirabug:`DBAASCLI-30`: Implement delete-db method
+* :jirabug:`DBAASCLI-29`: Improve options parser
+* :jirabug:`DBAASCLI-27`: Create a standardized go-package to interact with Operators
+
+
+
+Improvements
+================================================================================
+
+* :jirabug:`DBAASCLI-55`: Change API version and CRD names
+* :jirabug:`DBAASCLI-54`: Refactor configs in DBAAS CLI
+* :jirabug:`DBAASCLI-53`: support multiple environments
+* :jirabug:`DBAASCLI-52`: improve desribe-db call
+* :jirabug:`DBAASCLI-50`: support recovery for PXC
+* :jirabug:`DBAASCLI-49`: add "upgrade" sub-command
+* :jirabug:`DBAASCLI-48`: Refactoring
+* :jirabug:`DBAASCLI-47`: Tests
+* :jirabug:`DBAASCLI-46`: integration with "kubectl" tool
+* :jirabug:`DBAASCLI-45`: generate certificates automatically if needed
+* :jirabug:`DBAASCLI-44`: Update mysql outputs
+* :jirabug:`DBAASCLI-43`: set topologyKey=none if minikube/minishift detected
+* :jirabug:`DBAASCLI-41`: add possibility to set additional labels
+* :jirabug:`DBAASCLI-39`: Add JSON to new CLI methods
+* :jirabug:`DBAASCLI-38`: prepare kubernetes config for service broker
+
+
+
+Bugs Fixed
+================================================================================
+
+* :jirabug:`DBAASCLI-21`: rename "update" to "edit" command
+* :jirabug:`DBAASCLI-20`: update help prompt
+* :jirabug:`DBAASCLI-18`: check recreation with cli tool
+* :jirabug:`DBAASCLI-16`: DATA RACE inside percona-dbaas-cli when deleting PXC
+* :jirabug:`DBAASCLI-14`: Backups restore script: detect cli utility
+* :jirabug:`DBAASCLI-13`: Check recreate cluster
+
+
