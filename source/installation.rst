@@ -1,8 +1,8 @@
 Installation of the percona-dbaas-cli tool
 ==========================================
 
-Source code of the Percona DBaaS CLI Tool is currently available on github as an
-experimental repository inside of Percona-Lab.
+Source code for the Percona DBaaS CLI Tool is currently available on github as an
+experimental repository inside of the Percona-Lab organization.
 
 Percona provides dbaas-cli tool packages for automatic installation from software
 repositories for the following GNU/Linux distributions:

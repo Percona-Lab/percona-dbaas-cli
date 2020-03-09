@@ -1,7 +1,7 @@
 Supported subcommands
 ========================
 
-Following subcommands can be used with the ``mysql`` engine:
+The following subcommands can be used with the ``mysql`` engine:
 
 .. contents::
    :local:
