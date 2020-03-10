@@ -28,6 +28,19 @@ Kubernetes Namespaces
 
 `Namespaces <https://kubernetes.io/docs/tasks/administer-cluster/namespaces-walkthrough/>`_ are a nice way to have multiple applications and databases share a single Kubernetes cluster in a clean fashion.
 By default, the built-in ``default`` namespace is used. In case if that's not
-what was intended, create and/or switch the context to your preferred namespace
-before executing percona-dbaas-cli commands.
+what was intended, create your own or switch the context to the preferred
+namespace before executing percona-dbaas-cli commands. 
 
+For example, creating the "my-namespace"
+namespace with ``kubectl`` can be done as follows:
+
+.. code:: bash
+
+   kubectl create namespace my-namespace
+   
+You can switch context to your preferred namespace with the following
+command:
+
+.. code:: bash
+
+   kubectl config set-context --current --namespace=my-namespace
