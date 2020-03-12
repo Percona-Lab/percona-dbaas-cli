@@ -4,7 +4,7 @@
 *Percona DBaaS CLI Tool* 0.1.0
 ================================================================================
 
-:Date: March XX, 2020
+:Date: March 16, 2020
 
 Percona announces the release of Percona DBaaS Command Line Tool 0.1.0 early access.
 
