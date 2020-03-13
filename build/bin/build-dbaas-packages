@@ -231,7 +231,7 @@ build_source_deb(){
     cd ${BUILDDIR}
     sed -i "s:@@VERSION@@:${VERSION}:g" debian/rules
     sed -i "s:@@REVISION@@:${REVISION}:g" debian/rules
-    dch -D unstable --force-distribution -v "${VERSION}-${RELEASE}" "Update to new percona-dbaas-cli version ${VERSION}"
+    dch -D unstable --force-distribution -v "${VERSION}-${DEB_RELEASE}" "Update to new percona-dbaas-cli version ${VERSION}"
     dpkg-buildpackage -S
     cd ../
     mkdir -p $WORKDIR/source_deb
@@ -272,10 +272,7 @@ build_deb(){
     dpkg-source -x ${DSC}
 
     cd ${PRODUCT}-${VERSION}
-    sed -i "s:@@VERSION@@:${VERSION}:g" debian/rules
-    sed -i "s:@@REVISION@@:${REVISION}:g" debian/rules
-
-    dch -m -D "${DEBIAN}" --force-distribution -v "${VERSION}-${RELEASE}.${DEBIAN}" 'Update distribution'
+    dch -m -D "${DEBIAN}" --force-distribution -v "${VERSION}-${DEB_RELEASE}.${DEBIAN}" 'Update distribution'
     dpkg-buildpackage -rfakeroot -us -uc -b
  
     mkdir -p $CURDIR/deb
@@ -302,7 +299,7 @@ ARCH=
 OS=
 INSTALL=0
 RPM_RELEASE=${dbaas_release}
-DEB_RELEASE=1
+DEB_RELEASE=${dbaas_release}
 RELEASE=0
 REVISION=0
 BRANCH="master"
