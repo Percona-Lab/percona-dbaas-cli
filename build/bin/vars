@@ -11,7 +11,11 @@ full_percona_dbaas_cli_version=${percona_dbaas_cli_version}-$(git rev-parse --sh
 echo -e "\n\n\n>>> full_percona_dbaas_cli_version=${full_percona_dbaas_cli_version} \n\n\n"
 
 dbaas_version=${percona_dbaas_cli_version}
-dbaas_release=1.$(git rev-parse --short HEAD)
+if [[ "$RELEASE_BUILD" == 'NO' ]]; then
+    dbaas_release=0.$(date -u +"%y%m%d%H%M").$(git rev-parse --short HEAD)
+else
+    dbaas_release=$REVISION
+fi
 
 rpmbuild_docker_image=${RPMBUILD_DOCKER_IMAGE:-perconalab/rpmbuild:2}
 
