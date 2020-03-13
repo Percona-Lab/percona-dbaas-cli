@@ -42,14 +42,14 @@ func (p Cmd) delete(typ, name string) error {
 	if len(p.Namespace) > 0 {
 		args = append(args, "-n", p.Namespace)
 	}
-	out, err := p.runCmd("kubectl", args...)
+	out, err := p.runCmd(p.execCommand, args...)
 
 	return errors.Wrapf(err, "get cr: %s", out)
 
 }
 
 func (p Cmd) deletePVC(operatorName, appName string) error {
-	out, err := p.runCmd("kubectl", "delete", "pvc",
+	out, err := p.runCmd(p.execCommand, "delete", "pvc",
 		"-l", "app.kubernetes.io/managed-by="+operatorName+",app.kubernetes.io/instance="+appName,
 	)
 	if err != nil {
