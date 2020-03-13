@@ -18,9 +18,9 @@ Installing on Debian or Ubuntu
      wget https://repo.percona.com/apt/percona-release_latest.generic_all.deb
      sudo dpkg -i percona-release_latest.generic_all.deb
 
-#. Enable the testing component of the tools repository as follows::
+#. Enable the experimental component of the tools repository as follows::
 
-         sudo percona-release enable tools testing
+         sudo percona-release enable tools experimental
 
    See `percona-release official documentation <https://www.percona.com/doc/percona-repo-config/percona-release.html>`_ for details.
 
@@ -39,9 +39,9 @@ Installing on  Red Hat and CentOS
 
      sudo yum install https://repo.percona.com/yum/percona-release-latest.noarch.rpm
 
-#. Enable the testing component of the tools repository as follows::
+#. Enable the experimental component of the tools repository as follows::
 
-         sudo percona-release enable tools testing
+         sudo percona-release enable tools experimental
 
    See `percona-release official documentation <https://www.percona.com/doc/percona-repo-config/percona-release.html>`_ for details.
 
