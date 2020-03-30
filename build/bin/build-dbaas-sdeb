@@ -25,7 +25,7 @@ main() {
         fi
 
         apt-get update
-        apt-get -y install git lsb-release devscripts dh-make dh-systemd
+        DEBIAN_FRONTEND=noninteractive apt-get -y install git lsb-release devscripts dh-make dh-systemd
         mkdir -p /tmp/dbaas/deb
         cd /home/builder/results
             cp -r ./* /tmp/dbaas/
