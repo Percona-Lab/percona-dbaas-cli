@@ -288,3 +288,25 @@ func GetStringFromMap(input map[string]string) string {
 	}
 	return "none"
 }
+
+func (p Cmd) UpdateOperatorDeployment(bundle []BundleObject) error {
+	var deploymentName string
+	for _, b := range bundle {
+		if b.Kind == "Deployment" {
+			deploymentName = b.Name
+			break
+		}
+	}
+
+	_, err := p.runCmd(p.execCommand, "get", "pods", "-l", `"name=`+deploymentName+`"`)
+	if err != nil && !strings.Contains(err.Error(), "Unable to find") {
+		return err
+	} else if err != nil && strings.Contains(err.Error(), "Unable to find") {
+		err = p.ApplyBundles(bundle)
+		if err != nil {
+			return errors.Wrap(err, "apply bundles")
+		}
+	}
+
+	return nil
+}

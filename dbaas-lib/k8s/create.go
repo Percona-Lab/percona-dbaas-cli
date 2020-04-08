@@ -91,7 +91,7 @@ oc adm policy add-cluster-role-to-user pxc-admin %s
 func (p Cmd) CreateCluster(typ, operatorVersion, clusterName, cr string, bundle []BundleObject) error {
 	p.runCmd(p.execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
-	err := p.applyBundles(bundle)
+	err := p.ApplyBundles(bundle)
 	if err != nil {
 		return errors.Wrap(err, "apply bundles")
 	}
@@ -172,7 +172,7 @@ func osAdminBundle(bs []BundleObject) string {
 	return strings.Join(objs, "\n---\n")
 }
 
-func (p Cmd) applyBundles(bs []BundleObject) error {
+func (p Cmd) ApplyBundles(bs []BundleObject) error {
 	for _, b := range bs {
 		err := p.apply(b.Data)
 		if err != nil {

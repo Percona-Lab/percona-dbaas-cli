@@ -56,7 +56,14 @@ func (p *PXC) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 	if !ext {
 		return "", errors.New("unable to find cluster pxc/" + name)
 	}
-
+	c := objects[defaultVersion].pxc
+	c.SetDefaults()
+	p.conf = c
+	p.conf.SetName(name)
+	err = p.cmd.UpdateOperatorDeployment(p.bundle(objects, p.conf.GetOperatorImage()))
+	if err != nil {
+		return "", errors.Wrap(err, "update operator deployment")
+	}
 	err = p.cmd.DeleteCluster("pxc", p.operatorName(), name, delePVC)
 	if err != nil {
 		return "", errors.Wrap(err, "delete cluster")
@@ -163,6 +170,10 @@ func (p *PXC) UpdateDBCluster(name, opts string) error {
 	p.ParseOptions(opts)
 	p.conf.SetName(name)
 	p.conf.SetUsersSecretName(name)
+	err = p.cmd.UpdateOperatorDeployment(p.bundle(objects, p.conf.GetOperatorImage()))
+	if err != nil {
+		return errors.Wrap(err, "update operator deployment")
+	}
 	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
