@@ -300,7 +300,7 @@ func (p Cmd) UpdateOperatorDeployment(bundle []BundleObject) error {
 
 	_, err := p.runCmd(p.execCommand, "get", "pods", "-l", `"name=`+deploymentName+`"`)
 	if err != nil && !strings.Contains(err.Error(), "Unable to find") {
-		return err
+		return errors.Wrap(err, "get pod")
 	} else if err != nil && strings.Contains(err.Error(), "Unable to find") {
 		err = p.ApplyBundles(bundle)
 		if err != nil {
