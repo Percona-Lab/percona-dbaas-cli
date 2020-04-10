@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math/big"
 	mrand "math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -119,6 +120,11 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	err = json.Unmarshal(cluster, st)
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
+	}
+	err = p.checkClusterPods(name, st)
+	if err != nil {
+		db.Status = "error"
+		return db, errors.Wrap(err, "checking cluster pods")
 	}
 	ns, err := p.cmd.GetCurrentNamespace()
 	if err != nil {
@@ -320,4 +326,50 @@ func getOperatorImageVersion(image string) (string, error) {
 	}
 
 	return imageArr[1], nil
+}
+
+func (p *PXC) checkClusterPods(name string, st *k8sStatus) error {
+	for i := 0; i < int(st.Status.PXC.Size); i++ {
+		podData, err := p.cmd.GetObject("pod", name+"-pxc-"+strconv.Itoa(i))
+		if err != nil && !strings.Contains(err.Error(), "Not found") {
+			return errors.Wrap(err, "get pxc pod data")
+		} else if err != nil && strings.Contains(err.Error(), "Not found") {
+			continue
+		}
+		err = checkPodCondition(podData)
+		if err != nil {
+			return errors.Wrap(err, "check pxc pod condition")
+		}
+	}
+	for i := 0; i < int(st.Status.ProxySQL.Size); i++ {
+		podData, err := p.cmd.GetObject("pod", name+"-proxysql-"+strconv.Itoa(i))
+		if err != nil && !strings.Contains(err.Error(), "Not found") {
+			return errors.Wrap(err, "get proxysql pod data")
+		} else if err != nil && strings.Contains(err.Error(), "Not found") {
+			continue
+		}
+		err = checkPodCondition(podData)
+		if err != nil {
+			return errors.Wrap(err, "check proxysql pod condition")
+		}
+	}
+
+	return nil
+}
+
+func checkPodCondition(podData []byte) error {
+	pod := k8s.Pod{}
+	err := json.Unmarshal(podData, &pod)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal pod data")
+	}
+	if pod.Status.Phase != "Pending" {
+		return nil
+	}
+	for _, condition := range pod.Status.Conditions {
+		if condition.Status == "False" && strings.Contains(condition.Message, "Insufficient memory") {
+			return errors.New("out of memory")
+		}
+	}
+	return nil
 }

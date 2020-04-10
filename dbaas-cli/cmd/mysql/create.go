@@ -95,7 +95,7 @@ var createCmd = &cobra.Command{
 		defer tckr.Stop()
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil {
+			if err != nil && !outOfMemory(err) {
 				//dotPrinter.StopPrintDot("error")
 				//log.Error("check db: ", err)
 				continue
@@ -113,6 +113,10 @@ var createCmd = &cobra.Command{
 					log.WithField("database", cluster).Info("information")
 					return
 				}
+			case "error":
+				dotPrinter.Stop("error")
+				log.Errorf("unable to start cluster. %v", err)
+				return
 			}
 
 			if tries >= maxTries {

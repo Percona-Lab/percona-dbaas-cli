@@ -41,3 +41,11 @@ func parseArgs(args []string) []string {
 func addSpec(opts string) string {
 	return "spec." + strings.Replace(opts, ",", ",spec.", -1)
 }
+
+func outOfMemory(err error) bool {
+	if strings.Contains(err.Error(), "out of memory") {
+		return true
+	}
+
+	return false
+}

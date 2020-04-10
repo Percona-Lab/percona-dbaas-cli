@@ -78,15 +78,17 @@ const (
 )
 
 type PSMDBClusterStatus struct {
-	Messages []string `json:"message,omitempty"`
-	Status   AppState `json:"state,omitempty"`
+	Messages []string             `json:"message,omitempty"`
+	Status   AppState             `json:"state,omitempty"`
+	Replsets map[string]AppStatus `json:"replsets"`
 }
 
 type AppStatus struct {
-	Size    int32    `json:"size,omitempty"`
-	Ready   int32    `json:"ready,omitempty"`
-	Status  AppState `json:"status,omitempty"`
-	Message string   `json:"message,omitempty"`
+	Size        int32    `json:"size,omitempty"`
+	Ready       int32    `json:"ready,omitempty"`
+	Status      AppState `json:"status,omitempty"`
+	Message     string   `json:"message,omitempty"`
+	Initialized bool     `json:"initialized"`
 }
 
 type PSMDBResource struct {

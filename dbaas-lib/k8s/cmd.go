@@ -56,6 +56,25 @@ type ErrCmdRun struct {
 	output []byte
 }
 
+type Pod struct {
+	Status PodStatus `json:"status"`
+}
+
+type PodStatus struct {
+	Conditions []StatusCondition `json:"conditions"`
+	Phase      string            `json:"phase"`
+	QosClass   string            `json:"qosClass"`
+}
+
+type StatusCondition struct {
+	LastProbeTime      string `json:"lastProbeTime"`
+	LastTransitionTime string `json:"lastTransitionTime"`
+	Message            string `json:"message"`
+	Reason             string `json:"reason"`
+	Status             string `json:"status"`
+	Type               string `json:"type"`
+}
+
 func (e ErrCmdRun) Error() string {
 	return fmt.Sprintf("failed to run `%s %s`, output: %s", e.cmd, strings.Join(e.args, " "), e.output)
 }
