@@ -85,13 +85,13 @@ var modifyCmd = &cobra.Command{
 			log.Error("modify db: ", err)
 			return
 		}
-		time.Sleep(time.Second * 6) //let k8s time for applying new cr
+		time.Sleep(time.Second * 10) //let k8s time for applying new cr
 		tries := 0
 		tckr := time.NewTicker(500 * time.Millisecond)
 		defer tckr.Stop()
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil {
+			if err != nil && !outOfMemory(err) {
 				//dotPrinter.StopPrintDot("error")
 				//log.Error("check db: ", err)
 				continue
@@ -107,6 +107,10 @@ var modifyCmd = &cobra.Command{
 					log.WithField("database", cluster).Info("information")
 					return
 				}
+			case "error":
+				dotPrinter.Stop("error")
+				log.Errorf("unable to modify cluster. %v", err)
+				return
 			}
 			if tries >= maxTries {
 				dotPrinter.Stop("error")
