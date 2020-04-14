@@ -80,6 +80,14 @@ func (cr *PerconaXtraDBCluster) GetOperatorImage() string {
 	return "percona/percona-xtradb-cluster-operator:1.3.0"
 }
 
+func (cr *PerconaXtraDBCluster) GetProxysqlServiceType() string {
+	if cr.Spec.ProxySQL != nil && cr.Spec.ProxySQL.ServiceType != nil {
+		return string(*cr.Spec.ProxySQL.ServiceType)
+	}
+
+	return ""
+}
+
 func (cr *PerconaXtraDBCluster) SetDefaults() error {
 	one := intstr.FromInt(1)
 

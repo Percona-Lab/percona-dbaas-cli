@@ -52,6 +52,19 @@ type ErrCmdRun struct {
 	output []byte
 }
 
+type Service struct {
+	Status ServiceStatus `json:"status"`
+}
+
+type ServiceStatus struct {
+	LoadBalancer struct {
+		Ingress []struct {
+			IP       string `json:"ip"`
+			Hostname string `json:"hostname"`
+		} `json:"ingress"`
+	} `json:"loadBalancer"`
+}
+
 func (e ErrCmdRun) Error() string {
 	return fmt.Sprintf("failed to run `%s %s`, output: %s", e.cmd, strings.Join(e.args, " "), e.output)
 }
@@ -94,13 +107,7 @@ func New(environment string) (*Cmd, error) {
 }
 
 func (p Cmd) runCmd(cmd string, args ...string) ([]byte, error) {
-	/*cli := exec.Command(cmd, args...)
-	cli.Env = os.Environ()
-	if len(p.environment) > 0 {
-		cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
-	}
-	var o []byte*/
-	o, err := p.runNTimes(3, cmd, args...) //cli.CombinedOutput()
+	o, err := p.runNTimes(3, cmd, args...)
 	if err != nil {
 
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}
