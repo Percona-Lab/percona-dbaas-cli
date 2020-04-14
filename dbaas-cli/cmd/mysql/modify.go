@@ -24,6 +24,7 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
+	k8s "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 )
 
 // modifyCmd represents the create command
@@ -91,25 +92,25 @@ var modifyCmd = &cobra.Command{
 		defer tckr.Stop()
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil && !outOfMemory(err) {
+			if err != nil && err != k8s.ErrOutOfMemory {
 				//dotPrinter.StopPrintDot("error")
 				//log.Error("check db: ", err)
 				continue
 			}
 			cluster.Pass = ""
 			switch cluster.Status {
-			case "ready":
+			case stateReady:
 				dotPrinter.Stop("done")
 				log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
 				return
-			case "initializing":
+			case stateInit:
 				if noWait {
 					log.WithField("database", cluster).Info("information")
 					return
 				}
-			case "error":
+			case stateError:
 				dotPrinter.Stop("error")
-				log.Errorf("unable to modify cluster. %v", err)
+				log.Errorf("unable to modify cluster: %v", err)
 				return
 			}
 			if tries >= maxTries {

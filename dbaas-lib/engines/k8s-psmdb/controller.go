@@ -77,7 +77,23 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 		return "", errors.Wrap(err, "delete cluster")
 	}
 	if !delePVC {
-		pvcObj, err := p.cmd.GetObject("pvc", "mongod-data-"+name+"-rs0-0")
+		cluster, err := p.cmd.GetObject("psmdb", name)
+		if err != nil {
+			return "", errors.Wrap(err, "get cluster object")
+
+		}
+		st := &k8sStatus{}
+		err = json.Unmarshal(cluster, st)
+		if err != nil {
+			return "", errors.Wrap(err, "unmarshal object")
+		}
+
+		rsName := "rs0"
+		for name := range st.Status.Replsets {
+			rsName = name
+		}
+
+		pvcObj, err := p.cmd.GetObject("pvc", "mongod-data-"+name+"-"+rsName+"-0")
 		if err != nil {
 			return "", errors.Wrap(err, "get pvc")
 		}
@@ -117,7 +133,11 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	err = p.checkClusterPods(name, st)
 	if err != nil {
 		db.Status = "error"
-		return db, errors.Wrap(err, "checking cluster pods")
+		return db, err
+	}
+	rsName := "rs0"
+	for name := range st.Status.Replsets {
+		rsName = name
 	}
 	ns, err := p.cmd.GetCurrentNamespace()
 	if err != nil {
@@ -129,13 +149,13 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = name + "-rs0." + ns + ".psmdb.svc.local"
+	db.ResourceEndpoint = name + "-" + rsName + "." + ns + ".psmdb.svc.local"
 	db.Port = 27017
 	db.User = string(secrets["MONGODB_CLUSTER_ADMIN_USER"])
 	db.Pass = string(secrets["MONGODB_CLUSTER_ADMIN_PASSWORD"])
 	db.Status = string(st.Status.Status)
 	if st.Status.Status == "ready" {
-		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-rs0 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
+		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-" + rsName + " 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
 	}
 
 	return db, nil
@@ -284,14 +304,15 @@ func (p *PSMDB) PreCheck(name, opts, version string) ([]string, error) {
 }
 
 func (p *PSMDB) checkClusterPods(name string, st *k8sStatus) error {
-	if _, ok := st.Status.Replsets["rs0"]; !ok {
-		return errors.New("no replest `rs0` in cluster status")
+	rsName := "rs0"
+	for name := range st.Status.Replsets {
+		rsName = name
 	}
-	for i := 0; i < int(st.Status.Replsets["rs0"].Size); i++ {
-		podData, err := p.cmd.GetObject("pod", name+"-rs0-"+strconv.Itoa(i))
-		if err != nil && !strings.Contains(err.Error(), "Not found") {
+	for i := 0; i < int(st.Status.Replsets[rsName].Size); i++ {
+		podData, err := p.cmd.GetObject("pod", name+"-"+rsName+"-"+strconv.Itoa(i))
+		if err != nil && err != k8s.ErrNotFound {
 			return errors.Wrap(err, "get pod data")
-		} else if err != nil && strings.Contains(err.Error(), "Not found") {
+		} else if err != nil && err == k8s.ErrNotFound {
 			continue
 		}
 		pod := k8s.Pod{}
@@ -304,7 +325,7 @@ func (p *PSMDB) checkClusterPods(name string, st *k8sStatus) error {
 		}
 		for _, condition := range pod.Status.Conditions {
 			if condition.Status == "False" && strings.Contains(condition.Message, "Insufficient memory") {
-				return errors.New("out of memory")
+				return k8s.ErrOutOfMemory
 			}
 		}
 	}

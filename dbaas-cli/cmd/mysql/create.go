@@ -25,6 +25,7 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
+	k8s "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 )
 
 const (
@@ -95,27 +96,27 @@ var createCmd = &cobra.Command{
 		defer tckr.Stop()
 		for range tckr.C {
 			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil && !outOfMemory(err) {
+			if err != nil && err != k8s.ErrOutOfMemory {
 				//dotPrinter.StopPrintDot("error")
 				//log.Error("check db: ", err)
 				continue
 			}
 			switch cluster.Status {
-			case "ready":
+			case stateReady:
 				dotPrinter.Stop("done")
 				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 				log.WithField("database", cluster).Info("Database started successfully, connection details are below:")
 				return
-			case "initializing":
+			case stateInit:
 				if noWait {
 					dotPrinter.Stop("initializing")
 					cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 					log.WithField("database", cluster).Info("information")
 					return
 				}
-			case "error":
+			case stateError:
 				dotPrinter.Stop("error")
-				log.Errorf("unable to start cluster. %v", err)
+				log.Errorf("unable to start cluster: %v", err)
 				return
 			}
 

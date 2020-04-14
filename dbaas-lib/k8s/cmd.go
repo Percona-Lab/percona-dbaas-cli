@@ -32,7 +32,8 @@ func init() {
 }
 
 var (
-	ErrNotFound = errors.New("not found")
+	ErrOutOfMemory = errors.New("out of memory")
+	ErrNotFound    = errors.New("not found")
 )
 
 type PlatformType string
@@ -167,11 +168,17 @@ func (p Cmd) GetObjectsElement(typ, name, jsonPath string) ([]byte, error) {
 	return data, err
 }
 
-func (p Cmd) GetObject(typ, name string) ([]byte, error) {
+func (p Cmd) GetObject(typ, name string) (objData []byte, err error) {
 	if len(p.Namespace) > 0 {
-		return p.runCmd(p.execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
+		objData, err = p.runCmd(p.execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
+	} else {
+		objData, err = p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
 	}
-	return p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
+	if err != nil && strings.Contains(err.Error(), "Not found") {
+		err = ErrNotFound
+	}
+
+	return
 }
 
 func (p Cmd) GetObjects(typ string) ([]byte, error) {

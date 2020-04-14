@@ -124,7 +124,7 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	err = p.checkClusterPods(name, st)
 	if err != nil {
 		db.Status = "error"
-		return db, errors.Wrap(err, "checking cluster pods")
+		return db, err
 	}
 	ns, err := p.cmd.GetCurrentNamespace()
 	if err != nil {
@@ -331,26 +331,26 @@ func getOperatorImageVersion(image string) (string, error) {
 func (p *PXC) checkClusterPods(name string, st *k8sStatus) error {
 	for i := 0; i < int(st.Status.PXC.Size); i++ {
 		podData, err := p.cmd.GetObject("pod", name+"-pxc-"+strconv.Itoa(i))
-		if err != nil && !strings.Contains(err.Error(), "Not found") {
+		if err != nil && err != k8s.ErrNotFound {
 			return errors.Wrap(err, "get pxc pod data")
-		} else if err != nil && strings.Contains(err.Error(), "Not found") {
+		} else if err != nil && err == k8s.ErrNotFound {
 			continue
 		}
 		err = checkPodCondition(podData)
 		if err != nil {
-			return errors.Wrap(err, "check pxc pod condition")
+			return err
 		}
 	}
 	for i := 0; i < int(st.Status.ProxySQL.Size); i++ {
 		podData, err := p.cmd.GetObject("pod", name+"-proxysql-"+strconv.Itoa(i))
-		if err != nil && !strings.Contains(err.Error(), "Not found") {
+		if err != nil && err != k8s.ErrNotFound {
 			return errors.Wrap(err, "get proxysql pod data")
-		} else if err != nil && strings.Contains(err.Error(), "Not found") {
+		} else if err != nil && err == k8s.ErrNotFound {
 			continue
 		}
 		err = checkPodCondition(podData)
 		if err != nil {
-			return errors.Wrap(err, "check proxysql pod condition")
+			return err
 		}
 	}
 
@@ -368,7 +368,7 @@ func checkPodCondition(podData []byte) error {
 	}
 	for _, condition := range pod.Status.Conditions {
 		if condition.Status == "False" && strings.Contains(condition.Message, "Insufficient memory") {
-			return errors.New("out of memory")
+			return k8s.ErrOutOfMemory
 		}
 	}
 	return nil
