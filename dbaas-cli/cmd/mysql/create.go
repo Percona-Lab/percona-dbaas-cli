@@ -73,6 +73,17 @@ var createCmd = &cobra.Command{
 			Provider:      *provider,
 			RootPass:      *rootPass,
 		}
+
+		/*warns, errArr := dbaas.PreCheck(instance)
+		if len(errArr) > 0 {
+			for _, e := range errArr {
+				log.Println(e)
+			}
+			return
+		}
+		for _, w := range warns {
+			log.Println(w)
+		}*/
 		dotPrinter.Start("Starting")
 		err = dbaas.CreateDB(instance)
 		if err != nil {

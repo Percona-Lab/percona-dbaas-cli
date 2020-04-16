@@ -15,6 +15,7 @@ type Instance struct {
 	DiskSize      string
 	EngineOptions string
 	RootPass      string
+	Version       string
 }
 
 // CreateDB creates DB resource using name, provider, engine and options given in 'instance' object. The default value provider=k8s, engine=pxc
@@ -23,7 +24,7 @@ func CreateDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass, instance.Version)
 	if err != nil {
 		return err
 	}
@@ -37,7 +38,7 @@ func ModifyDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions)
+	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions, instance.Version)
 	if err != nil {
 		return err
 	}
@@ -69,7 +70,7 @@ func DeleteDB(instance Instance, saveData bool) (string, error) {
 		return "", err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, saveData)
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, instance.Version, saveData)
 }
 
 func checkProviderAndEngine(instance Instance) error {
@@ -80,4 +81,14 @@ func checkProviderAndEngine(instance Instance) error {
 		return errors.New("wrong engine")
 	}
 	return nil
+}
+
+func PreCheck(instance Instance) (warnings []string, errArr []error) {
+	err := checkProviderAndEngine(instance)
+	if err != nil {
+		errArr = append(errArr, err)
+		return
+	}
+
+	return pdl.Providers[instance.Provider].Engines[instance.Engine].PreCheck(instance.Name, instance.EngineOptions, instance.Version)
 }

@@ -8,13 +8,10 @@ import (
 
 // ParseOptions parse PXC options given in "object.paramValue=val,objectTwo.paramValue=val" string
 func (p *PXC) ParseOptions(opts string) error {
-	c := objects[defaultVersion].pxc
-	c.SetDefaults()
-	err := options.Parse(&c, reflect.TypeOf(c), opts)
+	err := options.Parse(&p.conf, reflect.TypeOf(p.conf), opts)
 	if err != nil {
 		return err
 	}
-	p.conf = c
 
 	return nil
 }

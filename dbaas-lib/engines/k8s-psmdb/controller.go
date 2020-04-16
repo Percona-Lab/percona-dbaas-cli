@@ -13,8 +13,12 @@ import (
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PSMDB) CreateDBCluster(name, opts, rootPass string) error {
-	err := p.ParseOptions(opts)
+func (p *PSMDB) CreateDBCluster(name, opts, rootPass, version string) error {
+	err := p.setVersionObjectsWithDefaults(version)
+	if err != nil {
+		return errors.Wrap(err, "version check")
+	}
+	err = p.ParseOptions(opts)
 	if err != nil {
 		return errors.Wrap(err, "parse opts")
 	}
@@ -37,8 +41,12 @@ func (p *PSMDB) CreateDBCluster(name, opts, rootPass string) error {
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
+	_, err = p.cmd.GetObjectsElement("deployment", p.operatorName(), ".spec.template.spec.containers[0].image")
+	if err != nil && err == k8s.ErrNotFound {
+		p.cmd.ApplyBundles(p.bundle)
+	}
 
-	err = p.cmd.CreateCluster("psmdb", p.conf.GetOperatorImage(), name, cr, p.bundle(objects, p.conf.GetOperatorImage()))
+	err = p.cmd.CreateCluster("psmdb", p.conf.GetOperatorImage(), name, cr, p.bundle)
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -47,7 +55,7 @@ func (p *PSMDB) CreateDBCluster(name, opts, rootPass string) error {
 }
 
 // DeleteDBCluster delete cluster by name
-func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
+func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (string, error) {
 	ext, err := p.cmd.IsObjExists("psmdb", name)
 	if err != nil {
 		return "", errors.Wrap(err, "check if cluster exists")
@@ -55,14 +63,13 @@ func (p *PSMDB) DeleteDBCluster(name, opts string, delePVC bool) (string, error)
 	if !ext {
 		return "", errors.New("unable to find cluster psmdb/" + name)
 	}
-	c := objects[defaultVersion].psmdb
-	c.SetDefaults()
-	p.conf = c
-	p.conf.SetName(name)
-	err = p.cmd.UpdateOperatorDeployment(p.bundle(objects, p.conf.GetOperatorImage()))
+	err = p.setVersionObjectsWithDefaults(version)
 	if err != nil {
-		return "", errors.Wrap(err, "update operator deployment")
+		return "", errors.Wrap(err, "version check")
 	}
+	p.conf.SetDefaults()
+	p.conf.SetName(name)
+
 	err = p.cmd.DeleteCluster("psmdb", p.operatorName(), name, delePVC)
 	if err != nil {
 		return "", errors.Wrap(err, "delete cluster")
@@ -152,24 +159,24 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 }
 
 // UpdateDBCluster update DB
-func (p *PSMDB) UpdateDBCluster(name, opts string) error {
-	c := objects[defaultVersion].psmdb
+func (p *PSMDB) UpdateDBCluster(name, opts, version string) error {
+	err := p.setVersionObjectsWithDefaults(version)
+	if err != nil {
+		return errors.Wrap(err, "version check")
+	}
+
 	oldCR, err := p.cmd.GetObject("psmdb", name)
 	if err != nil {
 		return errors.Wrap(err, "get cluster cr")
 	}
-	err = json.Unmarshal(oldCR, &c)
+	err = json.Unmarshal(oldCR, &p.conf)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal cr")
 	}
-	p.conf = c
 	p.ParseOptions(opts)
 	p.conf.SetName(name)
 	p.conf.SetUsersSecretName(name)
-	err = p.cmd.UpdateOperatorDeployment(p.bundle(objects, p.conf.GetOperatorImage()))
-	if err != nil {
-		return errors.Wrap(err, "update operator deployment")
-	}
+
 	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
@@ -254,4 +261,18 @@ func generatePass() ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func (p *PSMDB) PreCheck(name, opts, version string) (warnings []string, errArr []error) {
+	err := p.setVersionObjectsWithDefaults(version)
+	if err != nil {
+		errArr = append(errArr, errors.Wrap(err, "version check"))
+		return
+	}
+	supportedVersions := make(map[string]string)
+	for v, obj := range objects {
+		supportedVersions[v] = obj.psmdb.GetOperatorImage()
+	}
+	return p.cmd.PreCheck(name, version, p.operatorName(), p.conf.GetOperatorImage(), "psmdb", supportedVersions)
+
 }

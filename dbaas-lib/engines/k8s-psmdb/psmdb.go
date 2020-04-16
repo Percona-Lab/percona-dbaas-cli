@@ -3,7 +3,6 @@ package psmdb
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
 	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v120"
@@ -15,12 +14,12 @@ import (
 )
 
 const (
-	provider               = "k8s"
-	engine                 = "psmdb"
-	defaultVersion Version = "1.3.0"
+	provider       = "k8s"
+	engine         = "psmdb"
+	defaultVersion = "1.3.0"
 )
 
-var objects map[Version]VersionObject
+var objects map[string]VersionObject
 
 func init() {
 	// Register psmdb engine in dbaas
@@ -33,7 +32,7 @@ func init() {
 	pdl.RegisterEngine(provider, engine, psmdb)
 
 	// Register psmdb versions
-	objects = make(map[Version]VersionObject)
+	objects = make(map[string]VersionObject)
 	objects["1.1.0"] = VersionObject{
 		k8s: k8s.Objects{
 			Bundle: v110.Bundle,
@@ -59,9 +58,8 @@ type PSMDB struct {
 	cmd          *k8s.Cmd
 	conf         PSMDBCluster
 	platformType k8s.PlatformType
+	bundle       []k8s.BundleObject
 }
-
-type Version string
 
 type PSMDBMeta struct {
 	Name      string `json:"name"`
@@ -131,17 +129,27 @@ func NewPSMDBController(envCrt, provider string) (*PSMDB, error) {
 	return &psmdb, nil
 }
 
-func (p PSMDB) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.BundleObject {
-	if operatorVersion == "" {
-		operatorVersion = v[defaultVersion].psmdb.GetOperatorImage()
+func (p *PSMDB) setVersionObjectsWithDefaults(version string) error {
+	if p.conf != nil && p.bundle != nil {
+		return nil
 	}
-
-	for i, o := range v[defaultVersion].k8s.Bundle {
-		if o.Kind == "Deployment" && o.Name == p.operatorName() {
-			v[defaultVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+	switch i := len(version); {
+	case i == 0:
+		version = defaultVersion
+	default:
+		if _, ok := objects[version]; !ok {
+			return errors.Errorf("unsupporeted version %s", version)
 		}
 	}
-	return v[defaultVersion].k8s.Bundle
+
+	p.conf = objects[version].psmdb
+	err := p.conf.SetDefaults()
+	if err != nil {
+		errors.Wrap(err, "set defaults")
+	}
+	p.bundle = objects[version].k8s.Bundle
+
+	return nil
 }
 
 func (p PSMDB) getCR(cluster PSMDBCluster) (string, error) {

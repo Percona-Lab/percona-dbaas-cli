@@ -91,11 +91,6 @@ oc adm policy add-cluster-role-to-user pxc-admin %s
 func (p Cmd) CreateCluster(typ, operatorVersion, clusterName, cr string, bundle []BundleObject) error {
 	p.runCmd(p.execCommand, "create", "clusterrolebinding", "cluster-admin-binding", "--clusterrole=cluster-admin", "--user="+p.osUser())
 
-	err := p.ApplyBundles(bundle)
-	if err != nil {
-		return errors.Wrap(err, "apply bundles")
-	}
-
 	ext, err := p.IsObjExists(typ, clusterName)
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||

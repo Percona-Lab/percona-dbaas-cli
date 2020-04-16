@@ -31,6 +31,10 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+var (
+	ErrNotFound = errors.New("not found")
+)
+
 type PlatformType string
 
 const (
@@ -132,6 +136,20 @@ func (p Cmd) readOperatorLogs(operatorName string) ([]byte, error) {
 	return p.runCmd(p.execCommand, "logs", "-l", "name="+operatorName)
 }
 
+func (p Cmd) GetObjectsElement(typ, name, jsonPath string) (data []byte, err error) {
+	switch i := len(p.Namespace); {
+	case i > 0:
+		data, err = p.runCmd(p.execCommand, "get", typ, name, "-n", p.Namespace, "-o=jsonpath={"+jsonPath+"}")
+	default:
+		data, err = p.runCmd(p.execCommand, "get", typ, name, "-o=jsonpath={"+jsonPath+"}")
+	}
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		err = ErrNotFound
+	}
+
+	return
+}
+
 func (p Cmd) GetObject(typ, name string) ([]byte, error) {
 	if len(p.Namespace) > 0 {
 		return p.runCmd(p.execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
@@ -139,11 +157,24 @@ func (p Cmd) GetObject(typ, name string) ([]byte, error) {
 	return p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
-func (p Cmd) GetObjects(typ string) ([]byte, error) {
-	if len(p.Namespace) > 0 {
-		return p.runCmd(p.execCommand, "get", typ, "-n", p.Namespace, "-o", "json")
+func (p Cmd) GetObjects(typ string) (data []byte, err error) {
+	switch i := len(p.Namespace); {
+	case i > 0:
+		data, err = p.runCmd(p.execCommand, "get", typ, "-n", p.Namespace)
+	default:
+		data, err = p.runCmd(p.execCommand, "get", typ)
 	}
-	return p.runCmd(p.execCommand, "get", typ, "-o", "json")
+
+	if err != nil && strings.Contains(err.Error(), "not found") {
+		err = ErrNotFound
+	} else if err != nil && strings.Contains(string(data), "doesn't have a resource") {
+		err = ErrNotFound
+	}
+	if strings.Contains(string(data), "No resources found") {
+		err = ErrNotFound
+	}
+
+	return
 }
 
 func (p Cmd) DeleteObject(typ, name string) error {
@@ -160,9 +191,25 @@ func (p Cmd) DeleteObject(typ, name string) error {
 func (p Cmd) apply(k8sObj string) error {
 	namespace := ""
 	if len(p.Namespace) > 0 {
-		namespace = "-n " + p.Namespace + " "
+		namespace = "-n=" + p.Namespace
 	}
-	_, err := p.runCmd("sh", "-c", "cat <<-EOF | "+p.execCommand+" apply "+namespace+"-f -\n"+k8sObj+"\nEOF")
+	fileName := "/tmp/percona-dbaascli-temp-cr.json"
+	f, err := os.Create(fileName)
+	if err != nil {
+		return errors.Wrap(err, "create cr file")
+	}
+	defer os.Remove(fileName)
+
+	_, err = f.Write([]byte(k8sObj))
+	if err != nil {
+		return errors.Wrap(err, "write cr file")
+	}
+	if len(namespace) > 0 {
+		_, err = p.runCmd(p.execCommand, "apply", namespace, "-f", fileName)
+	} else {
+		_, err = p.runCmd(p.execCommand, "apply", "-f", fileName)
+	}
+	//_, err = p.runCmd("sh", "-c", "cat <<-EOF | "+p.execCommand+" apply "+namespace+"-f -\n"+k8sObj+"\nEOF")
 	if err != nil {
 		return err
 	}
@@ -287,26 +334,4 @@ func GetStringFromMap(input map[string]string) string {
 		return strings.TrimSuffix(b.String(), ", ")
 	}
 	return "none"
-}
-
-func (p Cmd) UpdateOperatorDeployment(bundle []BundleObject) error {
-	var deploymentName string
-	for _, b := range bundle {
-		if b.Kind == "Deployment" {
-			deploymentName = b.Name
-			break
-		}
-	}
-
-	_, err := p.runCmd(p.execCommand, "get", "pods", "-l", `"name=`+deploymentName+`"`)
-	if err != nil && !strings.Contains(err.Error(), "Unable to find") {
-		return errors.Wrap(err, "get pod")
-	} else if err != nil && strings.Contains(err.Error(), "Unable to find") {
-		err = p.ApplyBundles(bundle)
-		if err != nil {
-			return errors.Wrap(err, "apply bundles")
-		}
-	}
-
-	return nil
 }
