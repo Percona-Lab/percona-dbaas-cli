@@ -2,6 +2,15 @@ package structs
 
 import "fmt"
 
+type State string
+
+const (
+	StateUnknown State = "unknown"
+	StateInit    State = "initializing"
+	StateReady   State = "ready"
+	StateError   State = "error"
+)
+
 type DB struct {
 	ResourceName     string `json:"resourceName,omitempty"`
 	ResourceEndpoint string `json:"resourceEndpoint,omitempty"`
@@ -9,7 +18,7 @@ type DB struct {
 	Port             int    `json:"port,omitempty"`
 	User             string `json:"user,omitempty"`
 	Pass             string `json:"pass,omitempty"`
-	Status           string `json:"status,omitempty"`
+	Status           State  `json:"status,omitempty"`
 	Engine           string `json:"engine,omitempty"`
 	Provider         string `json:"provider,omitempty"`
 	Message          string `json:"message,omitempty"`

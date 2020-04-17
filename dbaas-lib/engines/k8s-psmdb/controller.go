@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"math/big"
 	mrand "math/rand"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // CreateDBCluster start creating DB cluster
@@ -82,14 +82,14 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 			return "", errors.Wrap(err, "get cluster object")
 
 		}
-		st := &k8sStatus{}
+		st := p.conf
 		err = json.Unmarshal(cluster, st)
 		if err != nil {
 			return "", errors.Wrap(err, "unmarshal object")
 		}
 
 		rsName := "rs0"
-		for name := range st.Status.Replsets {
+		for _, name := range st.GetReplestsNames() {
 			rsName = name
 		}
 
@@ -97,12 +97,12 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 		if err != nil {
 			return "", errors.Wrap(err, "get pvc")
 		}
-		pvc := &k8sPVC{}
+		pvc := &corev1.PersistentVolumeClaim{}
 		err = json.Unmarshal(pvcObj, pvc)
 		if err != nil {
 			return "", errors.Wrap(err, "unmarshal pvc")
 		}
-		return "pvc/" + pvc.Meta.Name, nil
+		return "pvc/" + pvc.Name, nil
 	}
 	err = p.cmd.DeleteObject("secret", name+"-psmdb-users-secrets")
 	if err != nil {
@@ -125,18 +125,18 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 		return db, errors.Wrap(err, "get cluster object")
 
 	}
-	st := &k8sStatus{}
+	st := p.conf //&k8sStatus{}
 	err = json.Unmarshal(cluster, st)
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
 	}
-	err = p.checkClusterPods(name, st)
+	err = p.checkClusterPods(name)
 	if err != nil {
 		db.Status = "error"
 		return db, err
 	}
 	rsName := "rs0"
-	for name := range st.Status.Replsets {
+	for _, name := range st.GetReplestsNames() {
 		rsName = name
 	}
 	ns, err := p.cmd.GetCurrentNamespace()
@@ -153,8 +153,8 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	db.Port = 27017
 	db.User = string(secrets["MONGODB_CLUSTER_ADMIN_USER"])
 	db.Pass = string(secrets["MONGODB_CLUSTER_ADMIN_PASSWORD"])
-	db.Status = string(st.Status.Status)
-	if st.Status.Status == "ready" {
+	db.Status = structs.State(st.GetStatus()) //string(st.Status.Status)
+	if st.GetStatus() == string(structs.StateReady) {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-" + rsName + " 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
 	}
 
@@ -169,15 +169,26 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 		return dbList, errors.Wrap(err, "get cluster object")
 
 	}
-	st := &k8sCluster{}
-	err = json.Unmarshal(cluster, st)
+
+	st := k8s.Clusters{}
+	err = json.Unmarshal(cluster, &st)
 	if err != nil {
 		return dbList, errors.Wrap(err, "unmarshal object")
 	}
 	for _, c := range st.Items {
+		b, err := json.Marshal(c)
+		if err != nil {
+			return dbList, errors.Wrap(err, "marshal")
+		}
+		p.ParseOptions("")
+		err = json.Unmarshal(b, &p.conf)
+		if err != nil {
+			return dbList, errors.Wrap(err, "unmarshal psmdb object")
+		}
+		psmdb := p.conf
 		db := structs.DB{
-			ResourceName: c.Meta.Name,
-			Status:       string(c.Status.Status),
+			ResourceName: psmdb.GetName(),
+			Status:       structs.State(psmdb.GetStatus()),
 		}
 		dbList = append(dbList, db)
 	}
@@ -303,25 +314,19 @@ func (p *PSMDB) PreCheck(name, opts, version string) ([]string, error) {
 	return p.cmd.PreCheck(name, version, p.operatorName(), p.conf.GetOperatorImage(), "psmdb", supportedVersions)
 }
 
-func (p *PSMDB) checkClusterPods(name string, st *k8sStatus) error {
-	rsName := "rs0"
-	for name := range st.Status.Replsets {
-		rsName = name
+func (p *PSMDB) checkClusterPods(name string) error {
+	podsData, err := p.cmd.GetObjectByLables("pods", "app.kubernetes.io/instance="+name+",app.kubernetes.io/component=mongod")
+	if err != nil {
+		return errors.Wrap(err, "get pods")
 	}
-	for i := 0; i < int(st.Status.Replsets[rsName].Size); i++ {
-		podData, err := p.cmd.GetObject("pod", name+"-"+rsName+"-"+strconv.Itoa(i))
-		if err != nil && err != k8s.ErrNotFound {
-			return errors.Wrap(err, "get pod data")
-		} else if err != nil && err == k8s.ErrNotFound {
-			continue
-		}
-		pod := k8s.Pod{}
-		err = json.Unmarshal(podData, &pod)
-		if err != nil {
-			return errors.Wrap(err, "unmarshal pod data")
-		}
+	var pods k8s.Pods
+	err = json.Unmarshal(podsData, &pods)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal pods data")
+	}
+	for _, pod := range pods.Items {
 		if pod.Status.Phase != "Pending" {
-			continue
+			return nil
 		}
 		for _, condition := range pod.Status.Conditions {
 			if condition.Status == "False" && strings.Contains(condition.Message, "Insufficient memory") {

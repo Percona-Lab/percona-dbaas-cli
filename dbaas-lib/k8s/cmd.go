@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func init() {
@@ -57,23 +58,12 @@ type ErrCmdRun struct {
 	output []byte
 }
 
-type Pod struct {
-	Status PodStatus `json:"status"`
+type Clusters struct {
+	Items []interface{} `json:"items"`
 }
 
-type PodStatus struct {
-	Conditions []StatusCondition `json:"conditions"`
-	Phase      string            `json:"phase"`
-	QosClass   string            `json:"qosClass"`
-}
-
-type StatusCondition struct {
-	LastProbeTime      string `json:"lastProbeTime"`
-	LastTransitionTime string `json:"lastTransitionTime"`
-	Message            string `json:"message"`
-	Reason             string `json:"reason"`
-	Status             string `json:"status"`
-	Type               string `json:"type"`
+type Pods struct {
+	Items []corev1.Pod `json:"items"`
 }
 
 func (e ErrCmdRun) Error() string {
@@ -359,4 +349,8 @@ func GetStringFromMap(input map[string]string) string {
 		return strings.TrimSuffix(b.String(), ", ")
 	}
 	return "none"
+}
+
+func (p Cmd) GetObjectByLables(typ, lables string) ([]byte, error) {
+	return p.runCmd(p.execCommand, "get", typ, "-l", lables, "-o", "json")
 }

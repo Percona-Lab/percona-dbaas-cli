@@ -20,13 +20,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	stateUnknown = "unknown"
-	stateInit    = "initializing"
-	stateReady   = "ready"
-	stateError   = "error"
-)
-
 // MongoCmd represents the mysql command
 var MongoCmd = &cobra.Command{
 	Use:   "mongodb",

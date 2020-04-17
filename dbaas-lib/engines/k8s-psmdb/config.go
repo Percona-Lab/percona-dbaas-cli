@@ -11,4 +11,6 @@ type PSMDBCluster interface {
 	GetOperatorImage() string
 	SetDefaults() error
 	SetupMiniConfig()
+	GetStatus() string
+	GetReplestsNames() []string
 }

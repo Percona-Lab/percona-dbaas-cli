@@ -76,58 +76,6 @@ type PXC struct {
 	bundle       []k8s.BundleObject
 }
 
-type PXCMeta struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
-
-type AppState string
-
-const (
-	AppStateUnknown AppState = "unknown"
-	AppStateInit             = "initializing"
-	AppStateReady            = "ready"
-	AppStateError            = "error"
-)
-
-type PerconaXtraDBClusterStatus struct {
-	PXC      AppStatus `json:"pxc,omitempty"`
-	ProxySQL AppStatus `json:"proxysql,omitempty"`
-	Host     string    `json:"host,omitempty"`
-	Messages []string  `json:"message,omitempty"`
-	Status   AppState  `json:"state,omitempty"`
-}
-
-type AppStatus struct {
-	Size    int32    `json:"size,omitempty"`
-	Ready   int32    `json:"ready,omitempty"`
-	Status  AppState `json:"status,omitempty"`
-	Message string   `json:"message,omitempty"`
-}
-
-type PXCResource struct {
-	Meta   PXCMeta `json:"metadata"`
-	Status PerconaXtraDBClusterStatus
-}
-type k8sCluster struct {
-	Items []PXCResource `json:"items"`
-}
-
-type k8sStatus struct {
-	Status PerconaXtraDBClusterStatus
-}
-
-type PVCMeta struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	SelfLink  string `json:"selflink"`
-	UID       string `json:"uid"`
-}
-
-type k8sPVC struct {
-	Meta PVCMeta `json:"metadata"`
-}
-
 type VersionObject struct {
 	k8s k8s.Objects
 	pxc PXDBCluster

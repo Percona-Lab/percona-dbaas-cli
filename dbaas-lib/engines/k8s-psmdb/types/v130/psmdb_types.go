@@ -85,6 +85,17 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	}
 }
 
+func (cr *PerconaServerMongoDB) GetStatus() string {
+	return string(cr.Status.Status)
+}
+func (cr *PerconaServerMongoDB) GetReplestsNames() []string {
+	var replsetsNames []string
+	for name := range cr.Status.Replsets {
+		replsetsNames = append(replsetsNames, name)
+	}
+	return replsetsNames
+}
+
 func (cr *PerconaServerMongoDB) SetDefaults() error {
 	rsName := "rs0"
 	rs := &v130.ReplsetSpec{

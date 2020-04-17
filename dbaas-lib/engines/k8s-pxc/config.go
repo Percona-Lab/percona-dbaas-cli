@@ -27,4 +27,7 @@ type PXDBCluster interface {
 	GetOperatorImage() string
 	SetupMiniConfig() //For Minikube and Minishift
 	GetProxysqlServiceType() string
+	GetStatus() string
+	GetPXCStatus() string
+	GetStatusHost() string
 }

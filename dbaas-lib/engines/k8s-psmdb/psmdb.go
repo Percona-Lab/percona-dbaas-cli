@@ -63,57 +63,6 @@ type PSMDB struct {
 	bundle       []k8s.BundleObject
 }
 
-type PSMDBMeta struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-}
-
-type AppState string
-
-const (
-	AppStateUnknown AppState = "unknown"
-	AppStateInit             = "initializing"
-	AppStateReady            = "ready"
-	AppStateError            = "error"
-)
-
-type PSMDBClusterStatus struct {
-	Messages []string             `json:"message,omitempty"`
-	Status   AppState             `json:"state,omitempty"`
-	Replsets map[string]AppStatus `json:"replsets"`
-}
-
-type AppStatus struct {
-	Size        int32    `json:"size,omitempty"`
-	Ready       int32    `json:"ready,omitempty"`
-	Status      AppState `json:"status,omitempty"`
-	Message     string   `json:"message,omitempty"`
-	Initialized bool     `json:"initialized"`
-}
-
-type PSMDBResource struct {
-	Meta   PSMDBMeta `json:"metadata"`
-	Status PSMDBClusterStatus
-}
-type k8sCluster struct {
-	Items []PSMDBResource `json:"items"`
-}
-
-type k8sStatus struct {
-	Status PSMDBClusterStatus
-}
-
-type PVCMeta struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	SelfLink  string `json:"selflink"`
-	UID       string `json:"uid"`
-}
-
-type k8sPVC struct {
-	Meta PVCMeta `json:"metadata"`
-}
-
 type VersionObject struct {
 	k8s   k8s.Objects
 	psmdb PSMDBCluster

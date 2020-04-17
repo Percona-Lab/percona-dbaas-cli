@@ -88,6 +88,18 @@ func (cr *PerconaXtraDBCluster) GetProxysqlServiceType() string {
 	return ""
 }
 
+func (cr *PerconaXtraDBCluster) GetStatus() string {
+	return string(cr.Status.Status)
+}
+
+func (cr *PerconaXtraDBCluster) GetPXCStatus() string {
+	return string(cr.Status.PXC.Status)
+}
+
+func (cr *PerconaXtraDBCluster) GetStatusHost() string {
+	return cr.Status.Host
+}
+
 func (cr *PerconaXtraDBCluster) SetDefaults() error {
 	one := intstr.FromInt(1)
 

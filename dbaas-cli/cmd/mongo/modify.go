@@ -25,6 +25,7 @@ import (
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 )
 
 // modifyCmd represents the create command
@@ -99,16 +100,16 @@ var modifyCmd = &cobra.Command{
 			}
 			cluster.Pass = ""
 			switch cluster.Status {
-			case stateReady:
+			case structs.StateReady:
 				dotPrinter.Stop("done")
 				log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
 				return
-			case stateInit:
+			case structs.StateInit:
 				if noWait {
 					log.WithField("database", cluster).Info("information")
 					return
 				}
-			case stateError:
+			case structs.StateError:
 				dotPrinter.Stop("error")
 				log.Errorf("unable to modify cluster: %v", err)
 				return

@@ -26,6 +26,7 @@ import (
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 )
 
 const (
@@ -100,19 +101,19 @@ var createCmd = &cobra.Command{
 				continue
 			}
 			switch cluster.Status {
-			case stateReady:
+			case structs.StateReady:
 				dotPrinter.Stop("done")
 				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 				log.WithField("database", cluster).Info("Database started successfully, connection details are below:")
 				return
-			case stateInit:
+			case structs.StateInit:
 				if noWait {
 					dotPrinter.Stop("initializing")
 					cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
 					log.WithField("database", cluster).Info("information")
 					return
 				}
-			case stateError:
+			case structs.StateError:
 				dotPrinter.Stop("error")
 				log.Errorf("unable to start cluster: %v", err)
 				return
