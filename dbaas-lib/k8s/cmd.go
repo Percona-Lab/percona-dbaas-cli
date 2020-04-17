@@ -52,19 +52,6 @@ type ErrCmdRun struct {
 	output []byte
 }
 
-type Service struct {
-	Status ServiceStatus `json:"status"`
-}
-
-type ServiceStatus struct {
-	LoadBalancer struct {
-		Ingress []struct {
-			IP       string `json:"ip"`
-			Hostname string `json:"hostname"`
-		} `json:"ingress"`
-	} `json:"loadBalancer"`
-}
-
 func (e ErrCmdRun) Error() string {
 	return fmt.Sprintf("failed to run `%s %s`, output: %s", e.cmd, strings.Join(e.args, " "), e.output)
 }
