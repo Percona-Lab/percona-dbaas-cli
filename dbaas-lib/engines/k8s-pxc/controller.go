@@ -10,6 +10,7 @@ import (
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // CreateDBCluster start creating DB cluster
@@ -110,11 +111,33 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
-	db.ResourceEndpoint = st.Status.Host + "." + ns + ".pxc.svc.local"
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])
 	db.Status = string(st.Status.Status)
+	db.ResourceEndpoint = st.Status.Host + "." + ns + ".pxc.svc.local"
+	if p.conf.GetProxysqlServiceType() == "LoadBalancer" {
+		svc := corev1.Service{}
+		svcData, err := p.cmd.GetObject("svc", name+"-proxysql")
+		if err != nil {
+			return db, errors.Wrap(err, "get proxysql service")
+		}
+		err = json.Unmarshal(svcData, &svc)
+		if err != nil {
+			return db, errors.Wrap(err, "unmarshal proxysql service data")
+		}
+		for _, i := range svc.Status.LoadBalancer.Ingress {
+			db.ResourceEndpoint = i.IP
+			if len(i.Hostname) > 0 {
+				db.ResourceEndpoint = i.Hostname
+			}
+		}
+		if st.Status.Status == "ready" {
+			db.Message = "To access database please run the following command:\nmysql -h " + db.ResourceEndpoint + " -P 3306 -uroot -pPASSWORD"
+		}
+		return db, nil
+	}
+
 	if st.Status.Status == "ready" {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD"
 	}

@@ -94,13 +94,7 @@ func New(environment string) (*Cmd, error) {
 }
 
 func (p Cmd) runCmd(cmd string, args ...string) ([]byte, error) {
-	/*cli := exec.Command(cmd, args...)
-	cli.Env = os.Environ()
-	if len(p.environment) > 0 {
-		cli.Env = append(cli.Env, "KUBECONFIG="+p.environment)
-	}
-	var o []byte*/
-	o, err := p.runNTimes(3, cmd, args...) //cli.CombinedOutput()
+	o, err := p.runNTimes(3, cmd, args...)
 	if err != nil {
 
 		return nil, ErrCmdRun{cmd: cmd, args: args, output: o}

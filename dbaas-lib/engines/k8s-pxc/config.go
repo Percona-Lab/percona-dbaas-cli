@@ -26,4 +26,5 @@ type PXDBCluster interface {
 	SetUsersSecretName(name string)
 	GetOperatorImage() string
 	SetupMiniConfig() //For Minikube and Minishift
+	GetProxysqlServiceType() string
 }
