@@ -32,3 +32,11 @@ func GetK8SObject(typ, name string) ([]byte, error) {
 	}
 	return []byte(o), nil
 }
+
+func DeleteDeployment(name string) ([]byte, error) {
+	o, err := runCmd("kubectl", "delete", "deployment", name)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(o), nil
+}
