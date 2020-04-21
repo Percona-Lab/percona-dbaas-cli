@@ -11,7 +11,7 @@ type Engine interface {
 	GetDBCluster(name, opts string) (structs.DB, error)
 	GetDBClusterList() ([]structs.DB, error)
 	UpdateDBCluster(name, opts, version string) error
-	PreCheck(name, opts, version string) ([]string, []error)
+	PreCheck(name, opts, version string) ([]string, error)
 }
 
 var Providers = make(map[string]Provider)

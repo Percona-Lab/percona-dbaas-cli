@@ -136,18 +136,20 @@ func (p Cmd) readOperatorLogs(operatorName string) ([]byte, error) {
 	return p.runCmd(p.execCommand, "logs", "-l", "name="+operatorName)
 }
 
-func (p Cmd) GetObjectsElement(typ, name, jsonPath string) (data []byte, err error) {
-	switch i := len(p.Namespace); {
-	case i > 0:
-		data, err = p.runCmd(p.execCommand, "get", typ, name, "-n", p.Namespace, "-o=jsonpath={"+jsonPath+"}")
-	default:
-		data, err = p.runCmd(p.execCommand, "get", typ, name, "-o=jsonpath={"+jsonPath+"}")
+func (p Cmd) GetObjectsElement(typ, name, jsonPath string) ([]byte, error) {
+	args := []string{"get", typ, name, "-o=jsonpath={" + jsonPath + "}"}
+	if len(p.Namespace) > 0 {
+		args = append(args, []string{"-n", p.Namespace}...)
 	}
+	data, err := p.runCmd(p.execCommand, args...)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		err = ErrNotFound
 	}
+	if strings.Contains(string(data), "not found") {
+		err = ErrNotFound
+	}
 
-	return
+	return data, err
 }
 
 func (p Cmd) GetObject(typ, name string) ([]byte, error) {
@@ -157,24 +159,26 @@ func (p Cmd) GetObject(typ, name string) ([]byte, error) {
 	return p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
 }
 
-func (p Cmd) GetObjects(typ string) (data []byte, err error) {
-	switch i := len(p.Namespace); {
-	case i > 0:
-		data, err = p.runCmd(p.execCommand, "get", typ, "-n", p.Namespace)
-	default:
-		data, err = p.runCmd(p.execCommand, "get", typ)
+func (p Cmd) GetObjects(typ string) ([]byte, error) {
+	args := []string{"get", typ, "-o", "json"}
+	if len(p.Namespace) > 0 {
+		args = append(args, []string{"-n", p.Namespace}...)
 	}
-
+	data, err := p.runCmd(p.execCommand, args...)
 	if err != nil && strings.Contains(err.Error(), "not found") {
+		err = ErrNotFound
+	}
+	if err != nil && strings.Contains(string(data), "not found") {
 		err = ErrNotFound
 	} else if err != nil && strings.Contains(string(data), "doesn't have a resource") {
 		err = ErrNotFound
 	}
+
 	if strings.Contains(string(data), "No resources found") {
 		err = ErrNotFound
 	}
 
-	return
+	return data, err
 }
 
 func (p Cmd) DeleteObject(typ, name string) error {
@@ -193,7 +197,7 @@ func (p Cmd) apply(k8sObj string) error {
 	if len(p.Namespace) > 0 {
 		namespace = "-n=" + p.Namespace
 	}
-	fileName := "/tmp/percona-dbaascli-temp-cr.json"
+	fileName := os.TempDir() + "percona-dbaascli-temp-cr.json"
 	f, err := os.Create(fileName)
 	if err != nil {
 		return errors.Wrap(err, "create cr file")

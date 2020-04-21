@@ -133,13 +133,11 @@ func (p *PSMDB) setVersionObjectsWithDefaults(version string) error {
 	if p.conf != nil && p.bundle != nil {
 		return nil
 	}
-	switch i := len(version); {
-	case i == 0:
+	if len(version) == 0 {
 		version = defaultVersion
-	default:
-		if _, ok := objects[version]; !ok {
-			return errors.Errorf("unsupporeted version %s", version)
-		}
+	}
+	if _, ok := objects[version]; !ok {
+		return errors.Errorf("unsupporeted version %s", version)
 	}
 
 	p.conf = objects[version].psmdb

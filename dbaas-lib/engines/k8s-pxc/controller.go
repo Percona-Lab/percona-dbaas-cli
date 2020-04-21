@@ -277,11 +277,10 @@ func generatePass() ([]byte, error) {
 	return b, nil
 }
 
-func (p *PXC) PreCheck(name, opts, version string) (warnings []string, errArr []error) {
+func (p *PXC) PreCheck(name, opts, version string) ([]string, error) {
 	err := p.setVersionObjectsWithDefaults(version)
 	if err != nil {
-		errArr = append(errArr, errors.Wrap(err, "version check"))
-		return
+		return nil, errors.Wrap(err, "version check")
 	}
 	supportedVersions := make(map[string]string)
 	for v, obj := range objects {

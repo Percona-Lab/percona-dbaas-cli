@@ -83,11 +83,10 @@ func checkProviderAndEngine(instance Instance) error {
 	return nil
 }
 
-func PreCheck(instance Instance) (warnings []string, errArr []error) {
+func PreCheck(instance Instance) ([]string, error) {
 	err := checkProviderAndEngine(instance)
 	if err != nil {
-		errArr = append(errArr, err)
-		return
+		return nil, err
 	}
 
 	return pdl.Providers[instance.Provider].Engines[instance.Engine].PreCheck(instance.Name, instance.EngineOptions, instance.Version)

@@ -263,16 +263,15 @@ func generatePass() ([]byte, error) {
 	return b, nil
 }
 
-func (p *PSMDB) PreCheck(name, opts, version string) (warnings []string, errArr []error) {
+func (p *PSMDB) PreCheck(name, opts, version string) ([]string, error) {
 	err := p.setVersionObjectsWithDefaults(version)
 	if err != nil {
-		errArr = append(errArr, errors.Wrap(err, "version check"))
-		return
+		return nil, errors.Wrap(err, "version check")
 	}
 	supportedVersions := make(map[string]string)
 	for v, obj := range objects {
 		supportedVersions[v] = obj.psmdb.GetOperatorImage()
 	}
-	return p.cmd.PreCheck(name, version, p.operatorName(), p.conf.GetOperatorImage(), "psmdb", supportedVersions)
 
+	return p.cmd.PreCheck(name, version, p.operatorName(), p.conf.GetOperatorImage(), "psmdb", supportedVersions)
 }

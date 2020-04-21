@@ -90,16 +90,16 @@ var delCmd = &cobra.Command{
 			time.Sleep(time.Second * 3)
 			return
 		}
-		/*warns, errArr := dbaas.PreCheck(instance)
-		if len(errArr) > 0 {
-			for _, e := range errArr {
-				log.Println(e)
-			}
+
+		warns, err := dbaas.PreCheck(instance)
+		for _, w := range warns {
+			log.Println("Warning:", w)
+		}
+		if err != nil {
+			log.Error(err)
 			return
 		}
-		for _, w := range warns {
-			log.Println(w)
-		}*/
+
 		dotPrinter.Start("Deleting")
 		dataStorage, err := dbaas.DeleteDB(instance, deletePVC)
 		if err != nil {

@@ -90,15 +90,13 @@ var delCmd = &cobra.Command{
 			return
 		}
 
-		warns, errArr := dbaas.PreCheck(instance)
-		if len(errArr) > 0 {
-			for _, e := range errArr {
-				log.Println(e)
-			}
-			return
-		}
+		warns, err := dbaas.PreCheck(instance)
 		for _, w := range warns {
-			log.Println(w)
+			log.Println("Warning:", w)
+		}
+		if err != nil {
+			log.Error(err)
+			return
 		}
 
 		dotPrinter.Start("Deleting")
