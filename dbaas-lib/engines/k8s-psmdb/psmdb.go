@@ -19,7 +19,9 @@ const (
 	defaultVersion = "1.3.0"
 )
 
-var objects map[string]VersionObject
+type Version string
+
+var objects map[Version]VersionObject
 
 func init() {
 	// Register psmdb engine in dbaas
@@ -32,7 +34,7 @@ func init() {
 	pdl.RegisterEngine(provider, engine, psmdb)
 
 	// Register psmdb versions
-	objects = make(map[string]VersionObject)
+	objects = make(map[Version]VersionObject)
 	objects["1.1.0"] = VersionObject{
 		k8s: k8s.Objects{
 			Bundle: v110.Bundle,
@@ -129,7 +131,7 @@ func NewPSMDBController(envCrt, provider string) (*PSMDB, error) {
 	return &psmdb, nil
 }
 
-func (p *PSMDB) setVersionObjectsWithDefaults(version string) error {
+func (p *PSMDB) setVersionObjectsWithDefaults(version Version) error {
 	if p.conf != nil && p.bundle != nil {
 		return nil
 	}

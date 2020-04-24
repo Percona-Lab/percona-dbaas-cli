@@ -144,6 +144,8 @@ func (p Cmd) GetObjectsElement(typ, name, jsonPath string) ([]byte, error) {
 	data, err := p.runCmd(p.execCommand, args...)
 	if err != nil && strings.Contains(err.Error(), "not found") {
 		err = ErrNotFound
+	} else if err != nil && strings.Contains(err.Error(), "doesn't have a resource") {
+		err = ErrNotFound
 	}
 	if strings.Contains(string(data), "not found") {
 		err = ErrNotFound
@@ -170,7 +172,7 @@ func (p Cmd) GetObjects(typ string) ([]byte, error) {
 	}
 	if err != nil && strings.Contains(string(data), "not found") {
 		err = ErrNotFound
-	} else if err != nil && strings.Contains(string(data), "doesn't have a resource") {
+	} else if err != nil && strings.Contains(err.Error(), "doesn't have a resource") {
 		err = ErrNotFound
 	}
 
@@ -213,7 +215,6 @@ func (p Cmd) apply(k8sObj string) error {
 	} else {
 		_, err = p.runCmd(p.execCommand, "apply", "-f", fileName)
 	}
-	//_, err = p.runCmd("sh", "-c", "cat <<-EOF | "+p.execCommand+" apply "+namespace+"-f -\n"+k8sObj+"\nEOF")
 	if err != nil {
 		return err
 	}

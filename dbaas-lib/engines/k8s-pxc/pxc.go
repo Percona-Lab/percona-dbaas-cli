@@ -28,12 +28,14 @@ import (
 )
 
 const (
-	provider       = "k8s"
-	engine         = "pxc"
-	defaultVersion = "1.3.0"
+	provider               = "k8s"
+	engine                 = "pxc"
+	defaultVersion Version = "1.3.0"
 )
 
-var objects map[string]VersionObject
+type Version string
+
+var objects map[Version]VersionObject
 
 func init() {
 	// Register pxc engine in dbaas
@@ -45,7 +47,7 @@ func init() {
 	pdl.RegisterEngine(provider, engine, pxc)
 
 	// Register pxc versions
-	objects = make(map[string]VersionObject)
+	objects = make(map[Version]VersionObject)
 	objects["1.1.0"] = VersionObject{
 		k8s: k8s.Objects{
 			Bundle: v110.Bundle,
@@ -146,7 +148,7 @@ func NewPXCController(envCrt, provider string) (*PXC, error) {
 	return &pxc, nil
 }
 
-func (p *PXC) setVersionObjectsWithDefaults(version string) error {
+func (p *PXC) setVersionObjectsWithDefaults(version Version) error {
 	if p.conf != nil && p.bundle != nil {
 		return nil
 	}

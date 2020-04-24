@@ -14,7 +14,7 @@ import (
 
 // CreateDBCluster start creating DB cluster
 func (p *PSMDB) CreateDBCluster(name, opts, rootPass, version string) error {
-	err := p.setVersionObjectsWithDefaults(version)
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return errors.Wrap(err, "version check")
 	}
@@ -63,7 +63,7 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 	if !ext {
 		return "", errors.New("unable to find cluster psmdb/" + name)
 	}
-	err = p.setVersionObjectsWithDefaults(version)
+	err = p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return "", errors.Wrap(err, "version check")
 	}
@@ -160,7 +160,7 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 
 // UpdateDBCluster update DB
 func (p *PSMDB) UpdateDBCluster(name, opts, version string) error {
-	err := p.setVersionObjectsWithDefaults(version)
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return errors.Wrap(err, "version check")
 	}
@@ -264,13 +264,13 @@ func generatePass() ([]byte, error) {
 }
 
 func (p *PSMDB) PreCheck(name, opts, version string) ([]string, error) {
-	err := p.setVersionObjectsWithDefaults(version)
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return nil, errors.Wrap(err, "version check")
 	}
 	supportedVersions := make(map[string]string)
 	for v, obj := range objects {
-		supportedVersions[v] = obj.psmdb.GetOperatorImage()
+		supportedVersions[string(v)] = obj.psmdb.GetOperatorImage()
 	}
 
 	return p.cmd.PreCheck(name, version, p.operatorName(), p.conf.GetOperatorImage(), "psmdb", supportedVersions)

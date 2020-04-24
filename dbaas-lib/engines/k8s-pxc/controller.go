@@ -15,7 +15,7 @@ import (
 
 // CreateDBCluster start creating DB cluster
 func (p *PXC) CreateDBCluster(name, opts, rootPass, version string) error {
-	err := p.setVersionObjectsWithDefaults(version)
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return errors.Wrap(err, "version check")
 	}
@@ -69,7 +69,7 @@ func (p *PXC) DeleteDBCluster(name, opts, version string, delePVC bool) (string,
 		return "", errors.New("unable to find cluster pxc/" + name)
 	}
 
-	err = p.setVersionObjectsWithDefaults(version)
+	err = p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return "", errors.Wrap(err, "version check")
 	}
@@ -169,7 +169,7 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 
 // UpdateDBCluster update DB
 func (p *PXC) UpdateDBCluster(name, opts, version string) error {
-	err := p.setVersionObjectsWithDefaults(version)
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return errors.Wrap(err, "version check")
 	}
@@ -278,16 +278,16 @@ func generatePass() ([]byte, error) {
 }
 
 func (p *PXC) PreCheck(name, opts, version string) ([]string, error) {
-	err := p.setVersionObjectsWithDefaults(version)
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return nil, errors.Wrap(err, "version check")
 	}
 	supportedVersions := make(map[string]string)
 	for v, obj := range objects {
-		supportedVersions[v] = obj.pxc.GetOperatorImage()
+		supportedVersions[string(v)] = obj.pxc.GetOperatorImage()
 	}
 
-	return p.cmd.PreCheck(name, version, p.operatorName(), p.conf.GetOperatorImage(), "pxc", supportedVersions)
+	return p.cmd.PreCheck(name, string(version), p.operatorName(), p.conf.GetOperatorImage(), "pxc", supportedVersions)
 }
 
 func getOperatorImageVersion(image string) (string, error) {

@@ -247,7 +247,7 @@ func (psmdb *KuberPSMDB) DeleteDBWithoutOperator() error {
 	fmt.Println("Run delete-db " + psmdb.dbName + ". Without Operator")
 	_, err := DeleteDeployment("percona-server-mongodb-operator")
 	if err != nil {
-		return errors.Wrap(err, "run delete-db cmd")
+		return errors.Wrap(err, "delete operator deployment")
 	}
 
 	o, err := runCmd(psmdb.cmd, psmdb.subCmd, "delete-db", psmdb.dbName, "-y")
@@ -256,7 +256,7 @@ func (psmdb *KuberPSMDB) DeleteDBWithoutOperator() error {
 	}
 	fmt.Println(o)
 	if strings.Contains(o, "done") {
-		return errors.Errorf("db not deleted correctly. Output: %s", o)
+		return errors.Errorf("db deleted but should not. Output: %s", o)
 	}
 	return nil
 }

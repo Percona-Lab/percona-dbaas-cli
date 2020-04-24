@@ -40,7 +40,7 @@ func (p *Cmd) PreCheck(name, version, operatorName, operatorImage, objectName st
 	}
 
 	if len(deploymentImage) == 0 {
-		return warnings, err
+		return warnings, nil
 	}
 
 	if string(deploymentImage) == operatorImage {
