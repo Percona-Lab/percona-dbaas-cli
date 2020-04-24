@@ -1,5 +1,7 @@
 package psmdb
 
+import "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
+
 type PSMDBCluster interface {
 	Upgrade(imgs map[string]string)
 	GetName() string
@@ -11,6 +13,6 @@ type PSMDBCluster interface {
 	GetOperatorImage() string
 	SetDefaults() error
 	SetupMiniConfig()
-	GetStatus() string
+	GetStatus() dbaas.State
 	GetReplestsNames() []string
 }

@@ -1,4 +1,4 @@
-package structs
+package dbaas
 
 import "fmt"
 

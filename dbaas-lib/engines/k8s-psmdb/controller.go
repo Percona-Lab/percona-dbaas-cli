@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -113,8 +113,8 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 }
 
 // GetDBCluster return DB object
-func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
-	var db structs.DB
+func (p *PSMDB) GetDBCluster(name, opts string) (dbaas.DB, error) {
+	var db dbaas.DB
 	secrets, err := p.cmd.GetSecrets(name + "-psmdb-users-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
@@ -153,8 +153,8 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 	db.Port = 27017
 	db.User = string(secrets["MONGODB_CLUSTER_ADMIN_USER"])
 	db.Pass = string(secrets["MONGODB_CLUSTER_ADMIN_PASSWORD"])
-	db.Status = structs.State(st.GetStatus()) //string(st.Status.Status)
-	if st.GetStatus() == string(structs.StateReady) {
+	db.Status = st.GetStatus()
+	if st.GetStatus() == dbaas.StateReady {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-" + rsName + " 27017:27017 &\nmongo mongodb://" + db.User + ":PASSWORD@localhost:27017/admin?ssl=false"
 	}
 
@@ -162,8 +162,8 @@ func (p *PSMDB) GetDBCluster(name, opts string) (structs.DB, error) {
 }
 
 // GetDBClusterList return list of existing DB obkects
-func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
-	var dbList []structs.DB
+func (p *PSMDB) GetDBClusterList() ([]dbaas.DB, error) {
+	var dbList []dbaas.DB
 	cluster, err := p.cmd.GetObjects("psmdb")
 	if err != nil {
 		return dbList, errors.Wrap(err, "get cluster object")
@@ -186,9 +186,9 @@ func (p *PSMDB) GetDBClusterList() ([]structs.DB, error) {
 			return dbList, errors.Wrap(err, "unmarshal psmdb object")
 		}
 		psmdb := p.conf
-		db := structs.DB{
+		db := dbaas.DB{
 			ResourceName: psmdb.GetName(),
-			Status:       structs.State(psmdb.GetStatus()),
+			Status:       psmdb.GetStatus(),
 		}
 		dbList = append(dbList, db)
 	}

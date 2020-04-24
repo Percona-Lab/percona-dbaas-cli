@@ -24,7 +24,7 @@ import (
 	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v120"
 	v130 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v130"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 )
 
 const (
@@ -44,7 +44,7 @@ func init() {
 		fmt.Println("Cant start. Setup your kubectl")
 		os.Exit(1)
 	}
-	pdl.RegisterEngine(provider, engine, pxc)
+	dbaas.RegisterEngine(provider, engine, pxc)
 
 	// Register pxc versions
 	objects = make(map[Version]VersionObject)

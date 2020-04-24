@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
 	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v120"
 	v130 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v130"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
 	"github.com/pkg/errors"
 )
 
@@ -31,7 +31,7 @@ func init() {
 		os.Exit(1)
 	}
 
-	pdl.RegisterEngine(provider, engine, psmdb)
+	dbaas.RegisterEngine(provider, engine, psmdb)
 
 	// Register psmdb versions
 	objects = make(map[Version]VersionObject)

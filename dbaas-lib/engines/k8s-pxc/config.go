@@ -14,6 +14,8 @@
 
 package pxc
 
+import "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
+
 // PXDBCluster represent interface for ckuster types
 type PXDBCluster interface {
 	Upgrade(imgs map[string]string)
@@ -27,7 +29,7 @@ type PXDBCluster interface {
 	GetOperatorImage() string
 	SetupMiniConfig() //For Minikube and Minishift
 	GetProxysqlServiceType() string
-	GetStatus() string
+	GetStatus() dbaas.State
 	GetPXCStatus() string
 	GetStatusHost() string
 }

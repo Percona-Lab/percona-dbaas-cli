@@ -1,15 +1,11 @@
-package pdl
-
-import (
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
-)
+package dbaas
 
 type Engine interface {
 	ParseOptions(opts string) error
 	CreateDBCluster(name, opts, rootPass, version string) error
 	DeleteDBCluster(name, opts, version string, delePVC bool) (string, error)
-	GetDBCluster(name, opts string) (structs.DB, error)
-	GetDBClusterList() ([]structs.DB, error)
+	GetDBCluster(name, opts string) (DB, error)
+	GetDBClusterList() ([]DB, error)
 	UpdateDBCluster(name, opts, version string) error
 	PreCheck(name, opts, version string) ([]string, error)
 }

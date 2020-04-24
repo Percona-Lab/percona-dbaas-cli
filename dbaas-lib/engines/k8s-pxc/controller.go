@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -102,8 +102,8 @@ func (p *PXC) DeleteDBCluster(name, opts, version string, delePVC bool) (string,
 }
 
 // GetDBCluster return DB object
-func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
-	var db structs.DB
+func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
+	var db dbaas.DB
 	secrets, err := p.cmd.GetSecrets(name + "-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
@@ -115,7 +115,7 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 
 	}
 
-	st := p.conf //&k8sStatus{}
+	st := p.conf
 	err = json.Unmarshal(cluster, st)
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
@@ -160,12 +160,12 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 		}
 		return db, nil
 	}
-	db.Status = structs.State(st.GetStatus())
-	if st.GetStatus() == string(structs.StateReady) {
+	db.Status = st.GetStatus()
+	if st.GetStatus() == dbaas.StateReady {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD"
 	}
-	if st.GetStatus() == string(structs.StateUnknown) && st.GetPXCStatus() == string(structs.StateReady) {
-		db.Status = structs.StateReady
+	if st.GetStatus() == dbaas.StateUnknown && st.GetPXCStatus() == string(dbaas.StateReady) {
+		db.Status = dbaas.StateReady
 		db.Message = "To access database please run the following commands:\nkubectl port-forward pod/" + name + "-pxc-0 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD"
 	}
 
@@ -173,8 +173,8 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 }
 
 // GetDBClusterList return list of existing DB obkects
-func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
-	var dbList []structs.DB
+func (p *PXC) GetDBClusterList() ([]dbaas.DB, error) {
+	var dbList []dbaas.DB
 	cluster, err := p.cmd.GetObjects("pxc")
 	if err != nil {
 		return dbList, errors.Wrap(err, "get cluster object")
@@ -196,9 +196,9 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 			return dbList, errors.Wrap(err, "unmarshal psmdb object")
 		}
 		pxc := p.conf
-		db := structs.DB{
+		db := dbaas.DB{
 			ResourceName: pxc.GetName(),
-			Status:       structs.State(pxc.GetStatus()),
+			Status:       pxc.GetStatus(),
 		}
 		dbList = append(dbList, db)
 	}

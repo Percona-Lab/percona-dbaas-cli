@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	v120 "github.com/percona/percona-server-mongodb-operator/v120/pkg/apis/psmdb/v1"
 	"github.com/pkg/errors"
 )
@@ -85,9 +86,10 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	}
 }
 
-func (cr *PerconaServerMongoDB) GetStatus() string {
-	return string(cr.Status.Status)
+func (cr *PerconaServerMongoDB) GetStatus() dbaas.State {
+	return dbaas.State(cr.Status.Status)
 }
+
 func (cr *PerconaServerMongoDB) GetReplestsNames() []string {
 	var replsetsNames []string
 	for name := range cr.Status.Replsets {
