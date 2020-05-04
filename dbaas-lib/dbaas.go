@@ -22,7 +22,7 @@ func CreateDB(instance Instance) error {
 		return err
 	}
 
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass, instance.Version)
+	err = Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass, instance.Version)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func ModifyDB(instance Instance) error {
 		return err
 	}
 
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions, instance.Version)
+	err = Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions, instance.Version)
 	if err != nil {
 		return err
 	}
@@ -69,7 +69,7 @@ func DeleteDB(instance Instance, saveData bool) (string, error) {
 		return "", err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, instance.Version, saveData)
+	return Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, instance.Version, saveData)
 }
 
 func checkProviderAndEngine(instance Instance) error {
@@ -79,6 +79,7 @@ func checkProviderAndEngine(instance Instance) error {
 	if _, ok := Providers[instance.Provider].Engines[instance.Engine]; !ok {
 		return errors.New("wrong engine")
 	}
+
 	return nil
 }
 
@@ -88,5 +89,5 @@ func PreCheck(instance Instance) ([]string, error) {
 		return nil, err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].PreCheck(instance.Name, instance.EngineOptions, instance.Version)
+	return Providers[instance.Provider].Engines[instance.Engine].PreCheck(instance.Name, instance.EngineOptions, instance.Version)
 }

@@ -155,7 +155,7 @@ func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
 				db.ResourceEndpoint = i.Hostname
 			}
 		}
-		if st.GetStatus() == string(structs.StateReady) {
+		if st.GetStatus() == dbaas.StateReady {
 			db.Message = "To access database please run the following command:\nmysql -h " + db.ResourceEndpoint + " -P 3306 -uroot -pPASSWORD"
 		}
 		return db, nil
