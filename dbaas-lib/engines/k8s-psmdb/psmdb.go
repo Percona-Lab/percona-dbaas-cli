@@ -3,7 +3,6 @@ package psmdb
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
 	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v120"
@@ -15,10 +14,12 @@ import (
 )
 
 const (
-	provider               = "k8s"
-	engine                 = "psmdb"
-	defaultVersion Version = "1.3.0"
+	provider       = "k8s"
+	engine         = "psmdb"
+	defaultVersion = "1.3.0"
 )
+
+type Version string
 
 var objects map[Version]VersionObject
 
@@ -59,9 +60,8 @@ type PSMDB struct {
 	cmd          *k8s.Cmd
 	conf         PSMDBCluster
 	platformType k8s.PlatformType
+	bundle       []k8s.BundleObject
 }
-
-type Version string
 
 type PSMDBMeta struct {
 	Name      string `json:"name"`
@@ -131,17 +131,25 @@ func NewPSMDBController(envCrt, provider string) (*PSMDB, error) {
 	return &psmdb, nil
 }
 
-func (p PSMDB) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.BundleObject {
-	if operatorVersion == "" {
-		operatorVersion = v[defaultVersion].psmdb.GetOperatorImage()
+func (p *PSMDB) setVersionObjectsWithDefaults(version Version) error {
+	if p.conf != nil && p.bundle != nil {
+		return nil
+	}
+	if len(version) == 0 {
+		version = defaultVersion
+	}
+	if _, ok := objects[version]; !ok {
+		return errors.Errorf("unsupporeted version %s", version)
 	}
 
-	for i, o := range v[defaultVersion].k8s.Bundle {
-		if o.Kind == "Deployment" && o.Name == p.operatorName() {
-			v[defaultVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
-		}
+	p.conf = objects[version].psmdb
+	err := p.conf.SetDefaults()
+	if err != nil {
+		errors.Wrap(err, "set defaults")
 	}
-	return v[defaultVersion].k8s.Bundle
+	p.bundle = objects[version].k8s.Bundle
+
+	return nil
 }
 
 func (p PSMDB) getCR(cluster PSMDBCluster) (string, error) {

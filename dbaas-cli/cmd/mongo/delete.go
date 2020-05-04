@@ -75,7 +75,7 @@ var delCmd = &cobra.Command{
 		if err != nil {
 			log.Error("get no-wait flag: ", err)
 		}
-		i := dbaas.Instance{
+		instance := dbaas.Instance{
 			Name:     args[0],
 			Engine:   *delEngine,
 			Provider: *delProvider,
@@ -85,13 +85,23 @@ var delCmd = &cobra.Command{
 			deletePVC = true
 		}
 		if noWait {
-			go dbaas.DeleteDB(i, deletePVC)
+			go dbaas.DeleteDB(instance, deletePVC)
 			time.Sleep(time.Second * 3)
 			return
 		}
+
+		warns, err := dbaas.PreCheck(instance)
+		for _, w := range warns {
+			log.Println("Warning:", w)
+		}
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
 		dotPrinter.Start("Deleting")
 
-		dataStorage, err := dbaas.DeleteDB(i, deletePVC)
+		dataStorage, err := dbaas.DeleteDB(instance, deletePVC)
 		if err != nil {
 			dotPrinter.Stop("error")
 			log.Error("delete db: ", err)

@@ -17,7 +17,6 @@ package pxc
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -33,6 +32,8 @@ const (
 	engine                 = "pxc"
 	defaultVersion Version = "1.3.0"
 )
+
+type Version string
 
 var objects map[Version]VersionObject
 
@@ -72,9 +73,8 @@ type PXC struct {
 	cmd          *k8s.Cmd
 	conf         PXDBCluster
 	platformType k8s.PlatformType
+	bundle       []k8s.BundleObject
 }
-
-type Version string
 
 type PXCMeta struct {
 	Name      string `json:"name"`
@@ -148,17 +148,27 @@ func NewPXCController(envCrt, provider string) (*PXC, error) {
 	return &pxc, nil
 }
 
-func (p PXC) bundle(v map[Version]VersionObject, operatorVersion string) []k8s.BundleObject {
-	if operatorVersion == "" {
-		operatorVersion = v[defaultVersion].pxc.GetOperatorImage()
+func (p *PXC) setVersionObjectsWithDefaults(version Version) error {
+	if p.conf != nil && p.bundle != nil {
+		return nil
 	}
-
-	for i, o := range v[defaultVersion].k8s.Bundle {
-		if o.Kind == "Deployment" && o.Name == p.operatorName() {
-			v[defaultVersion].k8s.Bundle[i].Data = strings.Replace(o.Data, "{{image}}", operatorVersion, -1)
+	switch i := len(version); {
+	case i == 0:
+		version = defaultVersion
+	default:
+		if _, ok := objects[version]; !ok {
+			return errors.Errorf("unsupporeted version %s", version)
 		}
 	}
-	return v[defaultVersion].k8s.Bundle
+
+	p.conf = objects[version].pxc
+	err := p.conf.SetDefaults()
+	if err != nil {
+		errors.Wrap(err, "set defaults")
+	}
+	p.bundle = objects[version].k8s.Bundle
+
+	return nil
 }
 
 func (p PXC) getCR(cluster PXDBCluster) (string, error) {

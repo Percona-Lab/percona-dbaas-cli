@@ -25,7 +25,6 @@ func (p Cmd) Upgrade(typ string, clusterName, cr string) error {
 	if err != nil {
 		if strings.Contains(err.Error(), "error: the server doesn't have a resource type") ||
 			strings.Contains(err.Error(), "Error from server (Forbidden):") {
-			//return errors.Errorf(osRightsMsg, p.execCommand, p.osUser(), p.execCommand, p.osUser())
 			return err
 		}
 		return errors.Wrap(err, "check if cluster exists")

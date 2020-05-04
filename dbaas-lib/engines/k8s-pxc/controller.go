@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math/big"
 	mrand "math/rand"
+	"strings"
 	"time"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
@@ -14,10 +15,14 @@ import (
 )
 
 // CreateDBCluster start creating DB cluster
-func (p *PXC) CreateDBCluster(name, opts, rootPass string) error {
-	err := p.ParseOptions(opts)
+func (p *PXC) CreateDBCluster(name, opts, rootPass, version string) error {
+	err := p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "version check")
+	}
+	err = p.ParseOptions(opts)
+	if err != nil {
+		return errors.Wrap(err, "parsing options")
 	}
 
 	p.conf.SetName(name)
@@ -38,8 +43,15 @@ func (p *PXC) CreateDBCluster(name, opts, rootPass string) error {
 	if err != nil {
 		return errors.Wrap(err, "get cr")
 	}
+	_, err = p.cmd.GetObjectsElement("deployment", p.operatorName(), ".spec.template.spec.containers[0].image")
+	if err != nil && err == k8s.ErrNotFound {
+		err = p.cmd.ApplyBundles(p.bundle)
+		if err != nil {
+			return errors.Wrap(err, "apply bundles")
+		}
+	}
 
-	err = p.cmd.CreateCluster("pxc", p.conf.GetOperatorImage(), name, cr, p.bundle(objects, p.conf.GetOperatorImage()))
+	err = p.cmd.CreateCluster("pxc", p.conf.GetOperatorImage(), name, cr, p.bundle)
 	if err != nil {
 		return errors.Wrap(err, "create cluster")
 	}
@@ -48,7 +60,7 @@ func (p *PXC) CreateDBCluster(name, opts, rootPass string) error {
 }
 
 // DeleteDBCluster delete cluster by name
-func (p *PXC) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
+func (p *PXC) DeleteDBCluster(name, opts, version string, delePVC bool) (string, error) {
 	ext, err := p.cmd.IsObjExists("pxc", name)
 	if err != nil {
 		return "", errors.Wrap(err, "check if cluster exists")
@@ -57,6 +69,13 @@ func (p *PXC) DeleteDBCluster(name, opts string, delePVC bool) (string, error) {
 	if !ext {
 		return "", errors.New("unable to find cluster pxc/" + name)
 	}
+
+	err = p.setVersionObjectsWithDefaults(Version(version))
+	if err != nil {
+		return "", errors.Wrap(err, "version check")
+	}
+
+	p.conf.SetName(name)
 
 	err = p.cmd.DeleteCluster("pxc", p.operatorName(), name, delePVC)
 	if err != nil {
@@ -172,20 +191,28 @@ func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
 }
 
 // UpdateDBCluster update DB
-func (p *PXC) UpdateDBCluster(name, opts string) error {
-	c := objects[defaultVersion].pxc
+func (p *PXC) UpdateDBCluster(name, opts, version string) error {
+	err := p.setVersionObjectsWithDefaults(Version(version))
+	if err != nil {
+		return errors.Wrap(err, "version check")
+	}
+
 	oldCR, err := p.cmd.GetObject("pxc", name)
 	if err != nil {
 		return errors.Wrap(err, "get cluster cr")
 	}
-	err = json.Unmarshal(oldCR, &c)
+	err = json.Unmarshal(oldCR, &p.conf)
 	if err != nil {
 		return errors.Wrap(err, "unmarshal cr")
 	}
-	p.conf = c
-	p.ParseOptions(opts)
+
+	err = p.ParseOptions(opts)
+	if err != nil {
+		return errors.Wrap(err, "parse options")
+	}
 	p.conf.SetName(name)
 	p.conf.SetUsersSecretName(name)
+
 	cr, err := p.getCR(p.conf)
 	if err != nil {
 		return errors.Wrap(err, "get cr")
@@ -271,4 +298,26 @@ func generatePass() ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func (p *PXC) PreCheck(name, opts, version string) ([]string, error) {
+	err := p.setVersionObjectsWithDefaults(Version(version))
+	if err != nil {
+		return nil, errors.Wrap(err, "version check")
+	}
+	supportedVersions := make(map[string]string)
+	for v, obj := range objects {
+		supportedVersions[string(v)] = obj.pxc.GetOperatorImage()
+	}
+
+	return p.cmd.PreCheck(name, string(version), p.operatorName(), p.conf.GetOperatorImage(), "pxc", supportedVersions)
+}
+
+func getOperatorImageVersion(image string) (string, error) {
+	imageArr := strings.Split(image, ":")
+	if len(imageArr) < 2 {
+		return "", errors.New("no image version tag")
+	}
+
+	return imageArr[1], nil
 }

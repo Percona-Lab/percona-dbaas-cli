@@ -69,7 +69,14 @@ func (pxc *KuberPXC) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "delete-db")
 	}
-
+	err = pxc.CreateDBWithPass(rootPass)
+	if err != nil {
+		return errors.Wrap(err, "create-db")
+	}
+	err = pxc.DeleteDBWithoutOperator()
+	if err != nil {
+		return errors.Wrap(err, "delete-db without operator")
+	}
 	return nil
 }
 
@@ -79,6 +86,7 @@ func (pxc *KuberPXC) CreateDBWithPass(rootPass string) error {
 	if err != nil {
 		return errors.Wrap(err, "create")
 	}
+	fmt.Println(o)
 	if !strings.Contains(o, rootPass) && !strings.Contains(o, "ready") {
 		return errors.New("database starting error")
 	}
@@ -239,6 +247,24 @@ func (pxc *KuberPXC) DeleteDB(preserve bool) error {
 	fmt.Println(o)
 	if !strings.Contains(o, "done") {
 		return errors.Errorf("db not deleted correctly. Output: %s", o)
+	}
+	return nil
+}
+
+func (pxc *KuberPXC) DeleteDBWithoutOperator() error {
+	fmt.Println("Run delete-db " + pxc.dbName + ". Without Operator")
+	del, err := DeleteDeployment("percona-xtradb-cluster-operator")
+	if err != nil {
+		return errors.Wrap(err, "run delete deployment cmd")
+	}
+	fmt.Println(string(del))
+	o, err := runCmd(pxc.cmd, pxc.subCmd, "delete-db", pxc.dbName, "-y")
+	if err != nil {
+		return errors.Wrap(err, "run delete-db cmd")
+	}
+	fmt.Println(o)
+	if strings.Contains(o, "done") {
+		return errors.Errorf("db deleted but should not. Output: %s", o)
 	}
 	return nil
 }

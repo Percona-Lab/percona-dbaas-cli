@@ -334,7 +334,7 @@ spec:
     spec:
       containers:
         - name: percona-xtradb-cluster-operator
-          image: {{image}}
+          image: percona/percona-xtradb-cluster-operator:1.3.0
           ports:
           - containerPort: 60000
             name: metrics

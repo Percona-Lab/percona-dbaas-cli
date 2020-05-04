@@ -68,6 +68,16 @@ var modifyCmd = &cobra.Command{
 			Engine:        *modifyEngine,
 			Provider:      *modifyProvider,
 		}
+
+		warns, err := dbaas.PreCheck(instance)
+		for _, w := range warns {
+			log.Println("Warning:", w)
+		}
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
 		dotPrinter.Start("Modifying")
 		err = dbaas.ModifyDB(instance)
 		if err != nil {
