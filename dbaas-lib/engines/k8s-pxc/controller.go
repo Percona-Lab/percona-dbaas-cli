@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -86,12 +86,12 @@ func (p *PXC) DeleteDBCluster(name, opts, version string, delePVC bool) (string,
 		if err != nil {
 			return "", errors.Wrap(err, "get pvc")
 		}
-		pvc := &k8sPVC{}
+		pvc := &corev1.PersistentVolumeClaim{}
 		err = json.Unmarshal(pvcObj, pvc)
 		if err != nil {
 			return "", errors.Wrap(err, "unmarshal pvc")
 		}
-		return "pvc/" + pvc.Meta.Name, nil
+		return "pvc/" + pvc.Name, nil
 	}
 	err = p.cmd.DeleteObject("secret", name+"-secrets")
 	if err != nil {
@@ -102,8 +102,8 @@ func (p *PXC) DeleteDBCluster(name, opts, version string, delePVC bool) (string,
 }
 
 // GetDBCluster return DB object
-func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
-	var db structs.DB
+func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
+	var db dbaas.DB
 	secrets, err := p.cmd.GetSecrets(name + "-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
@@ -115,10 +115,15 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 
 	}
 
-	st := &k8sStatus{}
+	st := p.conf
 	err = json.Unmarshal(cluster, st)
 	if err != nil {
 		return db, errors.Wrap(err, "unmarshal object")
+	}
+	err = p.checkClusterPods(name)
+	if err != nil {
+		db.Status = "error"
+		return db, err
 	}
 	ns, err := p.cmd.GetCurrentNamespace()
 	if err != nil {
@@ -133,8 +138,7 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])
-	db.Status = string(st.Status.Status)
-	db.ResourceEndpoint = st.Status.Host + "." + ns + ".pxc.svc.local"
+	db.ResourceEndpoint = st.GetStatusHost() + "." + ns + ".pxc.svc.local"
 	if p.conf.GetProxysqlServiceType() == "LoadBalancer" {
 		svc := corev1.Service{}
 		svcData, err := p.cmd.GetObject("svc", name+"-proxysql")
@@ -151,42 +155,54 @@ func (p *PXC) GetDBCluster(name, opts string) (structs.DB, error) {
 				db.ResourceEndpoint = i.Hostname
 			}
 		}
-		if st.Status.Status == "ready" {
+		if st.GetStatus() == dbaas.StateReady {
 			db.Message = "To access database please run the following command:\nmysql -h " + db.ResourceEndpoint + " -P 3306 -uroot -pPASSWORD"
 		}
 		return db, nil
 	}
-
-	if st.Status.Status == "ready" {
+	db.Status = st.GetStatus()
+	if st.GetStatus() == dbaas.StateReady {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD"
 	}
-	if st.Status.Status == "unknown" && st.Status.PXC.Status == "ready" {
-		db.Status = "ready"
+	if st.GetStatus() == dbaas.StateUnknown && st.GetPXCStatus() == string(dbaas.StateReady) {
+		db.Status = dbaas.StateReady
 		db.Message = "To access database please run the following commands:\nkubectl port-forward pod/" + name + "-pxc-0 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD"
 	}
+
 	return db, nil
 }
 
 // GetDBClusterList return list of existing DB obkects
-func (p *PXC) GetDBClusterList() ([]structs.DB, error) {
-	var dbList []structs.DB
+func (p *PXC) GetDBClusterList() ([]dbaas.DB, error) {
+	var dbList []dbaas.DB
 	cluster, err := p.cmd.GetObjects("pxc")
 	if err != nil {
 		return dbList, errors.Wrap(err, "get cluster object")
 
 	}
-	st := &k8sCluster{}
-	err = json.Unmarshal(cluster, st)
+	st := k8s.Clusters{}
+	err = json.Unmarshal(cluster, &st)
 	if err != nil {
 		return dbList, errors.Wrap(err, "unmarshal object")
 	}
 	for _, c := range st.Items {
-		db := structs.DB{
-			ResourceName: c.Meta.Name,
-			Status:       string(c.Status.Status),
+		b, err := json.Marshal(c)
+		if err != nil {
+			return dbList, errors.Wrap(err, "marshal")
+		}
+		p.ParseOptions("")
+		err = json.Unmarshal(b, &p.conf)
+		if err != nil {
+			return dbList, errors.Wrap(err, "unmarshal psmdb object")
+		}
+		pxc := p.conf
+		db := dbaas.DB{
+			ResourceName: pxc.GetName(),
+			Status:       pxc.GetStatus(),
 		}
 		dbList = append(dbList, db)
 	}
+
 	return dbList, nil
 }
 
@@ -320,4 +336,47 @@ func getOperatorImageVersion(image string) (string, error) {
 	}
 
 	return imageArr[1], nil
+}
+
+func (p *PXC) checkClusterPods(name string) error {
+	podsData, err := p.cmd.GetObjectByLables("pods", "app.kubernetes.io/instance="+name+",app.kubernetes.io/component=pxc")
+	if err != nil {
+		return errors.Wrap(err, "get pods")
+	}
+	err = checkPodsCondition(podsData)
+	if err != nil {
+		return err
+	}
+
+	podsData, err = p.cmd.GetObjectByLables("pods", "app.kubernetes.io/instance=cluster1,app.kubernetes.io/component=proxysql")
+	if err != nil {
+		return errors.Wrap(err, "get pods")
+	}
+
+	err = checkPodsCondition(podsData)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkPodsCondition(podsData []byte) error {
+	var pods k8s.Pods
+	err := json.Unmarshal(podsData, &pods)
+	if err != nil {
+		return errors.Wrap(err, "unmarshal pods data")
+	}
+	for _, pod := range pods.Items {
+		if pod.Status.Phase != "Pending" {
+			return nil
+		}
+		for _, condition := range pod.Status.Conditions {
+			if condition.Status == "False" && strings.Contains(condition.Message, "Insufficient memory") {
+				return k8s.ErrOutOfMemory
+			}
+		}
+	}
+
+	return nil
 }

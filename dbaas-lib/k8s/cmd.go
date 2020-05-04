@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func init() {
@@ -32,7 +33,8 @@ func init() {
 }
 
 var (
-	ErrNotFound = errors.New("not found")
+	ErrOutOfMemory = errors.New("out of memory")
+	ErrNotFound    = errors.New("not found")
 )
 
 type PlatformType string
@@ -54,6 +56,14 @@ type ErrCmdRun struct {
 	cmd    string
 	args   []string
 	output []byte
+}
+
+type Clusters struct {
+	Items []interface{} `json:"items"`
+}
+
+type Pods struct {
+	Items []corev1.Pod `json:"items"`
 }
 
 func (e ErrCmdRun) Error() string {
@@ -148,11 +158,17 @@ func (p Cmd) GetObjectsElement(typ, name, jsonPath string) ([]byte, error) {
 	return data, err
 }
 
-func (p Cmd) GetObject(typ, name string) ([]byte, error) {
+func (p Cmd) GetObject(typ, name string) (objData []byte, err error) {
 	if len(p.Namespace) > 0 {
-		return p.runCmd(p.execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
+		objData, err = p.runCmd(p.execCommand, "get", typ+"/"+name, "-n", p.Namespace, "-o", "json")
+	} else {
+		objData, err = p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
 	}
-	return p.runCmd(p.execCommand, "get", typ+"/"+name, "-o", "json")
+	if err != nil && strings.Contains(err.Error(), "Not found") {
+		err = ErrNotFound
+	}
+
+	return
 }
 
 func (p Cmd) GetObjects(typ string) ([]byte, error) {
@@ -333,4 +349,8 @@ func GetStringFromMap(input map[string]string) string {
 		return strings.TrimSuffix(b.String(), ", ")
 	}
 	return "none"
+}
+
+func (p Cmd) GetObjectByLables(typ, lables string) ([]byte, error) {
+	return p.runCmd(p.execCommand, "get", typ, "-l", lables, "-o", "json")
 }

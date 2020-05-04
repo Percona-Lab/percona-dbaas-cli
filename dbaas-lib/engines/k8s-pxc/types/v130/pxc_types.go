@@ -3,6 +3,7 @@ package v130
 import (
 	"encoding/json"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -86,6 +87,18 @@ func (cr *PerconaXtraDBCluster) GetProxysqlServiceType() string {
 	}
 
 	return ""
+}
+
+func (cr *PerconaXtraDBCluster) GetStatus() dbaas.State {
+	return dbaas.State(cr.Status.Status)
+}
+
+func (cr *PerconaXtraDBCluster) GetPXCStatus() string {
+	return string(cr.Status.PXC.Status)
+}
+
+func (cr *PerconaXtraDBCluster) GetStatusHost() string {
+	return cr.Status.Host
 }
 
 func (cr *PerconaXtraDBCluster) SetDefaults() error {

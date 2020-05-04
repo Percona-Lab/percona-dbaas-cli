@@ -2,9 +2,6 @@ package dbaas
 
 import (
 	"github.com/pkg/errors"
-
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/pdl"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/structs"
 )
 
 type Instance struct {
@@ -24,7 +21,8 @@ func CreateDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass, instance.Version)
+
+	err = Providers[instance.Provider].Engines[instance.Engine].CreateDBCluster(instance.Name, instance.EngineOptions, instance.RootPass, instance.Version)
 	if err != nil {
 		return err
 	}
@@ -38,7 +36,8 @@ func ModifyDB(instance Instance) error {
 	if err != nil {
 		return err
 	}
-	err = pdl.Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions, instance.Version)
+
+	err = Providers[instance.Provider].Engines[instance.Engine].UpdateDBCluster(instance.Name, instance.EngineOptions, instance.Version)
 	if err != nil {
 		return err
 	}
@@ -46,22 +45,22 @@ func ModifyDB(instance Instance) error {
 	return nil
 }
 
-func DescribeDB(instance Instance) (structs.DB, error) {
+func DescribeDB(instance Instance) (DB, error) {
 	err := checkProviderAndEngine(instance)
 	if err != nil {
-		return structs.DB{}, err
+		return DB{}, err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name, instance.EngineOptions)
+	return Providers[instance.Provider].Engines[instance.Engine].GetDBCluster(instance.Name, instance.EngineOptions)
 }
 
-func ListDB(instance Instance) ([]structs.DB, error) {
+func ListDB(instance Instance) ([]DB, error) {
 	err := checkProviderAndEngine(instance)
 	if err != nil {
 		return nil, err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].GetDBClusterList()
+	return Providers[instance.Provider].Engines[instance.Engine].GetDBClusterList()
 }
 
 func DeleteDB(instance Instance, saveData bool) (string, error) {
@@ -70,16 +69,17 @@ func DeleteDB(instance Instance, saveData bool) (string, error) {
 		return "", err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, instance.Version, saveData)
+	return Providers[instance.Provider].Engines[instance.Engine].DeleteDBCluster(instance.Name, instance.EngineOptions, instance.Version, saveData)
 }
 
 func checkProviderAndEngine(instance Instance) error {
-	if _, providerOk := pdl.Providers[instance.Provider]; !providerOk {
+	if _, providerOk := Providers[instance.Provider]; !providerOk {
 		return errors.New("wrong provider")
 	}
-	if _, ok := pdl.Providers[instance.Provider].Engines[instance.Engine]; !ok {
+	if _, ok := Providers[instance.Provider].Engines[instance.Engine]; !ok {
 		return errors.New("wrong engine")
 	}
+
 	return nil
 }
 
@@ -89,5 +89,5 @@ func PreCheck(instance Instance) ([]string, error) {
 		return nil, err
 	}
 
-	return pdl.Providers[instance.Provider].Engines[instance.Engine].PreCheck(instance.Name, instance.EngineOptions, instance.Version)
+	return Providers[instance.Provider].Engines[instance.Engine].PreCheck(instance.Name, instance.EngineOptions, instance.Version)
 }

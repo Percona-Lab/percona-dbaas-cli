@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	v130 "github.com/percona/percona-server-mongodb-operator/v130/pkg/apis/psmdb/v1"
 	"github.com/pkg/errors"
 )
@@ -83,6 +84,17 @@ func (cr *PerconaServerMongoDB) Upgrade(imgs map[string]string) {
 	if img, ok := imgs["backup"]; ok {
 		cr.Spec.Backup.Image = img
 	}
+}
+
+func (cr *PerconaServerMongoDB) GetStatus() dbaas.State {
+	return dbaas.State(cr.Status.Status)
+}
+func (cr *PerconaServerMongoDB) GetReplestsNames() []string {
+	var replsetsNames []string
+	for name := range cr.Status.Replsets {
+		replsetsNames = append(replsetsNames, name)
+	}
+	return replsetsNames
 }
 
 func (cr *PerconaServerMongoDB) SetDefaults() error {
