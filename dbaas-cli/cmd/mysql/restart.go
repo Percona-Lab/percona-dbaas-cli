@@ -29,7 +29,7 @@ import (
 // restartCmd represents the restart command
 var restartCmd = &cobra.Command{
 	Use:   "restart-db <mysql-cluster-name>",
-	Short: "Resttart MySQL cluster ",
+	Short: "Restart MySQL cluster ",
 	Long:  "Restart MySQL cluster that have been created before.",
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
