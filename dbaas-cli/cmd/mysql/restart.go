@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
@@ -39,30 +39,22 @@ var restartCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		output, err := cmd.Flags().GetString("output")
+		err := setupOutput(cmd)
 		if err != nil {
-			log.Error("get output flag: ", err)
+			log.Error(err)
+			return
 		}
+		instance := tools.GetInstance(args[0], addSpec("pause=true"), *restartEngine, *restartProvider, "")
 
-		var dotPrinter pb.ProgressBar
-		switch output {
-		case "json":
-			dotPrinter = pb.NewNoOp()
-		default:
-			dotPrinter = pb.NewDotPrinter()
+		warns, err := dbaas.PreCheck(instance)
+		for _, w := range warns {
+			log.Println("Warning:", w)
 		}
-
-		noWait, err := cmd.Flags().GetBool("no-wait")
 		if err != nil {
-			log.Error("get no-wait flag: ", err)
+			log.Error(err)
+			return
 		}
 
-		instance := dbaas.Instance{
-			Name:          args[0],
-			EngineOptions: addSpec("pause=true"),
-			Engine:        *restartEngine,
-			Provider:      *restartProvider,
-		}
 		dotPrinter.Start("Restarting")
 		err = dbaas.ModifyDB(instance)
 		if err != nil {
@@ -70,40 +62,20 @@ var restartCmd = &cobra.Command{
 			log.Error("modify db: ", err)
 			return
 		}
-		time.Sleep(time.Second * 6) //let k8s time for applying new cr
-		tries := 0
-		tckr := time.NewTicker(500 * time.Millisecond)
-		for range tckr.C {
-			stop := false
-			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil {
-				//dotPrinter.StopPrintDot("error")
-				//log.Error("check db: ", err)
-				continue
-			}
-			cluster.Pass = ""
-			switch cluster.Status {
-			case "ready":
-				tckr.Stop()
-				stop = true
-			case "initializing":
-				if noWait {
-					tckr.Stop()
-					log.WithField("database", cluster).Info("information")
-					return
-				}
-			}
-			if tries >= maxTries {
-				dotPrinter.Stop("error")
-				log.Error("unable to restart cluster. cluster status: ", cluster.Status)
-				tckr.Stop()
-				return
-			}
-			tries++
-			if stop {
-				break
-			}
+		time.Sleep(time.Second * 10) //let k8s time for applying new cr
+
+		cluster, err := tools.GetDB(instance, true, noWait, maxTries)
+		if err != nil {
+			dotPrinter.Stop("error")
+			log.Errorf("unable to start cluster:", err)
+			return
 		}
+		if cluster.Status == dbaas.StateInit {
+			dotPrinter.Stop("initializing")
+			log.WithField("database", cluster).Info("information")
+			return
+		}
+
 		instance.EngineOptions = addSpec("pause=false")
 		err = dbaas.ModifyDB(instance)
 		if err != nil {
@@ -111,37 +83,23 @@ var restartCmd = &cobra.Command{
 			log.Error("modify db: ", err)
 			return
 		}
-		tries = 0
-		time.Sleep(time.Second * 6) //let k8s time for applying new cr
-		tckr = time.NewTicker(500 * time.Millisecond)
-		defer tckr.Stop()
-		for range tckr.C {
-			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil {
-				//dotPrinter.StopPrintDot("error")
-				//log.Error("check db: ", err)
-				continue
-			}
-			cluster.Pass = ""
-			switch cluster.Status {
-			case "ready":
-				dotPrinter.Stop("done")
-				log.WithField("database", cluster).Info("Database restarted successfully, connection details are below:")
-				return
-			case "initializing":
-				if noWait {
-					log.WithField("database", cluster).Info("information")
-					return
-				}
-			}
-			if tries >= maxTries {
-				dotPrinter.Stop("error")
-				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
+		time.Sleep(time.Second * 10) //let k8s time for applying new cr
 
-				return
-			}
-			tries++
+		cluster, err = tools.GetDB(instance, true, noWait, maxTries)
+		if err != nil {
+			dotPrinter.Stop("error")
+			log.Errorf("unable to start cluster:", err)
+			return
 		}
+
+		if cluster.Status == dbaas.StateInit {
+			dotPrinter.Stop("initializing")
+			log.WithField("database", cluster).Info("information")
+			return
+		}
+
+		dotPrinter.Stop("done")
+		log.WithField("database", cluster).Info("Database restarted successfully, connection details are below:")
 	},
 }
 

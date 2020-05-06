@@ -21,10 +21,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
-	k8s "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 )
 
 // modifyCmd represents the create command
@@ -40,36 +39,13 @@ var modifyCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		output, err := cmd.Flags().GetString("output")
+		err := setupOutput(cmd)
 		if err != nil {
-			log.Error("get output flag: ", err)
-		}
-
-		var dotPrinter pb.ProgressBar
-		switch output {
-		case "json":
-			dotPrinter = pb.NewNoOp()
-		default:
-			dotPrinter = pb.NewDotPrinter()
-		}
-
-		noWait, err := cmd.Flags().GetBool("no-wait")
-		if err != nil {
-			log.Error("get no-wait flag: ", err)
-		}
-
-		if len(*modifyOptions) == 0 {
-			log.Error("options not passed")
+			log.Error(err)
 			return
 		}
-		*modifyOptions = addSpec(*modifyOptions)
+		instance := tools.GetInstance(args[0], addSpec(*modifyOptions), *modifyEngine, *modifyProvider, "")
 
-		instance := dbaas.Instance{
-			Name:          args[0],
-			EngineOptions: *modifyOptions,
-			Engine:        *modifyEngine,
-			Provider:      *modifyProvider,
-		}
 		warns, err := dbaas.PreCheck(instance)
 		for _, w := range warns {
 			log.Println("Warning:", w)
@@ -87,40 +63,22 @@ var modifyCmd = &cobra.Command{
 			return
 		}
 		time.Sleep(time.Second * 10) //let k8s time for applying new cr
-		tries := 0
-		tckr := time.NewTicker(500 * time.Millisecond)
-		defer tckr.Stop()
-		for range tckr.C {
-			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil && err != k8s.ErrOutOfMemory {
-				//dotPrinter.StopPrintDot("error")
-				//log.Error("check db: ", err)
-				continue
-			}
-			cluster.Pass = ""
-			switch cluster.Status {
-			case dbaas.StateReady:
-				dotPrinter.Stop("done")
-				log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
-				return
-			case dbaas.StateInit:
-				if noWait {
-					log.WithField("database", cluster).Info("information")
-					return
-				}
-			case dbaas.StateError:
-				dotPrinter.Stop("error")
-				log.Errorf("unable to modify cluster: %v", err)
-				return
-			}
-			if tries >= maxTries {
-				dotPrinter.Stop("error")
-				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
 
-				return
-			}
-			tries++
+		cluster, err := tools.GetDB(instance, true, noWait, maxTries)
+		if err != nil {
+			dotPrinter.Stop("error")
+			log.Errorf("unable to start cluster:", err)
+			return
 		}
+
+		if cluster.Status == dbaas.StateInit {
+			dotPrinter.Stop("initializing")
+			log.WithField("database", cluster).Info("information")
+			return
+		}
+
+		dotPrinter.Stop("done")
+		log.WithField("database", cluster).Info("Database modified successfully, connection details are below:")
 	},
 }
 

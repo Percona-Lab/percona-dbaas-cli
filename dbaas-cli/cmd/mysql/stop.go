@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
@@ -39,32 +39,22 @@ var stopCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		output, err := cmd.Flags().GetString("output")
+		err := setupOutput(cmd)
 		if err != nil {
-			log.Error("get output flag: ", err)
+			log.Error(err)
+			return
 		}
+		instance := tools.GetInstance(args[0], addSpec("pause=true"), *stopEngine, *stopProvider, "")
 
-		var dotPrinter pb.ProgressBar
-		switch output {
-		case "json":
-			dotPrinter = pb.NewNoOp()
-		default:
-			dotPrinter = pb.NewDotPrinter()
+		warns, err := dbaas.PreCheck(instance)
+		for _, w := range warns {
+			log.Println("Warning:", w)
 		}
-
-		noWait, err := cmd.Flags().GetBool("no-wait")
 		if err != nil {
-			log.Error("get no-wait flag: ", err)
+			log.Error(err)
+			return
 		}
 
-		stopOptions := addSpec("pause=true")
-
-		instance := dbaas.Instance{
-			Name:          args[0],
-			EngineOptions: stopOptions,
-			Engine:        *stopEngine,
-			Provider:      *stopProvider,
-		}
 		dotPrinter.Start("Stopping")
 		err = dbaas.ModifyDB(instance)
 		if err != nil {
@@ -72,37 +62,23 @@ var stopCmd = &cobra.Command{
 			log.Error("modify db: ", err)
 			return
 		}
-		time.Sleep(time.Second * 6) //let k8s time for applying new cr
-		tries := 0
-		tckr := time.NewTicker(500 * time.Millisecond)
-		defer tckr.Stop()
-		for range tckr.C {
-			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil {
-				//dotPrinter.StopPrintDot("error")
-				//log.Error("check db: ", err)
-				continue
-			}
-			cluster.Pass = ""
-			switch cluster.Status {
-			case "ready":
-				dotPrinter.Stop("done")
-				log.Info("Database modified successfully")
-				return
-			case "initializing":
-				if noWait {
-					log.WithField("database", cluster).Info("information")
-					return
-				}
-			}
-			if tries >= maxTries {
-				dotPrinter.Stop("error")
-				log.Error("unable to modify cluster. cluster status: ", cluster.Status)
+		time.Sleep(time.Second * 10) //let k8s time for applying new cr
 
-				return
-			}
-			tries++
+		cluster, err := tools.GetDB(instance, true, noWait, maxTries)
+		if err != nil {
+			dotPrinter.Stop("error")
+			log.Errorf("unable to start cluster:", err)
+			return
 		}
+
+		if cluster.Status == dbaas.StateInit {
+			dotPrinter.Stop("initializing")
+			log.WithField("database", cluster).Info("information")
+			return
+		}
+
+		dotPrinter.Stop("done")
+		log.Info("Database stopped successfully")
 	},
 }
 

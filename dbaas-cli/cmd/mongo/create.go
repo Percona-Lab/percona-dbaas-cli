@@ -15,22 +15,17 @@
 package mongo
 
 import (
-	"strings"
-	"time"
-
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 )
 
 const (
 	defaultVersion = "default"
-	maxTries       = 1200
 )
 
 // createCmd represents the create command
@@ -46,33 +41,13 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		noWait, err := cmd.Flags().GetBool("no-wait")
+		err := setupOutput(cmd)
 		if err != nil {
-			log.Error("get no-wait flag: ", err)
+			log.Error(err)
+			return
 		}
-		output, err := cmd.Flags().GetString("output")
-		if err != nil {
-			log.Error("get output flag: ", err)
-		}
+		instance := tools.GetInstance(args[0], addSpec(*options), *engine, *provider, *rootPass)
 
-		var dotPrinter pb.ProgressBar
-		switch output {
-		case "json":
-			dotPrinter = pb.NewNoOp()
-		default:
-			dotPrinter = pb.NewDotPrinter()
-		}
-
-		if len(*options) > 0 {
-			*options = addSpec(*options)
-		}
-		instance := dbaas.Instance{
-			Name:          args[0],
-			EngineOptions: *options,
-			Engine:        *engine,
-			Provider:      *provider,
-			RootPass:      *rootPass,
-		}
 		warns, err := dbaas.PreCheck(instance)
 		for _, w := range warns {
 			log.Println("Warning:", w)
@@ -89,41 +64,21 @@ var createCmd = &cobra.Command{
 			log.Error("create db: ", err)
 			return
 		}
-		tries := 0
-		tckr := time.NewTicker(500 * time.Millisecond)
-		defer tckr.Stop()
-		for range tckr.C {
-			cluster, err := dbaas.DescribeDB(instance)
-			if err != nil && err != k8s.ErrOutOfMemory {
-				//dotPrinter.StopPrintDot("error")
-				//log.Error("check db: ", err)
-				continue
-			}
-			switch cluster.Status {
-			case dbaas.StateReady:
-				dotPrinter.Stop("done")
-				cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
-				log.WithField("database", cluster).Info("Database started successfully, connection details are below:")
-				return
-			case dbaas.StateInit:
-				if noWait {
-					dotPrinter.Stop("initializing")
-					cluster.Message = strings.Replace(cluster.Message, "PASSWORD", cluster.Pass, 1)
-					log.WithField("database", cluster).Info("information")
-					return
-				}
-			case dbaas.StateError:
-				dotPrinter.Stop("error")
-				log.Errorf("unable to start cluster: %v", err)
-				return
-			}
-			if tries >= maxTries {
-				dotPrinter.Stop("error")
-				log.Error("unable to start cluster. cluster status: ", cluster.Status)
-				return
-			}
-			tries++
+		cluster, err := tools.GetDB(instance, false, noWait, maxTries)
+		if err != nil {
+			dotPrinter.Stop("error")
+			log.Errorf("unable to start cluster:", err)
+			return
 		}
+
+		if cluster.Status == dbaas.StateInit {
+			dotPrinter.Stop("initializing")
+			log.WithField("database", cluster).Info("information")
+			return
+		}
+
+		dotPrinter.Stop("done")
+		log.WithField("database", cluster).Info("Database started successfully, connection details are below:")
 	},
 }
 

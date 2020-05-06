@@ -17,7 +17,15 @@ package mongo
 import (
 	"strings"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+)
+
+var (
+	dotPrinter pb.ProgressBar
+	noWait     bool
+	maxTries   = 1200
 )
 
 // MongoCmd represents the mysql command
@@ -26,18 +34,31 @@ var MongoCmd = &cobra.Command{
 	Short: "Manage your MongoDB instance",
 }
 
-func parseArgs(args []string) []string {
-	if len(args) == 0 {
-		return args
+func addSpec(opts string) string {
+	if len(opts) == 0 {
+		return ""
 	}
-
-	if a := strings.Split(args[0], "/"); len(a) == 2 {
-		args = a
-	}
-
-	return args
+	return "spec." + strings.Replace(opts, ",", ",spec.", -1)
 }
 
-func addSpec(opts string) string {
-	return "spec." + strings.Replace(opts, ",", ",spec.", -1)
+func setupOutput(cmd *cobra.Command) error {
+	output, err := cmd.Flags().GetString("output")
+	if err != nil {
+		return errors.Wrap(err, "get output flag")
+	}
+
+	switch output {
+	case "json":
+		dotPrinter = pb.NewNoOp()
+	default:
+		dotPrinter = pb.NewDotPrinter()
+	}
+
+	noW, err := cmd.Flags().GetBool("no-wait")
+	if err != nil {
+		return errors.Wrap(err, "get no-wait flag")
+	}
+	noWait = noW
+
+	return nil
 }
