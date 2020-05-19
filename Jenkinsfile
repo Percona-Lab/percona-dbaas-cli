@@ -119,6 +119,42 @@ pipeline {
                 }
             }
         }
+        stage('GoLicenseDetector test') {
+            when {
+                expression {
+                    !skipBranchBulds
+                }
+            }
+            steps {
+               sh """
+                   license-detector ${WORKSPACE} | awk '{print \$2}' | awk 'NF > 0' > license-detector-new || true
+                   diff -u build/tests/license/compare/license-detector license-detector-new
+               """
+            }
+        }
+        stage('GoLicense test') {
+            when {
+                expression {
+                    !skipBranchBulds
+                }
+            }
+            steps {
+                sh '''
+                    sg docker -c "
+                         build/bin/build-source
+                         build/bin/build-binary
+                    "
+                '''
+
+                sh """
+                    CLI_VERSION=\$(cat VERSION | grep percona-dbaas-cli | awk '{print \$2}')
+                    golicense ${WORKSPACE}/tmp/binary/percona-dbaas-cli-\$CLI_VERSION/linux/percona-dbaas \
+                        | grep -v 'license not found'  \
+                        | awk '{print \$2}' | sort | uniq > golicense-new || true
+                    diff -u build/tests/license/compare/golicense golicense-new
+                """
+            }
+        }
         stage('Run tests') {
             steps {
                 CreateCluster('basic')
