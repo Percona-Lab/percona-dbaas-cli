@@ -209,7 +209,7 @@ func (p Cmd) apply(k8sObj string) error {
 	if len(p.Namespace) > 0 {
 		namespace = "-n=" + p.Namespace
 	}
-	fileName := os.TempDir() + "percona-dbaascli-temp-cr.json"
+	fileName := os.TempDir() + "/percona-dbaascli-temp-cr.json"
 	f, err := os.Create(fileName)
 	if err != nil {
 		return errors.Wrap(err, "create cr file")

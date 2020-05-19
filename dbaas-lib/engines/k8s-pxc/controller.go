@@ -104,6 +104,10 @@ func (p *PXC) DeleteDBCluster(name, opts, version string, delePVC bool) (string,
 // GetDBCluster return DB object
 func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
 	var db dbaas.DB
+	err := p.setVersionObjectsWithDefaults(Version(""))
+	if err != nil {
+		return db, errors.Wrap(err, "version check")
+	}
 	secrets, err := p.cmd.GetSecrets(name + "-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
@@ -185,15 +189,19 @@ func (p *PXC) GetDBClusterList() ([]dbaas.DB, error) {
 	if err != nil {
 		return dbList, errors.Wrap(err, "unmarshal object")
 	}
+	err = p.setVersionObjectsWithDefaults(Version(""))
+	if err != nil {
+		return dbList, errors.Wrap(err, "version check")
+	}
 	for _, c := range st.Items {
 		b, err := json.Marshal(c)
 		if err != nil {
 			return dbList, errors.Wrap(err, "marshal")
 		}
-		p.ParseOptions("")
+
 		err = json.Unmarshal(b, &p.conf)
 		if err != nil {
-			return dbList, errors.Wrap(err, "unmarshal psmdb object")
+			return dbList, errors.Wrap(err, "unmarshal pxc object")
 		}
 		pxc := p.conf
 		db := dbaas.DB{

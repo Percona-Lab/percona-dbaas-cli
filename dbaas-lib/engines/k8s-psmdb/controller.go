@@ -65,6 +65,11 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 	if !ext {
 		return "", errors.New("unable to find cluster psmdb/" + name)
 	}
+	cluster, err := p.cmd.GetObject("psmdb", name)
+	if err != nil {
+		return "", errors.Wrap(err, "get cluster object")
+
+	}
 	err = p.setVersionObjectsWithDefaults(Version(version))
 	if err != nil {
 		return "", errors.Wrap(err, "version check")
@@ -77,11 +82,6 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 		return "", errors.Wrap(err, "delete cluster")
 	}
 	if !delePVC {
-		cluster, err := p.cmd.GetObject("psmdb", name)
-		if err != nil {
-			return "", errors.Wrap(err, "get cluster object")
-
-		}
 		st := p.conf
 		err = json.Unmarshal(cluster, st)
 		if err != nil {
@@ -115,6 +115,10 @@ func (p *PSMDB) DeleteDBCluster(name, opts, version string, delePVC bool) (strin
 // GetDBCluster return DB object
 func (p *PSMDB) GetDBCluster(name, opts string) (dbaas.DB, error) {
 	var db dbaas.DB
+	err := p.setVersionObjectsWithDefaults(Version(""))
+	if err != nil {
+		return db, errors.Wrap(err, "version check")
+	}
 	secrets, err := p.cmd.GetSecrets(name + "-psmdb-users-secrets")
 	if err != nil {
 		return db, errors.Wrap(err, "get cluster secrets")
@@ -175,12 +179,16 @@ func (p *PSMDB) GetDBClusterList() ([]dbaas.DB, error) {
 	if err != nil {
 		return dbList, errors.Wrap(err, "unmarshal object")
 	}
+	err = p.setVersionObjectsWithDefaults(Version(""))
+	if err != nil {
+		return dbList, errors.Wrap(err, "version check")
+	}
 	for _, c := range st.Items {
 		b, err := json.Marshal(c)
 		if err != nil {
 			return dbList, errors.Wrap(err, "marshal")
 		}
-		p.ParseOptions("")
+
 		err = json.Unmarshal(b, &p.conf)
 		if err != nil {
 			return dbList, errors.Wrap(err, "unmarshal psmdb object")

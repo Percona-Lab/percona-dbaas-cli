@@ -41,6 +41,10 @@ func (psmdb *KuberPSMDB) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "check db ready")
 	}
+	err = psmdb.DescribeDB()
+	if err != nil {
+		return errors.Wrap(err, "describe-db")
+	}
 	err = psmdb.DeleteDB(true)
 	if err != nil {
 		return errors.Wrap(err, "delete-db")

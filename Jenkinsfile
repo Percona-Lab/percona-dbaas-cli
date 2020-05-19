@@ -1,5 +1,6 @@
 void CreateCluster(String CLUSTER_PREFIX) {
     withCredentials([string(credentialsId: 'GCP_PROJECT_ID', variable: 'GCP_PROJECT'), file(credentialsId: 'gcloud-key-file', variable: 'CLIENT_SECRET_FILE')]) {
+        echo "Create cluster"
         sh """
             export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
             source $HOME/google-cloud-sdk/path.bash.inc
@@ -12,6 +13,7 @@ void CreateCluster(String CLUSTER_PREFIX) {
 }
 
 void ShutdownCluster(String CLUSTER_PREFIX) {
+     echo "Shutdown cluster"
     withCredentials([string(credentialsId: 'GCP_PROJECT_ID', variable: 'GCP_PROJECT'), file(credentialsId: 'gcloud-key-file', variable: 'CLIENT_SECRET_FILE')]) {
         sh """
             export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
@@ -21,6 +23,33 @@ void ShutdownCluster(String CLUSTER_PREFIX) {
             gcloud container clusters delete --zone us-central1-a $CLUSTER_NAME-${CLUSTER_PREFIX}
         """
    }
+}
+
+void RunTests(String CLUSTER_PREFIX) {
+    echo "Start cli tests"
+    try {
+        echo "Start tests try"
+        sh """
+            sudo chmod +x ./dbaas-cli/integtests/run.sh
+            sg docker -c "
+                        docker run \
+                            --rm \
+                            -v $WORKSPACE:/go/src/github.com/Percona-Lab/percona-dbaas-cli \
+                            -w /go/src/github.com/Percona-Lab/percona-dbaas-cli \
+                            -e GO111MODULE=on \
+                            golang:1.13 ./dbaas-cli/integtests/run.sh
+                    "
+            sudo chmod +x ./integtests
+            sudo chmod +x ./percona-dbaas
+            export KUBECONFIG=/tmp/$CLUSTER_NAME-${CLUSTER_PREFIX}
+            source $HOME/google-cloud-sdk/path.bash.inc
+            ./integtests ./percona-dbaas
+        """
+    }
+    catch (exc) {
+        currentBuild.result = 'FAIL'
+    }
+    echo "The test was finished!"
 }
 
 def skipBranchBulds = true
@@ -33,6 +62,7 @@ pipeline {
         CLOUDSDK_CORE_DISABLE_PROMPTS = 1
         GIT_SHORT_COMMIT = sh(script: 'git describe --always --dirty', , returnStdout: true).trim()
         VERSION = "${env.GIT_BRANCH}-${env.GIT_SHORT_COMMIT}"
+        CLUSTER_NAME = sh(script: "echo jenkins-pxc-${GIT_SHORT_COMMIT} | tr '[:upper:]' '[:lower:]'", , returnStdout: true).trim()
         AUTHOR_NAME  = sh(script: "echo ${CHANGE_AUTHOR_EMAIL} | awk -F'@' '{print \$1}'", , returnStdout: true).trim()
     }
     agent {
@@ -68,57 +98,31 @@ pipeline {
                     source $HOME/google-cloud-sdk/path.bash.inc
                     gcloud components install alpha
                     gcloud components install kubectl
+                
+                    curl -s https://storage.googleapis.com/kubernetes-helm/helm-v2.16.1-linux-amd64.tar.gz \
+                        | sudo tar -C /usr/local/bin --strip-components 1 -zvxpf -
+                    curl -s -L https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz \
+                        | sudo tar -C /usr/local/bin --strip-components 1 --wildcards -zxvpf - '*/oc'
+                    
+                    curl -s -L https://github.com/mitchellh/golicense/releases/latest/download/golicense_0.2.0_linux_x86_64.tar.gz \
+                        | sudo tar -C /usr/local/bin --wildcards -zxvpf -
+                  #  curl -s -L https://github.com/src-d/go-license-detector/releases/latest/download/license-detector.linux_amd64.gz \
+                  #      | gunzip | sudo tee /usr/local/bin/license-detector > /dev/null
+                    curl -s -L https://github.com/src-d/go-license-detector/releases/download/v3.0.2/license-detector.linux_amd64.gz \
+                        | gunzip | sudo tee /usr/local/bin/license-detector > /dev/null
+                    sudo chmod +x /usr/local/bin/license-detector 
                 '''
-            }
-        }
-        stage('GoLicenseDetector test') {
-            when {
-                expression {
-                    !skipBranchBulds
+                withCredentials([file(credentialsId: 'cloud-secret-file', variable: 'CLOUD_SECRET_FILE')]) {
+                    sh '''
+                        cp $CLOUD_SECRET_FILE ./cloud-secret.yml
+                    '''
                 }
-            }
-            steps {
-               sh """
-                   license-detector ${WORKSPACE} | awk '{print \$2}' | awk 'NF > 0' > license-detector-new || true
-                   diff -u build/tests/license/compare/license-detector license-detector-new
-               """
-            }
-        }
-        stage('GoLicense test') {
-            when {
-                expression {
-                    !skipBranchBulds
-                }
-            }
-            steps {
-                sh '''
-                    sg docker -c "
-                         build/bin/build-source
-                         build/bin/build-binary
-                    "
-                '''
-
-                sh """
-                    CLI_VERSION=\$(cat VERSION | grep percona-dbaas-cli | awk '{print \$2}')
-                    golicense ${WORKSPACE}/tmp/binary/percona-dbaas-cli-\$CLI_VERSION/linux/percona-dbaas \
-                        | grep -v 'license not found'  \
-                        | awk '{print \$2}' | sort | uniq > golicense-new || true
-                    diff -u build/tests/license/compare/golicense golicense-new
-                """
             }
         }
         stage('Run tests') {
             steps {
                 CreateCluster('basic')
-                try {
-                    sh """
-                        ./integtests/run.sh
-                    """
-                }
-                catch (exc) {
-                    currentBuild.result = 'FAILURE'
-                }
-                echo "The test was finished!"
+                RunTests('basic')
                 ShutdownCluster('basic')
             }
         }
