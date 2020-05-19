@@ -17,8 +17,10 @@ package mongo
 import (
 	"strings"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools/format"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +34,16 @@ var (
 var MongoCmd = &cobra.Command{
 	Use:   "mongodb",
 	Short: "Manage your MongoDB instance",
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		err := setupOutput(cmd)
+		if err != nil {
+			log.Error(err)
+		}
+		err = format.Detect(cmd)
+		if err != nil {
+			log.Error(err)
+		}
+	},
 }
 
 func addSpec(opts string) string {

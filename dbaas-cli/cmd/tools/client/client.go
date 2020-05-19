@@ -1,4 +1,4 @@
-package tools
+package client
 
 import (
 	"errors"
@@ -10,10 +10,6 @@ import (
 )
 
 func GetInstance(name, options, engine, provider, rootPass string) dbaas.Instance {
-	if len(options) > 0 {
-		options = options
-	}
-
 	return dbaas.Instance{
 		Name:          name,
 		EngineOptions: options,

@@ -22,7 +22,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools/client"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 )
 
@@ -36,7 +36,7 @@ var describeCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		instance := tools.GetInstance(name, "", *descrEngine, *descrProvider, "")
+		instance := client.GetInstance(name, "", *descrEngine, *descrProvider, "")
 
 		if len(name) > 0 {
 			db, err := dbaas.DescribeDB(instance)

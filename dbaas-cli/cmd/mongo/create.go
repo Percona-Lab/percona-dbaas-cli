@@ -19,7 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools/client"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb"
 )
@@ -41,12 +41,7 @@ var createCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		err := setupOutput(cmd)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		instance := tools.GetInstance(args[0], addSpec(*options), *engine, *provider, *rootPass)
+		instance := client.GetInstance(args[0], addSpec(*options), *engine, *provider, *rootPass)
 
 		warns, err := dbaas.PreCheck(instance)
 		for _, w := range warns {
@@ -64,7 +59,7 @@ var createCmd = &cobra.Command{
 			log.Error("create db: ", err)
 			return
 		}
-		cluster, err := tools.GetDB(instance, false, noWait, maxTries)
+		cluster, err := client.GetDB(instance, false, noWait, maxTries)
 		if err != nil {
 			dotPrinter.Stop("error")
 			log.Errorf("unable to start cluster:", err)

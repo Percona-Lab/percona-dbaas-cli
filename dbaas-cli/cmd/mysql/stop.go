@@ -21,7 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools/client"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	_ "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc"
 )
@@ -39,12 +39,7 @@ var stopCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		err := setupOutput(cmd)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		instance := tools.GetInstance(args[0], addSpec("pause=true"), *stopEngine, *stopProvider, "")
+		instance := client.GetInstance(args[0], addSpec("pause=true"), *stopEngine, *stopProvider, "")
 
 		warns, err := dbaas.PreCheck(instance)
 		for _, w := range warns {
@@ -64,7 +59,7 @@ var stopCmd = &cobra.Command{
 		}
 		time.Sleep(time.Second * 10) //let k8s time for applying new cr
 
-		cluster, err := tools.GetDB(instance, true, noWait, maxTries)
+		cluster, err := client.GetDB(instance, true, noWait, maxTries)
 		if err != nil {
 			dotPrinter.Stop("error")
 			log.Errorf("unable to start cluster:", err)
