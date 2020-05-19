@@ -8,6 +8,7 @@ import (
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v110"
 	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v120"
 	v130 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v130"
+	v140 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-psmdb/types/v140"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
 
 	"github.com/pkg/errors"
@@ -16,7 +17,7 @@ import (
 const (
 	provider       = "k8s"
 	engine         = "psmdb"
-	defaultVersion = "1.3.0"
+	defaultVersion = "1.4.0"
 )
 
 type Version string
@@ -52,6 +53,12 @@ func init() {
 			Bundle: v130.Bundle,
 		},
 		psmdb: &v130.PerconaServerMongoDB{},
+	}
+	objects["1.4.0"] = VersionObject{
+		k8s: k8s.Objects{
+			Bundle: v140.Bundle,
+		},
+		psmdb: &v140.PerconaServerMongoDB{},
 	}
 }
 

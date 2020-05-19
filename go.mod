@@ -8,11 +8,15 @@ replace github.com/percona/percona-server-mongodb-operator/v120 => github.com/pe
 
 replace github.com/percona/percona-server-mongodb-operator/v130 => github.com/percona/percona-server-mongodb-operator 1.3.0
 
+replace github.com/percona/percona-server-mongodb-operator/v140 => github.com/percona/percona-server-mongodb-operator 1.4.0
+
 replace github.com/percona/percona-xtradb-cluster-operator/v110 => github.com/percona/percona-xtradb-cluster-operator 1.1.0
 
 replace github.com/percona/percona-xtradb-cluster-operator/v120 => github.com/percona/percona-xtradb-cluster-operator 1.2.0
 
 replace github.com/percona/percona-xtradb-cluster-operator/v130 => github.com/percona/percona-xtradb-cluster-operator 1.3.0
+
+replace github.com/percona/percona-xtradb-cluster-operator/v140 => github.com/percona/percona-xtradb-cluster-operator 1.4.0
 
 require (
 	github.com/hashicorp/go-version v1.2.0 // indirect
