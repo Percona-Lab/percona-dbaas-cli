@@ -125,20 +125,18 @@ func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
 		db.Status = "error"
 		return db, err
 	}
-	ns, err := p.cmd.GetCurrentNamespace()
+	ns, err := p.getNamespace()
 	if err != nil {
 		return db, errors.Wrap(err, "get namspace name")
 	}
-	if len(ns) == 0 {
-		ns = "default"
-	}
+
 	db.Provider = provider
 	db.Engine = engine
 	db.ResourceName = name
 	db.Port = 3306
 	db.User = "root"
 	db.Pass = string(secrets["root"])
-	db.ResourceEndpoint = st.GetStatusHost() + "." + ns + ".pxc.svc.local"
+	db.ResourceEndpoint = st.GetStatusHost() + "." + ns + "pxc.svc.local"
 	if p.conf.GetProxysqlServiceType() == "LoadBalancer" {
 		svc := corev1.Service{}
 		svcData, err := p.cmd.GetObject("svc", name+"-proxysql")
@@ -379,4 +377,30 @@ func checkPodsCondition(podsData []byte) error {
 	}
 
 	return nil
+}
+
+func (p *PXC) getNamespace() (string, error) {
+	ns, err := p.cmd.GetCurrentNamespace()
+	if err != nil {
+		return "", errors.Wrap(err, "get namspace name")
+	}
+	if len(ns) == 0 {
+		ns = "default"
+	}
+	ns = ns + "."
+
+	if p.getOperatorVersion() == "1.4.0" {
+		ns = ""
+	}
+
+	return ns, nil
+}
+
+func (p *PXC) getOperatorVersion() string {
+	imageArr := strings.Split(p.conf.GetOperatorImage(), ":")
+	if len(imageArr) > 1 {
+		return imageArr[1]
+	}
+
+	return ""
 }

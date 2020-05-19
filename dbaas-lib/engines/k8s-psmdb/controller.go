@@ -3,6 +3,7 @@ package psmdb
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	mrand "math/rand"
 	"strings"
@@ -45,6 +46,7 @@ func (p *PSMDB) CreateDBCluster(name, opts, rootPass, version string) error {
 	}
 	_, err = p.cmd.GetObjectsElement("deployment", p.operatorName(), ".spec.template.spec.containers[0].image")
 	if err != nil && err == k8s.ErrNotFound {
+		fmt.Println("Applying bundles")
 		p.cmd.ApplyBundles(p.bundle)
 	}
 

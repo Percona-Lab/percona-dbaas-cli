@@ -20,17 +20,18 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 	v110 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v110"
 	v120 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v120"
 	v130 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v130"
+	v140 "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/engines/k8s-pxc/types/v140"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib/k8s"
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 )
 
 const (
 	provider               = "k8s"
 	engine                 = "pxc"
-	defaultVersion Version = "1.3.0"
+	defaultVersion Version = "1.4.0"
 )
 
 type Version string
@@ -65,6 +66,12 @@ func init() {
 			Bundle: v130.Bundle,
 		},
 		pxc: &v130.PerconaXtraDBCluster{},
+	}
+	objects["1.4.0"] = VersionObject{
+		k8s: k8s.Objects{
+			Bundle: v140.Bundle,
+		},
+		pxc: &v140.PerconaXtraDBCluster{},
 	}
 }
 
