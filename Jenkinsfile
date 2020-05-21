@@ -102,16 +102,6 @@ pipeline {
                 
                     curl -s https://storage.googleapis.com/kubernetes-helm/helm-v2.16.1-linux-amd64.tar.gz \
                         | sudo tar -C /usr/local/bin --strip-components 1 -zvxpf -
-                    curl -s -L https://github.com/openshift/origin/releases/download/v3.11.0/openshift-origin-client-tools-v3.11.0-0cbc58b-linux-64bit.tar.gz \
-                        | sudo tar -C /usr/local/bin --strip-components 1 --wildcards -zxvpf - '*/oc'
-                    
-                    curl -s -L https://github.com/mitchellh/golicense/releases/latest/download/golicense_0.2.0_linux_x86_64.tar.gz \
-                        | sudo tar -C /usr/local/bin --wildcards -zxvpf -
-                  #  curl -s -L https://github.com/src-d/go-license-detector/releases/latest/download/license-detector.linux_amd64.gz \
-                  #      | gunzip | sudo tee /usr/local/bin/license-detector > /dev/null
-                    curl -s -L https://github.com/src-d/go-license-detector/releases/download/v3.0.2/license-detector.linux_amd64.gz \
-                        | gunzip | sudo tee /usr/local/bin/license-detector > /dev/null
-                    sudo chmod +x /usr/local/bin/license-detector 
                 '''
                 withCredentials([file(credentialsId: 'cloud-secret-file', variable: 'CLOUD_SECRET_FILE')]) {
                     sh '''
@@ -175,7 +165,7 @@ pipeline {
                                     -H "Authorization: token ${GITHUB_API_TOKEN}" \
                                     -d "{\\"body\\":\\"License check is ok. \\"}" \
                                     "https://api.github.com/repos/\$(echo $CHANGE_URL | cut -d '/' -f 4-5)/issues/${CHANGE_ID}/comments"
-                                    curl -v -X POST \
+                                curl -v -X POST \
                                     -H "Authorization: token ${GITHUB_API_TOKEN}" \
                                     -d "{\\"body\\":\\"Tests passed\\"}" \
                                     "https://api.github.com/repos/\$(echo $CHANGE_URL | cut -d '/' -f 4-5)/issues/${CHANGE_ID}/comments"
