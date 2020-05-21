@@ -49,6 +49,7 @@ void RunTests(String CLUSTER_PREFIX) {
     catch (exc) {
         currentBuild.result = 'FAIL'
     }
+
     echo "The test was finished!"
 }
 
@@ -174,12 +175,26 @@ pipeline {
                                     -H "Authorization: token ${GITHUB_API_TOKEN}" \
                                     -d "{\\"body\\":\\"License check is ok. \\"}" \
                                     "https://api.github.com/repos/\$(echo $CHANGE_URL | cut -d '/' -f 4-5)/issues/${CHANGE_ID}/comments"
+                                    curl -v -X POST \
+                                    -H "Authorization: token ${GITHUB_API_TOKEN}" \
+                                    -d "{\\"body\\":\\"Tests passed\\"}" \
+                                    "https://api.github.com/repos/\$(echo $CHANGE_URL | cut -d '/' -f 4-5)/issues/${CHANGE_ID}/comments"
                             """
-                        }
+                        }      
                     }
                  }
                  else {
                      slackSend channel: '#cloud-dev-ci', color: '#FF0000', message: "[${JOB_NAME}]: build ${currentBuild.result}, ${BUILD_URL} owner: @${AUTHOR_NAME}"
+                     if (env.CHANGE_URL) {
+                        withCredentials([string(credentialsId: 'GITHUB_API_TOKEN', variable: 'GITHUB_API_TOKEN')]) {
+                            sh """
+                                curl -v -X POST \
+                                    -H "Authorization: token ${GITHUB_API_TOKEN}" \
+                                    -d "{\\"body\\":\\"Tests failed\\"}" \
+                                    "https://api.github.com/repos/\$(echo $CHANGE_URL | cut -d '/' -f 4-5)/issues/${CHANGE_ID}/comments"
+                            """
+                        }      
+                    }
                  }
             }
             deleteDir()
