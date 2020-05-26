@@ -17,7 +17,7 @@ package mysql
 import (
 	"strings"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/tools/format"
+	op "github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/output"
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -35,13 +35,18 @@ var PXCCmd = &cobra.Command{
 	Use:   "mysql",
 	Short: "Manage your MySQL instance",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		err := setupOutput(cmd)
+		output, err := cmd.Flags().GetString("output")
 		if err != nil {
-			log.Error(err)
+			log.Error(errors.Wrap(err, "get output flag value"))
+			return
 		}
-		err = format.Detect(cmd)
+		dotPrinter = op.GetDotprinter(output)
+		log.SetFormatter(op.GetFormatter(output))
+
+		noWait, err = cmd.Flags().GetBool("no-wait")
 		if err != nil {
-			log.Error(err)
+			log.Error(errors.Wrap(err, "get no-wait flag"))
+			return
 		}
 	},
 }
@@ -53,6 +58,7 @@ func addSpec(opts string) string {
 	return "spec." + strings.Replace(opts, ",", ",spec.", -1)
 }
 
+/*
 func setupOutput(cmd *cobra.Command) error {
 	output, err := cmd.Flags().GetString("output")
 	if err != nil {
@@ -74,3 +80,13 @@ func setupOutput(cmd *cobra.Command) error {
 
 	return nil
 }
+
+
+var output *string
+var noWait *bool
+
+func init() {
+	modifyEngine = PXCCmd.Flags().StringP("output", "o", "text", `Answers format. Can be "json" or "text".`)
+	noWait = PXCCmd.Flags().Bool("no-wait", false, "Dont wait while command is done")
+}
+*/

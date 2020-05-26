@@ -15,11 +15,9 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/cmd/mongo"
@@ -32,12 +30,6 @@ var rootCmd = &cobra.Command{
 	Short: "The simplest DBaaS tool in the world",
 	Long: `    Hello, it is the simplest DBaaS tool in the world,
 	please use commands below to manage your DBaaS.`,
-	//PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		//err := detectFormat(cmd)
-		//if err != nil {
-		//	log.Error("detect format:", err)
-		//}
-	//},
 }
 
 func init() {
@@ -54,6 +46,7 @@ func main() {
 	}
 }
 
+/*
 func detectFormat(cmd *cobra.Command) error {
 	format, err := cmd.Flags().GetString("output")
 	if err != nil {
@@ -101,3 +94,4 @@ func (f *cliTextFormatter) Format(entry *log.Entry) ([]byte, error) {
 	b.WriteString("\n")
 	return b.Bytes(), nil
 }
+*/

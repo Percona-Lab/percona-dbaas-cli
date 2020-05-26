@@ -1,29 +1,33 @@
-package format
+package output
 
 import (
 	"bytes"
 	"fmt"
 
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
-func Detect(cmd *cobra.Command) error {
-	format, err := cmd.Flags().GetString("output")
-	if err != nil {
-		return err
-	}
-
+func GetFormatter(format string) log.Formatter {
 	switch format {
 	case "json":
-		log.SetFormatter(&log.JSONFormatter{
+		return &log.JSONFormatter{
 			DisableTimestamp: true,
 			PrettyPrint:      true,
-		})
+		}
+
 	default:
-		log.SetFormatter(&cliTextFormatter{log.TextFormatter{}})
+		return &cliTextFormatter{log.TextFormatter{}}
 	}
-	return nil
+}
+
+func GetDotprinter(format string) pb.ProgressBar {
+	switch format {
+	case "json":
+		return pb.NewNoOp()
+	default:
+		return pb.NewDotPrinter()
+	}
 }
 
 type cliTextFormatter struct {
