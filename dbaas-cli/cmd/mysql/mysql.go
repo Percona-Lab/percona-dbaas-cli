@@ -57,36 +57,3 @@ func addSpec(opts string) string {
 	}
 	return "spec." + strings.Replace(opts, ",", ",spec.", -1)
 }
-
-/*
-func setupOutput(cmd *cobra.Command) error {
-	output, err := cmd.Flags().GetString("output")
-	if err != nil {
-		return errors.Wrap(err, "get output flag")
-	}
-
-	switch output {
-	case "json":
-		dotPrinter = pb.NewNoOp()
-	default:
-		dotPrinter = pb.NewDotPrinter()
-	}
-
-	noW, err := cmd.Flags().GetBool("no-wait")
-	if err != nil {
-		return errors.Wrap(err, "get no-wait flag")
-	}
-	noWait = noW
-
-	return nil
-}
-
-
-var output *string
-var noWait *bool
-
-func init() {
-	modifyEngine = PXCCmd.Flags().StringP("output", "o", "text", `Answers format. Can be "json" or "text".`)
-	noWait = PXCCmd.Flags().Bool("no-wait", false, "Dont wait while command is done")
-}
-*/
