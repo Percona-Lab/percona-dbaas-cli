@@ -25,7 +25,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/pb"
+	"github.com/Percona-Lab/percona-dbaas-cli/dbaas-cli/client"
 	dbaas "github.com/Percona-Lab/percona-dbaas-cli/dbaas-lib"
 )
 
@@ -42,18 +42,7 @@ var delCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		output, err := cmd.Flags().GetString("output")
-		if err != nil {
-			log.Error("get output flag: ", err)
-		}
-
-		var dotPrinter pb.ProgressBar
-		switch output {
-		case "json":
-			dotPrinter = pb.NewNoOp()
-		default:
-			dotPrinter = pb.NewDotPrinter()
-		}
+		instance := client.GetInstance(args[0], "", *delEngine, *delProvider, "")
 
 		if !*forced {
 			var yn string
@@ -71,15 +60,7 @@ var delCmd = &cobra.Command{
 				return
 			}
 		}
-		noWait, err := cmd.Flags().GetBool("no-wait")
-		if err != nil {
-			log.Error("get no-wait flag: ", err)
-		}
-		instance := dbaas.Instance{
-			Name:     args[0],
-			Engine:   *delEngine,
-			Provider: *delProvider,
-		}
+
 		deletePVC := false
 		if !*preserve {
 			deletePVC = true
