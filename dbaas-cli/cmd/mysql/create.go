@@ -62,7 +62,7 @@ var createCmd = &cobra.Command{
 		cluster, err := client.GetDB(instance, false, noWait, maxTries)
 		if err != nil {
 			dotPrinter.Stop("error")
-			log.Errorf("unable to start cluster:", err)
+			log.Errorf("unable to start cluster: %v", err)
 			return
 		}
 

@@ -141,6 +141,7 @@ func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
 	db.User = "root"
 	db.Pass = string(secrets["root"])
 	db.ResourceEndpoint = st.GetStatusHost() + "." + ns + "pxc.svc.local"
+	db.Status = st.GetStatus()
 	if p.conf.GetProxysqlServiceType() == "LoadBalancer" {
 		svc := corev1.Service{}
 		svcData, err := p.cmd.GetObject("svc", name+"-proxysql")
@@ -162,7 +163,7 @@ func (p *PXC) GetDBCluster(name, opts string) (dbaas.DB, error) {
 		}
 		return db, nil
 	}
-	db.Status = st.GetStatus()
+
 	if st.GetStatus() == dbaas.StateReady {
 		db.Message = "To access database please run the following commands:\nkubectl port-forward svc/" + name + "-proxysql 3306:3306 &\nmysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD"
 	}
