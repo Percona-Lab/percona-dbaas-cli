@@ -135,9 +135,6 @@ The output of the above command should look as follows:
 
 .. code:: text
 
-   ARE YOU SURE YOU WANT TO RESTART THE DATABASE 'example'? Yes/No
-   
-   yes
    Restarting........................[done]
 
 ``stop-db``
@@ -156,9 +153,6 @@ The output of the above command should look as follows:
 
 .. code:: text
 
-   ARE YOU SURE YOU WANT TO STOP THE DATABASE 'example'? Yes/No
-   
-   yes
    Stopping........................[done]
 
 ``start-db``
@@ -178,9 +172,6 @@ The output of the above command should look as follows:
 
 .. code:: text
 
-   ARE YOU SURE YOU WANT TO START THE DATABASE 'example'? Yes/No
-   
-   yes
    Starting........................[done]
 
 ``delete-db``
