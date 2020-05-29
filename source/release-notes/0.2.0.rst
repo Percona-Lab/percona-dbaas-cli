@@ -4,7 +4,7 @@
 *Percona DBaaS CLI Tool* 0.2.0
 ================================================================================
 
-:Date: January 1, 1
+:Date: June 1, 2020
 :Installation: `Installing Percona DBaaS CLI Tool <https://www.percona.com/doc/dbaas-cli/installation.html>`_
 
 
