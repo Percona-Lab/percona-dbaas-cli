@@ -4,9 +4,8 @@
 *Percona DBaaS CLI Tool* 0.2.0
 ================================================================================
 
-:Date: June 1, 2020
+:Date: June 3, 2020
 :Installation: `Installing Percona DBaaS CLI Tool <https://www.percona.com/doc/dbaas-cli/installation.html>`_
-
 
 Improvements
 ================================================================================
@@ -16,3 +15,4 @@ Improvements
 * :jirabug:`DBAASCLI-68`: Show external Resource Endpoint in the command output if proxysql.servicetype=LoadBalancer
 * :jirabug:`DBAASCLI-66`: The "not enough resources" issues detection with user-friendly messages
 * :jirabug:`DBAASCLI-64`: New options to trigger graceful shutdown and restart of the Percona XtraDB Cluster
+* :jirabug:`DBAASCLI-67`: Ubuntu 20.04 support
