@@ -1,7 +1,11 @@
 List of Options
 ----------------------------------
 
-Any valid option from the Percona XtraDB Cluster Operator `Custom Resource <https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html>`_ can be set using the ``--options`` flag.
+Any combination of valid options from the Percona XtraDB Cluster Operator `Custom Resource <https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html>`_ can be set as a comma-separated list using the ``--options`` flag:
+
+.. code-block:: bash
+
+   percona-dbaas mysql create-db cluster1 --options="proxysql.serviceType=LoadBalancer,proxysql.size=3"
 
 Here is the list of valid commonly used options:
 
