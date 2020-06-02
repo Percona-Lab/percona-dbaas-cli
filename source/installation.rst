@@ -29,7 +29,7 @@ Installing on Debian or Ubuntu
      sudo apt-get update
      sudo apt-get install percona-dbaas-cli
 
-#. Once Percona DBaaS CLI Tool is installed you can run``percona-dbaas --help``
+#. Once Percona DBaaS CLI Tool is installed you can run ``percona-dbaas --help``
    to see the brief information about the tool commands.
 
 Installing on  Red Hat and CentOS
@@ -49,6 +49,6 @@ Installing on  Red Hat and CentOS
 
       yum install percona-dbaas-cli
 
-#. Once Percona DBaaS CLI Tool is installed you can run``percona-dbaas --help``
+#. Once Percona DBaaS CLI Tool is installed you can run ``percona-dbaas --help``
    to see the brief information about the tool commands.
 
