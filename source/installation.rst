@@ -1,7 +1,7 @@
 Installation of the percona-dbaas-cli tool
 ==========================================
 
-Source code for the Percona DBaaS CLI Tool is currently available on github as an
+Source code for the Percona DBaaS CLI Tool is currently available on GitHub as an
 experimental repository inside of the Percona-Lab organization.
 
 Percona provides dbaas-cli tool packages for automatic installation from software
@@ -29,7 +29,7 @@ Installing on Debian or Ubuntu
      sudo apt-get update
      sudo apt-get install percona-dbaas-cli
 
-#. Once Percona DBaaS CLI Tool is installed you can run``percona-dbaas --help``
+#. Once Percona DBaaS CLI Tool is installed you can run ``percona-dbaas --help``
    to see the brief information about the tool commands.
 
 Installing on  Red Hat and CentOS
@@ -49,6 +49,6 @@ Installing on  Red Hat and CentOS
 
       yum install percona-dbaas-cli
 
-#. Once Percona DBaaS CLI Tool is installed you can run``percona-dbaas --help``
+#. Once Percona DBaaS CLI Tool is installed you can run ``percona-dbaas --help``
    to see the brief information about the tool commands.
 
