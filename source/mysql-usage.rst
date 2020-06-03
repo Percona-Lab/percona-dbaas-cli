@@ -119,6 +119,61 @@ The output of the above command should look as follows:
    kubectl port-forward svc/example-proxysql 3306:3306 &
    mysql -h 127.0.0.1 -P 3306 -uroot -pPASSWORD
 
+``restart-db``
+---------------
+
+This subcommand restarts an already existing MySQL cluster with the given name.
+
+Example Usage
+*************
+
+.. code:: bash
+
+   ./percona-dbaas mysql restart-db example
+
+The output of the above command should look as follows:
+
+.. code:: text
+
+   Restarting........................[done]
+
+``stop-db``
+---------------
+
+This subcommand stops an already running MySQL cluster with the given name.
+
+Example Usage
+*************
+
+.. code:: bash
+
+   ./percona-dbaas mysql stop-db example
+
+The output of the above command should look as follows:
+
+.. code:: text
+
+   Stopping........................[done]
+
+``start-db``
+---------------
+
+This subcommand starts an already existing MySQL cluster with the given name,
+which was previously stopped with the ``stop-db`` command.
+
+Example Usage
+*************
+
+.. code:: bash
+
+   ./percona-dbaas mysql start-db example
+
+The output of the above command should look as follows:
+
+.. code:: text
+
+   Starting........................[done]
+
 ``delete-db``
 ---------------
 
