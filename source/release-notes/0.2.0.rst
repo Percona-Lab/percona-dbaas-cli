@@ -1,0 +1,28 @@
+.. _DBAASCLI-0.2.0:
+
+================================================================================
+*Percona DBaaS CLI Tool* 0.2.0
+================================================================================
+
+:Date: June 3, 2020
+:Installation: `Installing Percona DBaaS CLI Tool <https://www.percona.com/doc/dbaas-cli/installation.html>`_
+
+The Percona DBaaS Command Line Tool (percona-dbaas-cli) is a companion tool for the Percona
+Kubernetes Operators which provides a simplified way for users to deploy and manage databases
+without needing deep Kubernetes knowledge.  This release 0.2.0 is experimental and
+supports the latest version of the Kubernetes Operators.
+
+Improvements
+================================================================================
+
+* :jirabug:`DBAASCLI-70`: Support for the Percona XtraDB Cluster and Percona Server for MongoDB 1.4.0 versions
+* :jirabug:`DBAASCLI-69`: Check if an operator exists and create it if not, before performing any action
+* :jirabug:`DBAASCLI-68`: Show external Resource Endpoint in the command output if proxysql.servicetype=LoadBalancer
+* :jirabug:`DBAASCLI-67`: Ubuntu 20.04 support
+* :jirabug:`DBAASCLI-66`: Detect "not enough resources" situations and add user-friendly messages
+* :jirabug:`DBAASCLI-64`: New options to trigger graceful shutdown and restart of the Percona XtraDB Cluster
+
+Bugs Fixed
+================================================================================
+
+* :jirabug:`DBAASCLI-91`: Incorrect syntax in documentation for the MongoDB list of commonly used options
