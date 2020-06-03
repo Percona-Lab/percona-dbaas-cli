@@ -1,7 +1,11 @@
 List of Options
 ----------------------------------
 
-Any valid option from the Percona Server for MongoDB Operator `Custom Resource <https://www.percona.com/doc/kubernetes-operator-for-psmongodb/operator.html>`_ can be set using the ``--options`` flag.
+Any valid option from the Percona Server for MongoDB Operator `Custom Resource <https://www.percona.com/doc/kubernetes-operator-for-psmongodb/operator.html>`_ can be set using the ``--options`` flag:
+
+.. code-block:: bash
+
+   percona-dbaas mongodb create-db cluster1 --options="replsets.arbiter.enabled=true,replsets.size=4"
 
 Here is the list of the valid commonly used options:
 
