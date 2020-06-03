@@ -16,5 +16,4 @@ Here is the list of valid commonly used options:
 * `proxysql.affinity <https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html#proxysql-affinity-topologykey>`_ - Sets an affinity rule, such as for multi-AZ deployments
 * `proxysql.resources <https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html#proxysql-resources-requests-memory>`_ - Sets CPU and Memory resources allocated to each member of the ProxySQL cluster.
 * `proxysql.enabled <https://www.percona.com/doc/kubernetes-operator-for-pxc/operator.html#proxysql-enabled>`_ - Defaults to true, allows you to disable proxying.
-
-
+* `allowUnsafeConfigurations <operator.html#operator-custom-resource-options>`_ - Enables or disables cluster configurations with unsafe parameters, e.g. with less than 3 nodes or without TLS/SSL certificates.
