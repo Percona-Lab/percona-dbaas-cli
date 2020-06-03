@@ -195,3 +195,10 @@ The output of the above command should look as follows:
    yes
    Deleting........................[done]
 
+.. note:: You can use this subcommand with the additional ``--preserve-data``
+   key to preventing it from deleting persistent volumes with the actual data.
+   This volume may be later used with some Pod to access the data, e.g., to copy
+   it with the ``kubectl cp`` command. Also, you can later create a new cluster
+   with the same name, and volumes will be re-used so that the previous data
+   will be present for MySQL (please note that using ``stop-db`` command is a
+   better way to stop the cluster than deleting and re-creating it).
