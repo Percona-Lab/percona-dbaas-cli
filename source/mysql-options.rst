@@ -5,7 +5,7 @@ Any combination of valid options from the Percona XtraDB Cluster Operator `Custo
 
 .. code-block:: bash
 
-   percona-dbaas mysql create-db cluster1 --options="proxysql.serviceType=LoadBalancer,proxysql.size=3"
+   percona-dbaas mysql create-db cluster1 --options="proxysql.serviceType=LoadBalancer,proxysql.size=3,pxc.volumeSpec.persistentVolumeClaim.resources.requests=storage:250Gi"
 
 Here is the list of valid commonly used options:
 

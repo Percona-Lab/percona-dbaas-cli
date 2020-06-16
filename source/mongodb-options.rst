@@ -5,7 +5,7 @@ Any valid option from the Percona Server for MongoDB Operator `Custom Resource <
 
 .. code-block:: bash
 
-   percona-dbaas mongodb create-db cluster1 --options="replsets.arbiter.enabled=true,replsets.size=4"
+   percona-dbaas mongodb create-db cluster1 --options="replsets.arbiter.enabled=true,replsets.size=4,replsets.volumeSpec.persistentVolumeClaim.resources.requests=storage:250Gi"
 
 Here is the list of the valid commonly used options:
 
