@@ -2,7 +2,7 @@
 
 The tool dbaas-cli is no longer developed and this repository is deprecated.
 
-Percona team is focused to deliver Database-as-a-Service functionality through [Percona Monitoring and Management](https://www.percona.com/doc/percona-monitoring-and-management/2.x/index.html). Read more [here](https://github.com/percona/percona-postgresql-operator/).
+Percona team is focused to deliver Database-as-a-Service functionality through [Percona Monitoring and Management](https://www.percona.com/doc/percona-monitoring-and-management/2.x/index.html). Read more [here](https://www.percona.com/doc/percona-monitoring-and-management/2.x/setting-up/server/dbaas.html).
 
 # Percona Kuberntes Operators
 
